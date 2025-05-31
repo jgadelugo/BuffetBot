@@ -1,0 +1,386 @@
+/* GlossaryComponent.css - Styles for Financial Metrics Glossary */
+
+/* Container and Layout */
+.glossary-container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Header */
+.glossary-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.glossary-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.glossary-header p {
+  font-size: 1.125rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+/* Main Content Layout */
+.glossary-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .glossary-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sidebar */
+.glossary-sidebar {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  height: fit-content;
+  position: sticky;
+  top: 1rem;
+}
+
+.sidebar-section {
+  margin-bottom: 2rem;
+}
+
+.sidebar-section:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-section h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+}
+
+/* Search Input */
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Category Filters */
+.category-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.category-option {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.category-option input[type="radio"] {
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
+.category-option span {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Statistics */
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.stat-item strong {
+  color: #1f2937;
+}
+
+/* Export Buttons */
+.export-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.export-button:last-child {
+  margin-bottom: 0;
+}
+
+.export-button.csv {
+  background-color: #10b981;
+  color: white;
+}
+
+.export-button.csv:hover {
+  background-color: #059669;
+}
+
+.export-button.json {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.export-button.json:hover {
+  background-color: #2563eb;
+}
+
+/* Main Content Area */
+.glossary-main {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  min-height: 600px;
+}
+
+/* Search Results */
+.search-results {
+  color: #6b7280;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+}
+
+/* Category Groups */
+.category-group {
+  margin-bottom: 3rem;
+}
+
+.category-group:last-child {
+  margin-bottom: 0;
+}
+
+.category-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.category-header:hover {
+  color: #4b5563;
+}
+
+.metric-count {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #6b7280;
+  margin-left: 0.5rem;
+}
+
+.expand-icon {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* Metric Card */
+.metric-card {
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  border-left: 4px solid;
+  transition: all 0.3s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.metric-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+}
+
+.category-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.metric-description {
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.metric-formula {
+  background-color: #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.metric-formula strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.metric-formula code {
+  font-family: 'Courier New', Courier, monospace;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+/* Highlight for search */
+.highlight {
+  background-color: #fef3c7;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* No Results */
+.no-results {
+  text-align: center;
+  color: #6b7280;
+  padding: 3rem 0;
+  font-size: 1.125rem;
+}
+
+/* Footer */
+.glossary-footer {
+  background-color: #1f2937;
+  color: white;
+  padding: 2rem;
+  text-align: center;
+  margin-top: 4rem;
+}
+
+.glossary-footer p {
+  margin: 0.5rem 0;
+}
+
+.glossary-footer p:last-child {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  color: #6b7280;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .glossary-content {
+    grid-template-columns: 250px 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .glossary-sidebar {
+    position: relative;
+    top: 0;
+  }
+  
+  .glossary-header h1 {
+    font-size: 2rem;
+  }
+  
+  .metric-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .category-badge {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .glossary-sidebar,
+  .glossary-footer {
+    display: none;
+  }
+  
+  .glossary-header {
+    background: none;
+    color: black;
+    padding: 1rem 0;
+  }
+  
+  .metric-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  
+  .category-header {
+    cursor: default;
+  }
+  
+  .expand-icon {
+    display: none;
+  }
+} 
