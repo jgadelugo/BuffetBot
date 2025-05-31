@@ -9,3 +9,5 @@
 {"timestamp": "2025-05-31T03:19:58.204545", "level": "ERROR", "message": "Missing required statement: income_stmt", "module": "validators", "function": "validate_financial_data", "line": 108}
 {"timestamp": "2025-05-31T03:24:43.236675", "level": "ERROR", "message": "Missing required statement: income_stmt", "module": "validators", "function": "validate_financial_data", "line": 108}
 {"timestamp": "2025-05-31T03:27:34.444215", "level": "ERROR", "message": "Missing required statement: income_stmt", "module": "validators", "function": "validate_financial_data", "line": 108}
+{"timestamp": "2025-05-31T17:19:56.591310", "level": "ERROR", "message": "Missing required statement: income_stmt", "module": "validators", "function": "validate_financial_data", "line": 108}
+{"timestamp": "2025-05-31T21:54:43.741204", "level": "ERROR", "message": "Missing required statement: income_stmt", "module": "validators", "function": "validate_financial_data", "line": 108}

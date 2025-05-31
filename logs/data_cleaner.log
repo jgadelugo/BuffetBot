@@ -16,3 +16,15 @@
 {"timestamp": "2025-05-31T03:27:34.706771", "level": "WARNING", "message": "Missing required column Free Cash Flow in cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 412}
 {"timestamp": "2025-05-31T03:27:34.706942", "level": "INFO", "message": "Successfully cleaned cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 416}
 {"timestamp": "2025-05-31T03:27:34.706984", "level": "INFO", "message": "Completed financial data cleaning", "module": "cleaner", "function": "clean_financial_data", "line": 430}
+{"timestamp": "2025-05-31T17:19:56.728462", "level": "INFO", "message": "Starting financial data cleaning", "module": "cleaner", "function": "clean_financial_data", "line": 342}
+{"timestamp": "2025-05-31T17:19:56.730006", "level": "INFO", "message": "Successfully cleaned income_stmt", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T17:19:56.731311", "level": "INFO", "message": "Successfully cleaned balance_sheet", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T17:19:56.732430", "level": "WARNING", "message": "Missing required column Free Cash Flow in cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 412}
+{"timestamp": "2025-05-31T17:19:56.732620", "level": "INFO", "message": "Successfully cleaned cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T17:19:56.732678", "level": "INFO", "message": "Completed financial data cleaning", "module": "cleaner", "function": "clean_financial_data", "line": 430}
+{"timestamp": "2025-05-31T21:54:43.884250", "level": "INFO", "message": "Starting financial data cleaning", "module": "cleaner", "function": "clean_financial_data", "line": 342}
+{"timestamp": "2025-05-31T21:54:43.887009", "level": "INFO", "message": "Successfully cleaned income_stmt", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T21:54:43.887909", "level": "INFO", "message": "Successfully cleaned balance_sheet", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T21:54:43.888950", "level": "WARNING", "message": "Missing required column Free Cash Flow in cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 412}
+{"timestamp": "2025-05-31T21:54:43.889105", "level": "INFO", "message": "Successfully cleaned cash_flow", "module": "cleaner", "function": "clean_financial_data", "line": 416}
+{"timestamp": "2025-05-31T21:54:43.889145", "level": "INFO", "message": "Completed financial data cleaning", "module": "cleaner", "function": "clean_financial_data", "line": 430}
