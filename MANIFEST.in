@@ -1,0 +1,38 @@
+# Include documentation files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include PROJECT_STRUCTURE.md
+
+# Include configuration files
+include requirements.txt
+include pyproject.toml
+include setup.cfg
+include .editorconfig
+
+# Include web UI files
+include glossary_web.html
+include GlossaryComponent.jsx
+include GlossaryComponent.css
+
+# Include example and test data
+recursive-include examples *.py *.md
+recursive-include tests *.py *.md
+
+# Include documentation
+recursive-include docs *.rst *.md *.txt
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.swp
+global-exclude .DS_Store
+global-exclude __pycache__
+prune .git
+prune .github
+prune .pytest_cache
+prune .mypy_cache
+prune htmlcov
+prune node_modules
+prune venv
+prune .venv 

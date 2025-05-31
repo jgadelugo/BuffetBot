@@ -7,7 +7,7 @@ and searching financial metrics documentation.
 import streamlit as st
 from typing import Dict, List, Optional
 import pandas as pd
-from glossary_data import (
+from buffetbot.glossary import (
     GLOSSARY,
     get_metrics_by_category,
     search_metrics,
