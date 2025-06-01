@@ -1,17 +1,49 @@
+# Path setup must be first!
 import sys
 from pathlib import Path
 
 # Add project root to Python path
-project_root = str(Path(__file__).parent.parent)
+project_root = str(Path(__file__).parent.parent.absolute())
 if project_root not in sys.path:
-    sys.path.append(project_root)
+    sys.path.insert(0, project_root)
 
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from utils.logger import setup_logging, get_logger
+import json
 
+# Debug path issues
+print(f"DEBUG: __file__ = {__file__}")
+print(f"DEBUG: Path(__file__).parent = {Path(__file__).parent}")
+print(f"DEBUG: Path(__file__).parent.parent = {Path(__file__).parent.parent}")
+
+# Try to import, if it fails, add parent to path and try again
+try:
+    from utils.logger import setup_logging, get_logger
+except ImportError as e:
+    print(f"DEBUG: First import failed: {e}")
+    # Add parent directory to path
+    parent_path = str(Path(__file__).parent.parent.absolute())
+    print(f"DEBUG: Adding to sys.path: {parent_path}")
+    sys.path.insert(0, parent_path)
+    print(f"DEBUG: sys.path[0] is now: {sys.path[0]}")
+    
+    # Check if utils directory exists
+    utils_path = Path(parent_path) / "utils"
+    print(f"DEBUG: utils directory exists: {utils_path.exists()}")
+    if utils_path.exists():
+        print(f"DEBUG: utils/__init__.py exists: {(utils_path / '__init__.py').exists()}")
+        print(f"DEBUG: utils/logger.py exists: {(utils_path / 'logger.py').exists()}")
+    
+    try:
+        from utils.logger import setup_logging, get_logger
+        print("DEBUG: Second import successful!")
+    except ImportError as e2:
+        print(f"DEBUG: Second import also failed: {e2}")
+        raise
+
+# Import from BuffetBot modules
 from data.fetcher import fetch_stock_data
 from data.cleaner import clean_financial_data
 from analysis.value_analysis import calculate_intrinsic_value
@@ -20,6 +52,27 @@ from analysis.growth_analysis import analyze_growth_metrics
 from analysis.risk_analysis import analyze_risk_metrics
 from recommend.recommender import generate_recommendation
 from utils.data_report import DataCollectionReport
+
+# Import glossary functions
+from glossary import (
+    GLOSSARY,
+    get_metrics_by_category,
+    search_metrics,
+    MetricDefinition,
+    get_metric_info
+)
+
+# Import new modular components using absolute imports from dashboard
+from dashboard.components import (
+    display_metrics_grid_enhanced,
+    display_metric_with_status,
+    create_comparison_table,
+    create_progress_indicator
+)
+from dashboard.pages import (
+    render_price_analysis_page,
+    render_financial_health_page
+)
 
 # Initialize logging
 setup_logging()
@@ -32,6 +85,121 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+def display_metric_with_info(label: str, value: str, delta=None, metric_key: str = None, help_text: str = None):
+    """Display a metric with optional glossary information.
+    
+    Args:
+        label: The metric label
+        value: The metric value
+        delta: Optional delta value
+        metric_key: Optional key to look up in glossary
+        help_text: Optional custom help text (overrides glossary)
+    """
+    # Check if we should show definitions
+    show_definitions = st.session_state.get('show_metric_definitions', True)
+    
+    # Get glossary info if available and definitions are enabled
+    if show_definitions and metric_key and not help_text:
+        try:
+            metric_info = get_metric_info(metric_key)
+            help_text = f"{metric_info['description']} Formula: {metric_info['formula']}"
+        except KeyError:
+            help_text = None
+    elif not show_definitions:
+        help_text = None
+    
+    # Display metric with help
+    st.metric(label=label, value=value, delta=delta, help=help_text)
+
+
+def display_table_with_info(df: pd.DataFrame, metric_keys: dict = None):
+    """Display a table with help text for metrics.
+    
+    Args:
+        df: DataFrame with 'Metric'/'Ratio' and 'Value' columns
+        metric_keys: Optional dictionary mapping metric names to glossary keys
+    """
+    # Create a cleaner display without buttons
+    st.markdown("---")
+    
+    # Determine the metric column name
+    metric_col = 'Metric' if 'Metric' in df.columns else 'Ratio' if 'Ratio' in df.columns else None
+    
+    if metric_col is None:
+        st.dataframe(df)  # Fallback to standard display
+        return
+    
+    # Display each metric as a row with help text
+    for idx, row in df.iterrows():
+        metric_name = row[metric_col]
+        metric_value = row['Value']
+        metric_key = metric_keys.get(metric_name) if metric_keys else None
+        
+        # Get help text if available
+        help_text = None
+        if metric_key:
+            try:
+                metric_info = get_metric_info(metric_key)
+                help_text = f"{metric_info['description']} Formula: {metric_info['formula']}"
+            except KeyError:
+                pass
+        
+        # Create two columns for metric and value
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            if help_text:
+                st.write(metric_name, help=help_text)
+            else:
+                st.write(metric_name)
+        
+        with col2:
+            st.write(f"**{metric_value}**")
+
+
+def display_metrics_grid(metrics_dict: dict, cols: int = 3):
+    """Display metrics in a grid layout with help text.
+    
+    Args:
+        metrics_dict: Dictionary of metrics with structure:
+            {
+                'metric_name': {
+                    'value': 'displayed value',
+                    'metric_key': 'glossary key',
+                    'delta': 'optional delta value'
+                }
+            }
+        cols: Number of columns in the grid
+    """
+    # Create columns
+    columns = st.columns(cols)
+    
+    # Display metrics
+    for idx, (metric_name, metric_data) in enumerate(metrics_dict.items()):
+        col_idx = idx % cols
+        
+        with columns[col_idx]:
+            # Check if we should show definitions
+            show_definitions = st.session_state.get('show_metric_definitions', True)
+            
+            # Get help text if available and definitions are enabled
+            help_text = None
+            if show_definitions and 'metric_key' in metric_data:
+                try:
+                    metric_info = get_metric_info(metric_data['metric_key'])
+                    help_text = f"{metric_info['description']} Formula: {metric_info['formula']}"
+                except KeyError:
+                    pass
+            
+            # Display metric
+            st.metric(
+                label=metric_name,
+                value=metric_data['value'],
+                delta=metric_data.get('delta'),
+                help=help_text
+            )
+
 
 # Cache stock data fetching
 @st.cache_data(ttl=3600)  # Cache for 1 hour
@@ -174,6 +342,23 @@ def create_growth_chart(price_data: pd.DataFrame) -> go.Figure:
         )
         return fig
 
+def render_metric_card(key: str, metric: MetricDefinition):
+    """Render a single metric as a styled card."""
+    category_class = f"category-{metric['category']}"
+    
+    card_html = f"""
+    <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 10px 0; border-left: 4px solid #1f77b4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="font-size: 1.2em; font-weight: bold; color: #1f77b4; margin-bottom: 10px;">{metric['name']}</div>
+        <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 500; margin-bottom: 10px; background-color: {'#d4edda' if metric['category'] == 'growth' else '#cce5ff' if metric['category'] == 'value' else '#fff3cd' if metric['category'] == 'health' else '#f8d7da'}; color: {'#155724' if metric['category'] == 'growth' else '#004085' if metric['category'] == 'value' else '#856404' if metric['category'] == 'health' else '#721c24'};">{metric['category'].upper()}</span>
+        <div style="color: #495057; line-height: 1.6; margin: 10px 0;">{metric['description']}</div>
+        <div style="margin-top: 15px;">
+            <strong>Formula:</strong>
+            <div style="background-color: #e9ecef; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.9em; color: #212529;">{metric['formula']}</div>
+        </div>
+    </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
+
 def main():
     """Main dashboard function."""
     st.title("Stock Analysis Dashboard")
@@ -183,6 +368,29 @@ def main():
     ticker = st.sidebar.text_input("Stock Ticker", "AAPL").upper()
     years = st.sidebar.slider("Years of Historical Data", 1, 10, 5)
     
+    # Add cache management section
+    st.sidebar.markdown("---")
+    st.sidebar.header("Cache Management")
+    if st.sidebar.button("🔄 Clear Cache", help="Clear cached data and refresh"):
+        get_stock_info.clear()
+        st.success("Cache cleared! Data will be refreshed.")
+        st.rerun()
+    
+    # Add metric definitions toggle
+    st.sidebar.markdown("---")
+    st.sidebar.header("Display Settings")
+    
+    # Initialize session state for metric definitions
+    if 'show_metric_definitions' not in st.session_state:
+        st.session_state.show_metric_definitions = True
+    
+    # Toggle for metric definitions
+    st.session_state.show_metric_definitions = st.sidebar.checkbox(
+        "Show Metric Definitions",
+        value=st.session_state.show_metric_definitions,
+        help="Toggle to show/hide metric descriptions and formulas throughout the dashboard"
+    )
+    
     # Fetch and process data
     data = get_stock_info(ticker, years)
     
@@ -191,9 +399,9 @@ def main():
         return
     
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Overview", "Price Analysis", "Financial Health", 
-        "Growth Metrics", "Risk Analysis"
+        "Growth Metrics", "Risk Analysis", "📚 Glossary"
     ])
     
     with tab1:
@@ -203,24 +411,27 @@ def main():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric(
+            display_metric_with_info(
                 "Current Price",
                 f"${data['price_data']['Close'].iloc[-1]:.2f}",
-                f"{data['metrics']['price_change']:.1%}"
+                f"{data['metrics']['price_change']:.1%}",
+                metric_key='latest_price'
             )
             
         with col2:
-            st.metric(
+            display_metric_with_info(
                 "Market Cap",
                 f"${data['fundamentals']['market_cap']:,.0f}",
-                f"P/E: {data['fundamentals']['pe_ratio']:.1f}"
+                f"P/E: {data['fundamentals']['pe_ratio']:.1f}",
+                metric_key='market_cap'
             )
             
         with col3:
-            st.metric(
+            display_metric_with_info(
                 "Volatility",
                 f"{data['metrics']['volatility']:.1%}",
-                f"RSI: {data['metrics']['rsi']:.1f}"
+                f"RSI: {data['metrics']['rsi']:.1f}",
+                metric_key='volatility'
             )
         
         # Add link to data collection report
@@ -255,136 +466,13 @@ def main():
                 st.rerun()
     
     with tab2:
-        try:
-            # Calculate intrinsic value
-            intrinsic_value_result = calculate_intrinsic_value(data)
-            
-            if intrinsic_value_result and intrinsic_value_result.get('intrinsic_value') is not None:
-                current_price = data['price_data']['Close'].iloc[-1]
-                intrinsic_value = intrinsic_value_result['intrinsic_value']
-                
-                # Calculate margin of safety
-                if intrinsic_value > 0:
-                    margin_of_safety = (intrinsic_value - current_price) / intrinsic_value
-                else:
-                    margin_of_safety = None
-                    logger.warning(f"Invalid intrinsic value: {intrinsic_value}")
-                
-                # Display price gauge
-                st.plotly_chart(create_price_gauge(
-                    current_price,
-                    intrinsic_value
-                ))
-                
-                # Display intrinsic value metrics
-                st.subheader("Intrinsic Value Analysis")
-                iv_metrics = pd.DataFrame({
-                    'Metric': ['Intrinsic Value', 'Current Price', 'Margin of Safety', 'Growth Rate', 'Discount Rate'],
-                    'Value': [
-                        f"${intrinsic_value:.2f}",
-                        f"${current_price:.2f}",
-                        f"{margin_of_safety:.1%}" if margin_of_safety is not None else "N/A",
-                        f"{intrinsic_value_result.get('assumptions', {}).get('growth_rate', 0):.1%}",
-                        f"{intrinsic_value_result.get('assumptions', {}).get('discount_rate', 0):.1%}"
-                    ]
-                })
-                st.table(iv_metrics)
-                
-                # Display warnings if any
-                if intrinsic_value_result.get('warnings'):
-                    with st.expander("⚠️ Warnings", expanded=True):
-                        for warning in intrinsic_value_result['warnings']:
-                            st.warning(warning)
-            else:
-                st.warning("Could not calculate intrinsic value. Some required financial data may be missing.")
-                if intrinsic_value_result and 'errors' in intrinsic_value_result:
-                    with st.expander("❌ Errors", expanded=True):
-                        for error in intrinsic_value_result['errors']:
-                            st.error(error)
-        except Exception as e:
-            logger.error(f"Error in intrinsic value calculation: {str(e)}", exc_info=True)
-            st.error(f"Error in intrinsic value calculation: {str(e)}")
-        
-        # Display growth chart
-        st.plotly_chart(create_growth_chart(data['price_data']))
-        
-        # Display price metrics
-        st.subheader("Price Metrics")
-        metrics_df = pd.DataFrame({
-            'Metric': ['Latest Price', 'Price Change', 'Volatility', 'RSI', 'Momentum'],
-            'Value': [
-                f"${data['metrics']['latest_price']:.2f}",
-                f"{data['metrics']['price_change']:.1%}",
-                f"{data['metrics']['volatility']:.1%}",
-                f"{data['metrics']['rsi']:.1f}",
-                f"{data['metrics']['momentum']:.1%}"
-            ]
-        })
-        st.table(metrics_df)
+        # Use the new enhanced Price Analysis page
+        render_price_analysis_page(data, ticker)
     
     with tab3:
-        try:
-            # Analyze financial health
-            health_metrics_result = analyze_financial_health(data)
-            
-            # Display health metrics
-            st.subheader("Financial Health Metrics")
-            
-            # Create metrics display
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if 'piotroski_score' in health_metrics_result:
-                    st.metric(
-                        "Piotroski F-Score",
-                        f"{health_metrics_result['piotroski_score']}/9",
-                        "Financial Health Indicator"
-                    )
-                if 'altman_z_score' in health_metrics_result:
-                    st.metric(
-                        "Altman Z-Score",
-                        f"{health_metrics_result['altman_z_score']:.2f}",
-                        "Bankruptcy Risk Indicator"
-                    )
-            
-            with col2:
-                # Display key financial ratios
-                ratios = health_metrics_result.get('financial_ratios', {})
-                st.write("Key Financial Ratios")
-                ratios_df = pd.DataFrame({
-                    'Ratio': [
-                        'Current Ratio',
-                        'Debt to Equity',
-                        'Debt to Assets',
-                        'Interest Coverage',
-                        'Return on Equity',
-                        'Return on Assets',
-                        'Gross Margin',
-                        'Operating Margin',
-                        'Net Margin'
-                    ],
-                    'Value': [
-                        f"{ratios.get('current_ratio', 'N/A')}",
-                        f"{ratios.get('debt_to_equity', 'N/A')}",
-                        f"{ratios.get('debt_to_assets', 'N/A')}",
-                        f"{ratios.get('interest_coverage', 'N/A')}",
-                        f"{ratios.get('return_on_equity', 'N/A')}",
-                        f"{ratios.get('return_on_assets', 'N/A')}",
-                        f"{ratios.get('gross_margin', 'N/A')}",
-                        f"{ratios.get('operating_margin', 'N/A')}",
-                        f"{ratios.get('net_margin', 'N/A')}"
-                    ]
-                })
-                st.table(ratios_df)
-            
-            # Display health flags
-            st.subheader("Health Indicators")
-            for flag in health_metrics_result.get('health_flags', []):
-                st.write(f"• {flag}")
-        except Exception as e:
-            logger.error(f"Error in financial health analysis: {str(e)}", exc_info=True)
-            st.error(f"Error in financial health analysis: {str(e)}")
-        
+        # Use the new enhanced Financial Health page
+        render_financial_health_page(data, ticker)
+    
     with tab4:
         try:
             # Analyze growth metrics
@@ -393,22 +481,32 @@ def main():
             if growth_metrics_result:
                 # Display growth metrics
                 st.subheader("Growth Metrics")
-                growth_df = pd.DataFrame({
-                    'Metric': ['Revenue Growth', 'Earnings Growth', 'EPS Growth'],
-                    'Value': [
-                        f"{growth_metrics_result.get('revenue_growth', 0):.1%}",
-                        f"{growth_metrics_result.get('earnings_growth', 0):.1%}",
-                        f"{growth_metrics_result.get('eps_growth', 0):.1%}"
-                    ]
-                })
-                st.table(growth_df)
+                
+                growth_metrics = {
+                    'Revenue Growth': {
+                        'value': f"{growth_metrics_result.get('revenue_growth', 0):.1%}",
+                        'metric_key': 'revenue_growth'
+                    },
+                    'Earnings Growth': {
+                        'value': f"{growth_metrics_result.get('earnings_growth', 0):.1%}",
+                        'metric_key': 'earnings_growth'
+                    },
+                    'EPS Growth': {
+                        'value': f"{growth_metrics_result.get('eps_growth', 0):.1%}",
+                        'metric_key': 'eps_growth'
+                    }
+                }
+                
+                display_metrics_grid(growth_metrics, cols=3)
                 
                 # Display growth score if available
                 if 'growth_score' in growth_metrics_result:
-                    st.metric(
+                    st.markdown("---")
+                    display_metric_with_info(
                         "Growth Score",
                         f"{growth_metrics_result['growth_score']:.1f}",
-                        "Overall Growth Assessment"
+                        "Overall Growth Assessment",
+                        metric_key='growth_score'
                     )
             else:
                 st.warning("Could not calculate growth metrics. Some required financial data may be missing.")
@@ -425,124 +523,300 @@ def main():
                 # Display risk metrics
                 st.subheader("Risk Metrics")
                 
-                # Overall risk score with color coding
-                risk_score = risk_metrics_result['overall_risk']['score']
-                risk_level = risk_metrics_result['overall_risk']['level']
-                
-                # Create columns for risk score and level
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # Risk score gauge
-                    st.metric(
-                        "Risk Score",
-                        f"{risk_score:.1f}%",
-                        delta=None,
-                        delta_color="off"
-                    )
+                # Check if we have overall risk data
+                if 'overall_risk' in risk_metrics_result and risk_metrics_result['overall_risk']:
+                    # Overall risk score with color coding
+                    risk_score = risk_metrics_result['overall_risk'].get('score', 0)
+                    risk_level = risk_metrics_result['overall_risk'].get('level', 'Unknown')
                     
-                    # Color-coded risk level
-                    if risk_level == "High":
-                        st.error(f"Risk Level: {risk_level}")
-                    elif risk_level == "Moderate":
-                        st.warning(f"Risk Level: {risk_level}")
-                    else:
-                        st.success(f"Risk Level: {risk_level}")
-                
-                with col2:
-                    # Risk factors
-                    st.write("Risk Factors:")
-                    for factor in risk_metrics_result['overall_risk']['factors']:
-                        st.write(f"• {factor}")
-                
-                # Display warnings and errors if any
-                if risk_metrics_result['overall_risk']['warnings']:
-                    with st.expander("⚠️ Warnings", expanded=True):
-                        for warning in risk_metrics_result['overall_risk']['warnings']:
-                            st.warning(warning)
-                
-                if risk_metrics_result['overall_risk']['errors']:
-                    with st.expander("❌ Errors", expanded=True):
-                        for error in risk_metrics_result['overall_risk']['errors']:
-                            st.error(error)
+                    # Log for debugging
+                    logger.info(f"Risk Analysis for {ticker}: Score={risk_score:.2f}%, Level={risk_level}")
+                    
+                    # Create columns for risk score and level
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Risk score gauge
+                        display_metric_with_info(
+                            "Risk Score",
+                            f"{risk_score:.1f}%",
+                            delta=None,
+                            metric_key='overall_risk_score'
+                        )
+                        
+                        # Color-coded risk level
+                        if risk_level == "High":
+                            st.error(f"Risk Level: {risk_level}")
+                        elif risk_level == "Moderate":
+                            st.warning(f"Risk Level: {risk_level}")
+                        elif risk_level == "Low":
+                            st.success(f"Risk Level: {risk_level}")
+                        else:
+                            st.info(f"Risk Level: {risk_level}")
+                    
+                    with col2:
+                        # Risk factors
+                        st.write("Risk Factors:")
+                        factors = risk_metrics_result['overall_risk'].get('factors', [])
+                        if factors:
+                            for factor in factors[:5]:  # Show first 5 factors
+                                st.write(f"• {factor}")
+                            if len(factors) > 5:
+                                with st.expander(f"Show all {len(factors)} factors"):
+                                    for factor in factors[5:]:
+                                        st.write(f"• {factor}")
+                        else:
+                            st.write("• No specific risk factors identified")
+                    
+                    # Display warnings and errors if any
+                    warnings = risk_metrics_result['overall_risk'].get('warnings', [])
+                    if warnings:
+                        with st.expander(f"⚠️ Warnings ({len(warnings)})", expanded=False):
+                            for warning in warnings:
+                                st.warning(warning)
+                    
+                    errors = risk_metrics_result['overall_risk'].get('errors', [])
+                    if errors:
+                        with st.expander(f"❌ Errors ({len(errors)})", expanded=True):
+                            for error in errors:
+                                st.error(error)
+                    
+                    # Add data availability check
+                    st.markdown("---")
+                    st.subheader("Data Availability Check")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if 'price_data' in data and data['price_data'] is not None and not data['price_data'].empty:
+                            st.success("✓ Price Data Available")
+                        else:
+                            st.error("✗ Price Data Missing")
+                    
+                    with col2:
+                        if 'fundamentals' in data and data['fundamentals'] and 'beta' in data['fundamentals']:
+                            beta_val = data['fundamentals']['beta']
+                            if beta_val is not None:
+                                st.success(f"✓ Beta Available ({beta_val:.3f})")
+                            else:
+                                st.warning("⚠ Beta is null")
+                        else:
+                            st.error("✗ Beta Missing")
+                    
+                    with col3:
+                        if 'income_stmt' in data and data['income_stmt'] is not None and not data['income_stmt'].empty:
+                            st.success("✓ Financial Data Available")
+                        else:
+                            st.error("✗ Financial Data Missing")
+                            
+                else:
+                    st.warning("Overall risk assessment data is not available")
                 
                 # Market Risk
                 st.subheader("Market Risk")
-                market_risk = risk_metrics_result['market_risk']
-                if market_risk:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if 'beta' in market_risk:
-                            st.metric(
-                                "Beta",
-                                f"{market_risk['beta']:.2f}",
-                                delta=None,
-                                delta_color="off"
-                            )
-                    with col2:
-                        if 'volatility' in market_risk:
-                            st.metric(
-                                "Annualized Volatility",
-                                f"{market_risk['volatility']:.1%}",
-                                delta=None,
-                                delta_color="off"
-                            )
+                market_risk = risk_metrics_result.get('market_risk', {})
+                if market_risk and any(market_risk.values()):
+                    market_metrics = {}
+                    
+                    if 'beta' in market_risk and market_risk['beta'] is not None:
+                        market_metrics['Beta'] = {
+                            'value': f"{market_risk['beta']:.2f}",
+                            'metric_key': 'beta'
+                        }
+                    
+                    if 'volatility' in market_risk and market_risk['volatility'] is not None:
+                        market_metrics['Annualized Volatility'] = {
+                            'value': f"{market_risk['volatility']:.1%}",
+                            'metric_key': 'volatility'
+                        }
+                    
+                    if market_metrics:
+                        display_metrics_grid(market_metrics, cols=2)
+                    else:
+                        st.info("Market risk metrics are not available or have zero values")
                 else:
                     st.info("No market risk metrics available")
                 
                 # Financial Risk
                 st.subheader("Financial Risk")
-                financial_risk = risk_metrics_result['financial_risk']
-                if financial_risk:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if 'debt_to_equity' in financial_risk:
-                            st.metric(
-                                "Debt to Equity",
-                                f"{financial_risk['debt_to_equity']:.2f}",
-                                delta=None,
-                                delta_color="off"
-                            )
-                    with col2:
-                        if 'interest_coverage' in financial_risk:
-                            st.metric(
-                                "Interest Coverage",
-                                f"{financial_risk['interest_coverage']:.2f}",
-                                delta=None,
-                                delta_color="off"
-                            )
+                financial_risk = risk_metrics_result.get('financial_risk', {})
+                if financial_risk and any(financial_risk.values()):
+                    financial_metrics = {}
+                    
+                    if 'debt_to_equity' in financial_risk and financial_risk['debt_to_equity'] is not None:
+                        financial_metrics['Debt to Equity'] = {
+                            'value': f"{financial_risk['debt_to_equity']:.2f}",
+                            'metric_key': 'debt_to_equity'
+                        }
+                    
+                    if 'interest_coverage' in financial_risk and financial_risk['interest_coverage'] is not None:
+                        financial_metrics['Interest Coverage'] = {
+                            'value': f"{financial_risk['interest_coverage']:.2f}",
+                            'metric_key': 'interest_coverage'
+                        }
+                    
+                    if financial_metrics:
+                        display_metrics_grid(financial_metrics, cols=2)
+                    else:
+                        st.info("Financial risk metrics are not available or have zero values")
                 else:
                     st.info("No financial risk metrics available")
                 
                 # Business Risk
                 st.subheader("Business Risk")
-                business_risk = risk_metrics_result['business_risk']
-                if business_risk:
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if 'operating_margin' in business_risk:
-                            st.metric(
-                                "Operating Margin",
-                                f"{business_risk['operating_margin']:.1%}",
-                                delta=None,
-                                delta_color="off"
-                            )
-                    with col2:
-                        if 'revenue' in business_risk:
-                            st.metric(
-                                "Revenue",
-                                f"${business_risk['revenue']:,.0f}",
-                                delta=None,
-                                delta_color="off"
-                            )
+                business_risk = risk_metrics_result.get('business_risk', {})
+                if business_risk and any(business_risk.values()):
+                    business_metrics = {}
+                    
+                    if 'operating_margin' in business_risk and business_risk['operating_margin'] is not None:
+                        business_metrics['Operating Margin'] = {
+                            'value': f"{business_risk['operating_margin']:.1%}",
+                            'metric_key': 'operating_margin'
+                        }
+                    
+                    if 'revenue' in business_risk and business_risk['revenue'] is not None and business_risk['revenue'] > 0:
+                        business_metrics['Revenue'] = {
+                            'value': f"${business_risk['revenue']:,.0f}",
+                            'metric_key': 'revenue'
+                        }
+                    
+                    if business_metrics:
+                        display_metrics_grid(business_metrics, cols=2)
+                    else:
+                        st.info("Business risk metrics are not available or have zero values")
                 else:
                     st.info("No business risk metrics available")
             else:
                 st.warning("Could not calculate risk metrics. Some required data may be missing.")
+                st.info("Try clearing the cache using the button in the sidebar and refreshing the data.")
         except Exception as e:
             logger.error(f"Error in risk metrics analysis: {str(e)}", exc_info=True)
             st.error(f"Error in risk metrics analysis: {str(e)}")
+            st.info("Try clearing the cache using the button in the sidebar and refreshing the data.")
+
+    with tab6:
+        # Glossary header
+        st.header("📚 Financial Metrics Glossary")
+        st.markdown("Comprehensive guide to financial metrics used in this analysis")
         
+        # Create two columns for layout
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            # Search and filter controls
+            st.subheader("🔍 Search & Filter")
+            
+            # Search box
+            search_term = st.text_input(
+                "Search metrics",
+                placeholder="Enter term...",
+                key="glossary_search"
+            )
+            
+            # Category filter
+            st.subheader("Categories")
+            categories = ["All", "Growth", "Value", "Health", "Risk"]
+            
+            # Use session state for selected category
+            if 'glossary_category' not in st.session_state:
+                st.session_state.glossary_category = "All"
+            
+            selected_category = st.radio(
+                "Filter by category",
+                categories,
+                index=categories.index(st.session_state.glossary_category),
+                key="glossary_category_radio"
+            )
+            
+            # Quick stats
+            st.subheader("📊 Statistics")
+            total_metrics = len(GLOSSARY)
+            st.metric("Total Metrics", total_metrics)
+            
+            # Category counts
+            for cat in ["growth", "value", "health", "risk"]:
+                count = len(get_metrics_by_category(cat))
+                st.caption(f"{cat.title()}: {count}")
+        
+        with col2:
+            # Apply filters
+            if search_term:
+                filtered_metrics = search_metrics(search_term)
+                st.caption(f"Found {len(filtered_metrics)} metrics matching '{search_term}'")
+            else:
+                if selected_category == "All":
+                    filtered_metrics = GLOSSARY
+                else:
+                    filtered_metrics = get_metrics_by_category(selected_category.lower())
+            
+            # Display metrics
+            if filtered_metrics:
+                # Group by category if showing all
+                if not search_term and selected_category == "All":
+                    for category in ["growth", "value", "health", "risk"]:
+                        category_metrics = {k: v for k, v in filtered_metrics.items() 
+                                          if v["category"] == category}
+                        
+                        if category_metrics:
+                            # Category header
+                            emoji_map = {
+                                "growth": "📈",
+                                "value": "💰", 
+                                "health": "💪",
+                                "risk": "⚠️"
+                            }
+                            
+                            with st.expander(
+                                f"{emoji_map.get(category, '📊')} {category.upper()} METRICS ({len(category_metrics)} items)",
+                                expanded=True
+                            ):
+                                for key, metric in category_metrics.items():
+                                    render_metric_card(key, metric)
+                else:
+                    # Display filtered results without grouping
+                    for key, metric in filtered_metrics.items():
+                        render_metric_card(key, metric)
+            else:
+                st.info("No metrics found matching your criteria.")
+            
+            # Export options
+            st.markdown("---")
+            st.subheader("📥 Export Options")
+            
+            # Prepare data for export
+            export_data = []
+            for key, metric in GLOSSARY.items():
+                export_data.append({
+                    "Key": key,
+                    "Name": metric["name"],
+                    "Category": metric["category"],
+                    "Description": metric["description"],
+                    "Formula": metric["formula"]
+                })
+            
+            df = pd.DataFrame(export_data)
+            
+            col1_export, col2_export = st.columns(2)
+            
+            with col1_export:
+                # CSV download
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="📄 Download as CSV",
+                    data=csv,
+                    file_name="financial_metrics_glossary.csv",
+                    mime="text/csv"
+                )
+            
+            with col2_export:
+                # JSON download
+                json_str = json.dumps(GLOSSARY, indent=2)
+                st.download_button(
+                    label="📋 Download as JSON",
+                    data=json_str,
+                    file_name="financial_metrics_glossary.json",
+                    mime="application/json"
+                )
+
     # Check if we should show the data collection report
     if st.session_state.get('show_data_report', False):
         st.title("Data Collection Report")

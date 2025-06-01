@@ -55,6 +55,13 @@ Documentation = "https://buffetbot.readthedocs.io"
 Repository = "https://github.com/your-username/buffetbot.git"
 Issues = "https://github.com/your-username/buffetbot/issues"
 
+[tool.setuptools]
+packages = ["buffetbot"]
+package-dir = {"" = "."}
+
+[tool.setuptools.package-data]
+buffetbot = ["*.txt", "*.md"]
+
 [tool.black]
 line-length = 88
 target-version = ['py310', 'py311', 'py312']

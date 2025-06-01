@@ -105,7 +105,7 @@ BuffetBot/
 
 ```python
 # Import from main package
-from buffetbot.glossary import GLOSSARY, search_metrics
+from glossary import GLOSSARY, search_metrics
 
 # Import from analysis modules (when properly set up)
 from analysis.growth_analysis import analyze_growth

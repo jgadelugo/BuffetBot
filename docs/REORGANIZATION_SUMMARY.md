@@ -50,7 +50,7 @@ from glossary_data import GLOSSARY, search_metrics
 
 ### After:
 ```python
-from buffetbot.glossary import GLOSSARY, search_metrics
+from glossary import GLOSSARY, search_metrics
 ```
 
 ## Benefits
