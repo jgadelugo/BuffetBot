@@ -49,7 +49,7 @@ python analysis/health_analysis.py
 pip install -r requirements.txt
 ```
 
-> Ensure you’re using Python 3.10 or later.
+> Ensure you're using Python 3.10 or later.
 
 ---
 
@@ -106,6 +106,46 @@ Data Engineer/
 
 ---
 
+## 🎨 UI Components
+
+The project includes several UI implementations for visualizing financial metrics:
+
+### React Components
+
+#### MetricTooltip
+A reusable, accessible tooltip component for displaying metric information inline.
+
+```jsx
+import MetricTooltip from './ui/react/MetricTooltip';
+
+// Basic usage
+<MetricTooltip metricKey="pe_ratio" />
+
+// Custom text with tooltip
+<MetricTooltip metricKey="revenue_growth">
+  Revenue Growth Rate
+</MetricTooltip>
+```
+
+**Features:**
+- Fully accessible (ARIA attributes, keyboard navigation)
+- Responsive positioning
+- Dark mode support
+- Memoized for performance
+- Category-aware styling
+
+#### GlossaryComponent
+A comprehensive glossary viewer with search and filtering capabilities.
+
+### Other UI Implementations
+- **Streamlit App** (`ui/streamlit/glossary_app.py`): Interactive Python web app
+- **Standalone HTML** (`ui/web/glossary_web.html`): No-server-required web page
+- **React Glossary** (`ui/react/GlossaryComponent.jsx`): Full glossary viewer
+
+See `/docs/glossary/ui_implementations.md` for detailed UI documentation.
+
+---
+
 ## ✅ Running Tests
 
 <!-- TODO: No test suite found in current files -->
@@ -148,7 +188,7 @@ Contributions are welcome!
 ## ❓ FAQ
 
 **Q: What data source is used?**  
-A: You’ll need to plug in your own data source. The functions are adaptable for APIs or local datasets.
+A: You'll need to plug in your own data source. The functions are adaptable for APIs or local datasets.
 
 **Q: Can I use this with a database or data lake?**  
 A: Yes, with minor adjustments to data ingestion sections.

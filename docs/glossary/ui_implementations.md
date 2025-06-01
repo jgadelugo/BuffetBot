@@ -86,6 +86,53 @@ export const GLOSSARY = {
 };
 ```
 
+### 4. MetricTooltip Component (`MetricTooltip.jsx` + `MetricTooltip.css`)
+A reusable React tooltip component for displaying metric information inline.
+
+**Features:**
+- Accessible with full keyboard navigation
+- Responsive positioning (auto-adjusts to viewport)
+- Memoized for optimal performance
+- Category-aware color coding
+- Dark mode support
+- Mobile-optimized
+- Higher-order component for easy integration
+
+**Basic Usage:**
+```jsx
+import MetricTooltip from './MetricTooltip';
+import './MetricTooltip.css';
+
+// Simple usage
+<MetricTooltip metricKey="pe_ratio" />
+
+// With custom text
+<MetricTooltip metricKey="revenue_growth">
+  Revenue Growth Rate
+</MetricTooltip>
+
+// In a table
+<table>
+  <tr>
+    <td><MetricTooltip metricKey="current_ratio" /></td>
+    <td>1.8</td>
+  </tr>
+</table>
+```
+
+**Advanced Features:**
+- Custom icons and positioning
+- HOC pattern for wrapping existing components
+- Custom glossary data support
+- Extensive accessibility features (ARIA, keyboard nav)
+
+**Integration Examples:**
+See `MetricTooltip.examples.jsx` for comprehensive usage patterns including:
+- Metric tables and dashboards
+- Chart legend integration
+- Mobile-responsive layouts
+- Custom styling approaches
+
 ## 🎨 Design Features
 
 All implementations share these design principles:
