@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import Dict, Any
-from buffetbot.glossary import get_metric_info, GLOSSARY
+from glossary import get_metric_info, GLOSSARY
 
 
 def enhanced_analysis_output(analysis_results: Dict[str, Any]) -> Dict[str, Any]:

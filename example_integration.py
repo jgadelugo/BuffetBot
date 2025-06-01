@@ -5,4 +5,4 @@ existing analysis functions by providing context and explanations.
 """
 
 from typing import Dict, Any
-from buffetbot.glossary.data import get_metric_info, GLOSSARY 
+from glossary.data import get_metric_info, GLOSSARY 

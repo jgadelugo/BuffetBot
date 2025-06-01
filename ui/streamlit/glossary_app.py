@@ -7,7 +7,7 @@ and searching financial metrics documentation.
 import streamlit as st
 from typing import Dict, List, Optional
 import pandas as pd
-from buffetbot.glossary import (
+from glossary import (
     GLOSSARY,
     get_metrics_by_category,
     search_metrics,
@@ -123,12 +123,27 @@ def main():
         # Category filter
         st.subheader("Categories")
         categories = ["All", "Growth", "Value", "Health", "Risk"]
+        
+        # Use session state for selected category
+        if 'selected_category' not in st.session_state:
+            st.session_state.selected_category = "All"
+        
+        # Find index of selected category
+        try:
+            selected_index = categories.index(st.session_state.selected_category)
+        except ValueError:
+            selected_index = 0
+            
         selected_category = st.radio(
             "Select category",
             categories,
-            index=0,
+            index=selected_index,
+            key="category_radio",
             help="Filter metrics by category"
         )
+        
+        # Update session state when radio changes
+        st.session_state.selected_category = selected_category
         
         # View options
         st.subheader("View Options")
@@ -202,7 +217,7 @@ def main():
         for category in ["Growth", "Value", "Health", "Risk"]:
             if st.button(f"Go to {category}", key=f"nav_{category}", use_container_width=True):
                 st.session_state.selected_category = category
-                st.experimental_rerun()
+                st.rerun()
         
         st.markdown("---")
         

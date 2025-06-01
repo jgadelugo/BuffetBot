@@ -9,7 +9,7 @@ import os
 # Add parent directory to path to import buffetbot module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from buffetbot.glossary import (
+from glossary import (
     GLOSSARY, 
     get_metrics_by_category, 
     get_metric_names,
