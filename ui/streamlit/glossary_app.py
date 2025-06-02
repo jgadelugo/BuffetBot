@@ -4,26 +4,24 @@ A Streamlit application that provides an interactive interface for browsing
 and searching financial metrics documentation.
 """
 
-import streamlit as st
 from typing import Dict, List, Optional
+
 import pandas as pd
-from glossary import (
-    GLOSSARY,
-    get_metrics_by_category,
-    search_metrics,
-    MetricDefinition
-)
+import streamlit as st
+
+from glossary import GLOSSARY, MetricDefinition, get_metrics_by_category, search_metrics
 
 # Page configuration
 st.set_page_config(
     page_title="Financial Metrics Glossary",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # Custom CSS for better styling
-st.markdown("""
+st.markdown(
+    """
     <style>
     .metric-card {
         background-color: #f8f9fa;
@@ -77,13 +75,15 @@ st.markdown("""
         margin-bottom: 2rem;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def render_metric_card(key: str, metric: MetricDefinition):
     """Render a single metric as a styled card."""
     category_class = f"category-{metric['category']}"
-    
+
     card_html = f"""
     <div class="metric-card">
         <div class="metric-name">{metric['name']}</div>
@@ -100,70 +100,82 @@ def render_metric_card(key: str, metric: MetricDefinition):
 
 def main():
     # Header section
-    st.markdown("""
+    st.markdown(
+        """
     <div class="header-section">
         <h1 style="margin: 0; font-size: 2.5em;">📊 Financial Metrics Glossary</h1>
         <p style="margin-top: 10px; font-size: 1.1em;">
             Comprehensive guide to financial metrics and KPIs used in value investing analysis
         </p>
     </div>
-    """, unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Add educational disclaimer
+    st.info(
+        """
+    📚 **Educational Resource**: This glossary is provided for educational purposes only.
+    The metrics and definitions are intended to help users understand financial analysis concepts.
+    This is not investment advice. Always consult with qualified financial professionals before making investment decisions.
+    """
+    )
+
     # Sidebar for filtering
     with st.sidebar:
         st.header("🔍 Filters")
-        
+
         # Search functionality
         search_term = st.text_input(
             "Search metrics",
             placeholder="Enter term to search...",
-            help="Search by metric name or description"
+            help="Search by metric name or description",
         )
-        
+
         # Category filter
         st.subheader("Categories")
         categories = ["All", "Growth", "Value", "Health", "Risk"]
-        
+
         # Use session state for selected category
-        if 'selected_category' not in st.session_state:
+        if "selected_category" not in st.session_state:
             st.session_state.selected_category = "All"
-        
+
         # Find index of selected category
         try:
             selected_index = categories.index(st.session_state.selected_category)
         except ValueError:
             selected_index = 0
-            
+
         selected_category = st.radio(
             "Select category",
             categories,
             index=selected_index,
             key="category_radio",
-            help="Filter metrics by category"
+            help="Filter metrics by category",
         )
-        
+
         # Update session state when radio changes
         st.session_state.selected_category = selected_category
-        
+
         # View options
         st.subheader("View Options")
         show_expanded = st.checkbox("Expand all sections", value=True)
         show_count = st.checkbox("Show metric count", value=True)
-        
+
         # Stats section
         st.markdown("---")
         st.subheader("📈 Statistics")
         total_metrics = len(GLOSSARY)
         st.metric("Total Metrics", total_metrics)
-        
+
         # Category breakdown
         for cat in ["growth", "value", "health", "risk"]:
             count = len(get_metrics_by_category(cat))
             st.metric(f"{cat.title()} Metrics", count)
-    
+
     # Main content area
     col1, col2 = st.columns([3, 1])
-    
+
     with col1:
         # Apply filters
         if search_term:
@@ -171,33 +183,36 @@ def main():
             if show_count:
                 st.markdown(
                     f'<p class="search-result-count">Found {len(filtered_metrics)} metrics matching "{search_term}"</p>',
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
         else:
             if selected_category == "All":
                 filtered_metrics = GLOSSARY
             else:
                 filtered_metrics = get_metrics_by_category(selected_category.lower())
-        
+
         # Display metrics grouped by category
         if not search_term and selected_category == "All":
             # Group by category when showing all
             for category in ["growth", "value", "health", "risk"]:
-                category_metrics = {k: v for k, v in filtered_metrics.items() 
-                                  if v["category"] == category}
-                
+                category_metrics = {
+                    k: v
+                    for k, v in filtered_metrics.items()
+                    if v["category"] == category
+                }
+
                 if category_metrics:
                     # Category header with emoji
                     emoji_map = {
                         "growth": "📈",
                         "value": "💰",
                         "health": "💪",
-                        "risk": "⚠️"
+                        "risk": "⚠️",
                     }
-                    
+
                     with st.expander(
                         f"{emoji_map.get(category, '📊')} {category.upper()} METRICS ({len(category_metrics)} items)",
-                        expanded=show_expanded
+                        expanded=show_expanded,
                     ):
                         for key, metric in category_metrics.items():
                             render_metric_card(key, metric)
@@ -208,35 +223,39 @@ def main():
                     render_metric_card(key, metric)
             else:
                 st.info("No metrics found matching your criteria.")
-    
+
     with col2:
         # Quick navigation or additional info
         st.subheader("📌 Quick Links")
-        
+
         # Category navigation buttons
         for category in ["Growth", "Value", "Health", "Risk"]:
-            if st.button(f"Go to {category}", key=f"nav_{category}", use_container_width=True):
+            if st.button(
+                f"Go to {category}", key=f"nav_{category}", use_container_width=True
+            ):
                 st.session_state.selected_category = category
                 st.rerun()
-        
+
         st.markdown("---")
-        
+
         # Export functionality
         st.subheader("📥 Export")
-        
+
         # Create DataFrame for export
         export_data = []
         for key, metric in GLOSSARY.items():
-            export_data.append({
-                "Key": key,
-                "Name": metric["name"],
-                "Category": metric["category"],
-                "Description": metric["description"],
-                "Formula": metric["formula"]
-            })
-        
+            export_data.append(
+                {
+                    "Key": key,
+                    "Name": metric["name"],
+                    "Category": metric["category"],
+                    "Description": metric["description"],
+                    "Formula": metric["formula"],
+                }
+            )
+
         df = pd.DataFrame(export_data)
-        
+
         # CSV download
         csv = df.to_csv(index=False)
         st.download_button(
@@ -244,29 +263,43 @@ def main():
             data=csv,
             file_name="financial_metrics_glossary.csv",
             mime="text/csv",
-            use_container_width=True
+            use_container_width=True,
         )
-        
+
         # JSON download
         import json
+
         json_str = json.dumps(GLOSSARY, indent=2)
         st.download_button(
             label="Download as JSON",
             data=json_str,
             file_name="financial_metrics_glossary.json",
             mime="application/json",
-            use_container_width=True
+            use_container_width=True,
         )
-    
+
     # Footer
     st.markdown("---")
-    st.markdown("""
+    st.markdown(
+        """
     <div style="text-align: center; color: #6c757d; padding: 20px;">
         <p>Financial Metrics Glossary v1.0 | Built with Streamlit</p>
         <p>💡 Tip: Use the search bar to find specific metrics or filter by category</p>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # Add footer disclaimer
+    st.warning(
+        """
+    ⚠️ **Important Notice**: This glossary is for educational purposes only. The financial metrics and formulas
+    provided are intended to help users understand investment analysis concepts. This information should not be
+    considered as investment advice. Market conditions and company circumstances can change rapidly. Always conduct
+    your own research and consult with qualified financial professionals before making investment decisions.
+    """
+    )
 
 
 if __name__ == "__main__":
-    main() 
+    main()

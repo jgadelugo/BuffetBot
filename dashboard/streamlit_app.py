@@ -1,7 +1,7 @@
 """Streamlit app wrapper that ensures proper imports."""
+import os
 import sys
 from pathlib import Path
-import os
 
 # Add parent directory (project root) to Python path
 project_root = Path(__file__).parent.parent
@@ -24,4 +24,4 @@ app_globals = {
 }
 
 # Execute the app code
-exec(app_code, app_globals) 
+exec(app_code, app_globals)
