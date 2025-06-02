@@ -309,6 +309,49 @@ GLOSSARY: dict[str, MetricDefinition] = {
         "description": "The number of calendar days remaining until the option expires. Time decay accelerates as expiration approaches, particularly in the final 30 days. Longer-dated options provide more time for the underlying to move favorably.",
         "formula": "Expiration Date - Current Date",
     },
+    # Analyst Forecast Metrics
+    "forecast_confidence": {
+        "name": "Analyst Forecast Confidence",
+        "category": "value",
+        "description": "A composite score indicating the reliability of analyst price targets based on the number of analysts and the dispersion of their forecasts. Higher scores indicate stronger consensus among analysts.",
+        "formula": "(Analyst Count Factor × 0.6) + (Consensus Factor × 0.4), where Consensus Factor = 1 - (Std Dev / Mean Target)",
+    },
+    "mean_target": {
+        "name": "Mean Analyst Target",
+        "category": "value",
+        "description": "The average price target across all analysts covering the stock. This represents the consensus view of where the stock price should trade in the next 12 months based on fundamental analysis.",
+        "formula": "Sum of all analyst price targets / Number of analysts",
+    },
+    "median_target": {
+        "name": "Median Analyst Target",
+        "category": "value",
+        "description": "The middle value of all analyst price targets when arranged in order. Less sensitive to outliers than the mean target and often considered more robust in representing consensus.",
+        "formula": "Middle value of sorted analyst price targets",
+    },
+    "target_range": {
+        "name": "Analyst Target Range",
+        "category": "risk",
+        "description": "The difference between the highest and lowest analyst price targets. A wider range indicates greater disagreement among analysts about the stock's fair value and potential future uncertainty.",
+        "formula": "Highest Target - Lowest Target",
+    },
+    "target_std_dev": {
+        "name": "Target Standard Deviation",
+        "category": "risk",
+        "description": "Statistical measure of how much individual analyst targets deviate from the mean target. Lower values indicate stronger consensus, while higher values suggest more disagreement among analysts.",
+        "formula": "√(Σ(Target - Mean Target)² / (Number of Targets - 1))",
+    },
+    "coefficient_variation": {
+        "name": "Coefficient of Variation",
+        "category": "risk",
+        "description": "The ratio of standard deviation to the mean target, expressed as a percentage. This normalized measure allows comparison of forecast dispersion across different stocks regardless of price level.",
+        "formula": "(Standard Deviation / Mean Target) × 100%",
+    },
+    "forecast_timeframe": {
+        "name": "Forecast Time Window",
+        "category": "value",
+        "description": "The time period filter applied to analyst forecasts, ranging from recent forecasts (last 1-3 months) to all available forecasts. More recent forecasts may reflect updated market conditions and company developments.",
+        "formula": "Current Date - Forecast Publication Date ≤ Selected Window (in days)",
+    },
 }
 
 

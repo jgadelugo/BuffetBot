@@ -3,8 +3,9 @@ Options Advisor Module
 
 This module analyzes long-dated call options for a given stock and recommends
 the best ones using a comprehensive technical scoring framework. It combines
-multiple technical indicators (RSI, Beta, Momentum, Implied Volatility) to
-provide a composite score for each option contract.
+multiple technical indicators (RSI, Beta, Momentum, Implied Volatility) with
+forward-looking analyst forecast data to provide a composite score for each
+option contract.
 
 The module is designed to be extensible and integrates seamlessly with
 existing data fetching and mathematical utilities.
@@ -18,6 +19,7 @@ import pandas as pd
 import yfinance as yf
 
 from analysis.ecosystem import EcosystemAnalyzer
+from data.forecast_fetcher import ForecastFetchError, get_analyst_forecast
 from data.options_fetcher import OptionsDataError, fetch_long_dated_calls
 from data.peer_fetcher import PeerFetchError, get_peers
 from utils.errors import DataError, DataFetcherError, ErrorSeverity, handle_data_error
@@ -34,12 +36,13 @@ from utils.validators import validate_ticker
 # Initialize logger
 logger = setup_logger(__name__, "logs/options_advisor.log")
 
-# Global scoring weights for technical indicators
+# Global scoring weights for technical indicators including forecast
 SCORING_WEIGHTS: dict[str, float] = {
-    "rsi": 0.25,  # RSI contribution to composite score
-    "beta": 0.25,  # Beta contribution to composite score
-    "momentum": 0.25,  # Momentum contribution to composite score
-    "iv": 0.25,  # Implied Volatility contribution to composite score
+    "rsi": 0.20,  # RSI contribution to composite score
+    "beta": 0.20,  # Beta contribution to composite score
+    "momentum": 0.20,  # Momentum contribution to composite score
+    "iv": 0.20,  # Implied Volatility contribution to composite score
+    "forecast": 0.20,  # Analyst forecast contribution to composite score
 }
 
 # Ecosystem scoring weights and multipliers
@@ -188,9 +191,9 @@ def compute_scores(
     stock_prices: pd.Series,
     spy_prices: pd.Series,
     options_df: pd.DataFrame,
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     """
-    Compute technical indicator scores for options analysis.
+    Compute technical indicator scores and analyst forecast for options analysis.
 
     Args:
         ticker: Stock ticker symbol
@@ -199,12 +202,12 @@ def compute_scores(
         options_df: Options data DataFrame
 
     Returns:
-        Tuple[float, float, float, float]: RSI, Beta, Momentum, and IV scores
+        Tuple[float, float, float, float, float]: RSI, Beta, Momentum, IV, and Forecast confidence scores
 
     Raises:
         CalculationError: If any technical indicator calculation fails
     """
-    logger.info(f"Computing technical scores for {ticker}")
+    logger.info(f"Computing technical scores and forecast for {ticker}")
 
     try:
         # Calculate RSI
@@ -251,13 +254,27 @@ def compute_scores(
             logger.warning(f"IV calculation failed for {ticker}: {str(e)}")
             avg_iv = 0.2  # Default 20% IV as fallback
 
+        # Get Analyst Forecast
+        try:
+            forecast_data = get_analyst_forecast(ticker)
+            forecast_confidence = forecast_data["confidence"]
+            logger.info(
+                f"Analyst forecast fetched for {ticker}: "
+                f"mean_target=${forecast_data['mean_target']:.2f}, "
+                f"confidence={forecast_confidence:.3f}"
+            )
+        except ForecastFetchError as e:
+            logger.warning(f"Forecast fetch failed for {ticker}: {str(e)}")
+            forecast_confidence = 0.5  # Neutral confidence as fallback
+
         logger.info(
-            f"Technical scores computed for {ticker}: RSI={rsi:.2f}, Beta={beta:.3f}, Momentum={momentum:.4f}, IV={avg_iv:.4f}"
+            f"All scores computed for {ticker}: RSI={rsi:.2f}, Beta={beta:.3f}, "
+            f"Momentum={momentum:.4f}, IV={avg_iv:.4f}, Forecast={forecast_confidence:.3f}"
         )
-        return rsi, beta, momentum, avg_iv
+        return rsi, beta, momentum, avg_iv, forecast_confidence
 
     except Exception as e:
-        error_msg = f"Failed to compute technical scores for {ticker}: {str(e)}"
+        error_msg = f"Failed to compute scores for {ticker}: {str(e)}"
         logger.error(error_msg)
         raise CalculationError(error_msg)
 
@@ -287,10 +304,15 @@ def _normalize_score(
 
 
 def _calculate_composite_scores(
-    options_df: pd.DataFrame, rsi: float, beta: float, momentum: float, avg_iv: float
+    options_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
 ) -> pd.DataFrame:
     """
-    Calculate composite scores for each option contract.
+    Calculate composite scores for each option contract including analyst forecast.
 
     Args:
         options_df: DataFrame containing options data
@@ -298,6 +320,7 @@ def _calculate_composite_scores(
         beta: Beta value for the underlying stock
         momentum: Momentum value for the underlying stock
         avg_iv: Average implied volatility
+        forecast_confidence: Analyst forecast confidence score (0-1)
 
     Returns:
         pd.DataFrame: Options DataFrame with composite scores added
@@ -323,6 +346,9 @@ def _calculate_composite_scores(
     # Momentum: Higher momentum is better for calls
     momentum_score = _normalize_score(momentum, -0.1, 0.1, invert=False)
 
+    # Forecast: Higher confidence is better for calls (already normalized 0-1)
+    forecast_score = forecast_confidence
+
     # For individual options, we'll use their specific IV vs the average
     # Lower IV relative to average is better (cheaper options)
     scored_df["iv_score"] = scored_df["impliedVolatility"].apply(
@@ -333,19 +359,21 @@ def _calculate_composite_scores(
     scored_df["RSI"] = rsi
     scored_df["Beta"] = beta
     scored_df["Momentum"] = momentum
+    scored_df["ForecastConfidence"] = forecast_confidence
 
     scored_df["CompositeScore"] = (
         SCORING_WEIGHTS["rsi"] * rsi_score
         + SCORING_WEIGHTS["beta"] * beta_score
         + SCORING_WEIGHTS["momentum"] * momentum_score
         + SCORING_WEIGHTS["iv"] * scored_df["iv_score"]
+        + SCORING_WEIGHTS["forecast"] * forecast_score
     )
 
     # Drop the temporary iv_score column
     scored_df = scored_df.drop("iv_score", axis=1)
 
     logger.info(
-        f"Composite scores calculated. Score range: {scored_df['CompositeScore'].min():.3f} - {scored_df['CompositeScore'].max():.3f}"
+        f"Composite scores calculated with forecast. Score range: {scored_df['CompositeScore'].min():.3f} - {scored_df['CompositeScore'].max():.3f}"
     )
 
     return scored_df
@@ -355,12 +383,12 @@ def recommend_long_calls(
     ticker: str, min_days: int = 180, top_n: int = 5
 ) -> pd.DataFrame:
     """
-    Analyze long-dated call options and recommend the best ones using technical scoring.
+    Analyze long-dated call options and recommend the best ones using comprehensive scoring.
 
     This function fetches long-dated call options for the specified ticker and applies
-    a comprehensive technical analysis framework to score each option. The scoring
-    combines RSI, Beta, Momentum, Implied Volatility indicators, and ecosystem analysis
-    to identify the most attractive option contracts.
+    a comprehensive analysis framework to score each option. The scoring combines
+    technical indicators (RSI, Beta, Momentum, Implied Volatility), analyst forecast
+    confidence, and ecosystem analysis to identify the most attractive option contracts.
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
@@ -377,6 +405,7 @@ def recommend_long_calls(
             - RSI: RSI value for the underlying stock
             - Beta: Beta coefficient vs SPY
             - Momentum: Price momentum indicator
+            - ForecastConfidence: Analyst forecast confidence (0-1)
             - CompositeScore: Weighted composite score
             - ecosystem_score: Ecosystem analysis score (0-1)
             - signal: Ecosystem signal (confirm/neutral/veto)
@@ -431,7 +460,7 @@ def recommend_long_calls(
 
         # Step 3: Compute technical indicators
         logger.info("Step 3: Computing technical indicators")
-        rsi, beta, momentum, avg_iv = compute_scores(
+        rsi, beta, momentum, avg_iv, forecast_confidence = compute_scores(
             ticker, stock_prices, spy_prices, options_df
         )
 
@@ -473,7 +502,9 @@ def recommend_long_calls(
 
         # Step 5: Calculate composite scores
         logger.info("Step 5: Calculating composite scores")
-        scored_df = _calculate_composite_scores(options_df, rsi, beta, momentum, avg_iv)
+        scored_df = _calculate_composite_scores(
+            options_df, rsi, beta, momentum, avg_iv, forecast_confidence
+        )
 
         # Step 6: Apply ecosystem adjustment to composite scores
         logger.info("Step 6: Applying ecosystem signal adjustments")
@@ -513,6 +544,7 @@ def recommend_long_calls(
                 "RSI",
                 "Beta",
                 "Momentum",
+                "ForecastConfidence",
                 "CompositeScore",
                 "AdjustedCompositeScore",
                 "ecosystem_score",
@@ -592,7 +624,7 @@ def update_scoring_weights(new_weights: dict[str, float]) -> None:
     """
     global SCORING_WEIGHTS
 
-    required_keys = {"rsi", "beta", "momentum", "iv"}
+    required_keys = {"rsi", "beta", "momentum", "iv", "forecast"}
     if set(new_weights.keys()) != required_keys:
         raise OptionsAdvisorError(
             f"Weights must contain exactly these keys: {required_keys}. "

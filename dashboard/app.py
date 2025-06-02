@@ -73,6 +73,7 @@ from dashboard.components.disclaimers import (
     render_educational_notice,
     render_investment_disclaimer,
 )
+from dashboard.components.forecast_panel import render_forecast_panel
 from dashboard.pages import render_financial_health_page, render_price_analysis_page
 from data.cleaner import clean_financial_data
 
@@ -1015,6 +1016,16 @@ def main():
             help="Generate a downloadable CSV file of the recommendations",
         )
 
+        # Add Forecast Insight Panel
+        st.markdown("---")
+
+        # Render the forecast panel if we have a ticker
+        forecast_data = None
+        if options_ticker:
+            forecast_data = render_forecast_panel(options_ticker)
+
+        st.markdown("---")
+
         # Analyze button
         if st.button("🔍 Analyze Options", type="primary"):
             if not options_ticker:
@@ -1074,6 +1085,34 @@ def main():
                             # Display results section
                             st.subheader("📈 Top Option Recommendations")
 
+                            # Display forecast summary if available
+                            if forecast_data:
+                                st.markdown("#### 🎯 Forecast Context")
+                                col1, col2, col3 = st.columns(3)
+
+                                with col1:
+                                    st.metric(
+                                        "🎯 Analyst Target",
+                                        f"${forecast_data['mean_target']:.2f}",
+                                        help="Average analyst price target",
+                                    )
+
+                                with col2:
+                                    st.metric(
+                                        "🔒 Forecast Confidence",
+                                        f"{forecast_data['confidence']:.1%}",
+                                        help="Analyst consensus confidence score",
+                                    )
+
+                                with col3:
+                                    st.metric(
+                                        "👥 Analysts",
+                                        str(forecast_data["num_analysts"]),
+                                        help="Number of analysts providing targets",
+                                    )
+
+                                st.markdown("---")
+
                             # Display key metrics with tooltips
                             st.markdown("#### Key Technical Indicators")
 
@@ -1081,7 +1120,13 @@ def main():
                             scoring_weights = get_scoring_weights()
 
                             # Create columns for key metrics display
-                            met_col1, met_col2, met_col3, met_col4 = st.columns(4)
+                            (
+                                met_col1,
+                                met_col2,
+                                met_col3,
+                                met_col4,
+                                met_col5,
+                            ) = st.columns(5)
 
                             # Get the current values for display (from first recommendation)
                             if not recommendations.empty:
@@ -1119,6 +1164,15 @@ def main():
                                         metric_key="implied_volatility",
                                     )
 
+                                with met_col5:
+                                    if "ForecastConfidence" in first_row:
+                                        display_metric_with_info(
+                                            "Forecast",
+                                            f"{first_row['ForecastConfidence']:.1%}",
+                                            delta=None,
+                                            help_text="Analyst forecast confidence score",
+                                        )
+
                             st.markdown("---")
 
                             # Create a table with metric-aware headers
@@ -1137,6 +1191,7 @@ def main():
                                 col_headers.append("RSI")
                                 col_headers.append("IV")
                                 col_headers.append("Momentum")
+                                col_headers.append("Forecast")
                                 col_headers.append("Composite Score")
 
                                 # Create tooltips for headers
@@ -1147,6 +1202,7 @@ def main():
                                     "RSI": "rsi",
                                     "IV": "implied_volatility",
                                     "Momentum": "momentum",
+                                    "Forecast": "forecast_confidence",
                                     "Composite Score": "composite_score",
                                 }
 
@@ -1188,6 +1244,9 @@ def main():
                             display_df["IV"] = display_df["IV"].apply(
                                 lambda x: f"{x:.1%}"
                             )
+                            display_df["Forecast"] = display_df[
+                                "ForecastConfidence"
+                            ].apply(lambda x: f"{x:.1%}")
                             display_df["Score"] = display_df["CompositeScore"].apply(
                                 lambda x: f"{x:.3f}"
                             )
@@ -1201,6 +1260,7 @@ def main():
                                     "RSI",
                                     "IV",
                                     "Momentum",
+                                    "Forecast",
                                     "Score",
                                 ]
                             ]
@@ -1211,6 +1271,7 @@ def main():
                                 "RSI",
                                 "IV",
                                 "Momentum",
+                                "Forecast",
                                 "Composite Score",
                             ]
 
@@ -1255,11 +1316,25 @@ def main():
                                 except:
                                     return ""
 
+                            def highlight_forecast(val):
+                                """Color code forecast confidence values"""
+                                try:
+                                    numeric_val = float(val.strip("%")) / 100
+                                    if numeric_val >= 0.7:
+                                        return "background-color: #c8e6c9; color: #2e7d32"  # Green for high confidence
+                                    elif numeric_val >= 0.4:
+                                        return "background-color: #fff3e0; color: #f57c00"  # Orange for medium confidence
+                                    else:
+                                        return "background-color: #ffcdd2; color: #d32f2f"  # Red for low confidence
+                                except:
+                                    return ""
+
                             # Apply styling
                             styled_df = (
                                 display_df.style.applymap(highlight_rsi, subset=["RSI"])
                                 .applymap(highlight_score, subset=["Composite Score"])
                                 .applymap(highlight_iv, subset=["IV"])
+                                .applymap(highlight_forecast, subset=["Forecast"])
                                 .format(
                                     {
                                         "Expiry": lambda x: pd.to_datetime(x).strftime(
@@ -1280,9 +1355,9 @@ def main():
                             st.markdown(
                                 """
                             **Color Legend:**
-                            - 🟢 **Green**: Favorable values (Low RSI/IV, High Score)
+                            - 🟢 **Green**: Favorable values (Low RSI/IV, High Score/Forecast Confidence)
                             - 🟠 **Orange**: Neutral/Moderate values
-                            - 🔴 **Red**: Less favorable values (High RSI/IV, Low Score)
+                            - 🔴 **Red**: Less favorable values (High RSI/IV, Low Score/Forecast Confidence)
                             """
                             )
 
@@ -1393,6 +1468,7 @@ def main():
             2. **Beta Calculation** - Measures market correlation
             3. **Price Momentum** - Evaluates trend strength
             4. **Implied Volatility** - Assesses option pricing
+            5. **Analyst Forecasts** - Incorporates forward-looking sentiment
             """
             )
 
@@ -1402,8 +1478,51 @@ def main():
             **Scoring Methodology:**
             - Each metric is normalized to 0-1 scale
             - Weighted composite score combines all factors
+            - Analyst forecast confidence included in scoring
+            - Time-scoped forecast filtering available
             - Higher scores indicate more attractive options
             - Results ranked by composite score
+            """
+            )
+
+        # Add new forecast methodology section
+        st.markdown("---")
+        st.subheader("🧠 Forecast Analysis Features")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown(
+                """
+            **📊 Forecast Metrics:**
+            - Mean & Median Targets
+            - High & Low Target Range
+            - Standard Deviation
+            - Number of Analysts
+            - Confidence Score (0-100%)
+            """
+            )
+
+        with col2:
+            st.markdown(
+                """
+            **🗓️ Time-Scoped Analysis:**
+            - All forecasts (default)
+            - Last 1 month
+            - Last 3 months
+            - Last 6 months
+            - Recency-adjusted confidence
+            """
+            )
+
+        with col3:
+            st.markdown(
+                """
+            **📈 Visualization:**
+            - Target distribution charts
+            - Forecast evolution trends
+            - Confidence level indicators
+            - Interactive time filtering
             """
             )
 
@@ -1413,6 +1532,7 @@ def main():
         ---
         ⚠️ **Disclaimer**: This tool is for educational and research purposes only.
         Options trading involves significant risk and may not be suitable for all investors.
+        Analyst forecasts are opinions and may not reflect actual future performance.
         Always consult with a qualified financial advisor before making investment decisions.
         """
         )
