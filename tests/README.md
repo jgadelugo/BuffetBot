@@ -6,6 +6,14 @@ This directory contains all test files for the BuffetBot financial analysis tool
 
 - `conftest.py` - Pytest configuration and shared fixtures
 - `test_glossary.py` - Tests for the glossary_data module
+- `test_fallback_logic.py` - Integration test for multi-source fallback logic in data fetchers
+- `test_dashboard_error_handling.py` - Tests for dashboard error handling
+- `test_options_advisor.py` - Tests for options advisor functionality
+- `test_options_fetcher.py` - Tests for options data fetching
+- `test_options_math.py` - Tests for options mathematics utilities
+- `test_robust_fetchers.py` - Tests for robust data fetching mechanisms
+- `test_ticker_change_detection.py` - Tests for ticker change detection
+- `test_ui_error_handling.py` - Tests for UI error handling
 
 ## Running Tests
 
@@ -29,6 +37,15 @@ python -m pytest tests/test_glossary.py
 ### Run specific test function:
 ```bash
 python -m pytest tests/test_glossary.py::test_glossary
+```
+
+### Run integration tests:
+```bash
+# Run the fallback logic integration test
+python tests/test_fallback_logic.py
+
+# Or through pytest
+python -m pytest tests/test_fallback_logic.py -v
 ```
 
 ## Test Conventions
