@@ -786,6 +786,8 @@ class DataCollectionReport:
             # Calculate data quality score
             total_required = 0
             total_available = 0
+            quality_penalties = 0  # Track quality deductions
+            max_quality_penalties = 0  # Track maximum possible penalties
 
             # Define required columns for each statement
             required_columns = {
@@ -819,14 +821,18 @@ class DataCollectionReport:
                 ],
             }
 
-            # Calculate quality score
+            # Calculate basic availability score
             for statement, status in availability.items():
                 if statement in required_columns:
                     if statement == "fundamentals":
                         # For fundamentals, check each required metric
                         for metric in required_columns[statement]:
                             total_required += 1
-                            if metric in self.financials.get("fundamentals", {}):
+                            fundamentals_data = self.financials.get("fundamentals", {})
+                            if (
+                                metric in fundamentals_data
+                                and fundamentals_data[metric] is not None
+                            ):
                                 total_available += 1
                     else:
                         # For financial statements, check each required column
@@ -837,12 +843,104 @@ class DataCollectionReport:
                                 if col in df.columns:
                                     total_available += 1
 
-            # Calculate quality score as percentage of available required data
-            quality_score = (
+            # Calculate quality penalties based on data issues
+            # 1. Data recency penalties
+            current_date = datetime.now()
+
+            for statement in ["income_stmt", "balance_sheet", "cash_flow"]:
+                max_quality_penalties += 10  # Max 10 points per statement for recency
+                status = availability.get(statement, {})
+                last_date_str = status.get("last_available_date")
+
+                if last_date_str and last_date_str != "N/A":
+                    try:
+                        # Parse the date string
+                        if isinstance(last_date_str, str):
+                            last_date = datetime.strptime(
+                                last_date_str.split()[0], "%Y-%m-%d"
+                            )
+                        else:
+                            last_date = last_date_str
+
+                        days_old = (current_date - last_date).days
+
+                        # Apply penalties for old data
+                        if days_old > 365:  # More than 1 year old
+                            quality_penalties += 10
+                        elif days_old > 180:  # More than 6 months old
+                            quality_penalties += 7
+                        elif days_old > 90:  # More than 3 months old
+                            quality_penalties += 5
+                        elif days_old > 30:  # More than 1 month old
+                            quality_penalties += 2
+                    except (ValueError, TypeError):
+                        # If we can't parse the date, apply moderate penalty
+                        quality_penalties += 5
+
+            # 2. Negative values penalties for critical metrics
+            critical_positive_metrics = {
+                "income_stmt": ["Gross Profit", "Total Revenue"],
+                "balance_sheet": ["Total Assets", "Total Stockholder Equity"],
+                "cash_flow": ["Operating Cash Flow"],
+            }
+
+            for statement, metrics in critical_positive_metrics.items():
+                df = self.financials.get(statement)
+                if df is not None and not df.empty:
+                    for metric in metrics:
+                        max_quality_penalties += 5  # Max 5 points per critical metric
+                        if metric in df.columns:
+                            # Check for negative values in recent periods (last 2 years)
+                            recent_data = df[metric].head(
+                                min(8, len(df))
+                            )  # Last 8 quarters or available
+                            negative_count = (recent_data < 0).sum()
+
+                            if negative_count > 0:
+                                # Progressive penalty based on how many periods have negative values
+                                penalty = min(
+                                    5, negative_count * 1.5
+                                )  # Max 5 points, 1.5 per negative period
+                                quality_penalties += penalty
+
+            # 3. Missing critical fundamental metrics penalties
+            critical_fundamentals = ["pe_ratio", "market_cap", "beta"]
+            fundamentals_data = self.financials.get("fundamentals", {})
+
+            for metric in critical_fundamentals:
+                max_quality_penalties += 8  # Max 8 points per critical fundamental
+                if metric not in fundamentals_data or fundamentals_data[metric] is None:
+                    quality_penalties += 8
+                elif fundamentals_data[metric] == 0:  # Zero values are also problematic
+                    quality_penalties += 4
+
+            # 4. Data completeness penalties
+            max_quality_penalties += 15  # Max 15 points for completeness
+            if total_required > 0:
+                completeness_ratio = total_available / total_required
+                if completeness_ratio < 0.5:  # Less than 50% complete
+                    quality_penalties += 15
+                elif completeness_ratio < 0.7:  # Less than 70% complete
+                    quality_penalties += 10
+                elif completeness_ratio < 0.9:  # Less than 90% complete
+                    quality_penalties += 5
+
+            # Calculate final quality score
+            base_score = (
                 (total_available / total_required * 100) if total_required > 0 else 0
             )
+
+            # Apply penalties as percentage deductions
+            if max_quality_penalties > 0:
+                penalty_percentage = (
+                    quality_penalties / max_quality_penalties
+                ) * 40  # Max 40% penalty
+                quality_score = max(0, base_score - penalty_percentage)
+            else:
+                quality_score = base_score
+
             logger.info(
-                f"Calculated data quality score: {quality_score:.1f}% (Available: {total_available}, Required: {total_required})"
+                f"Calculated data quality score: {quality_score:.1f}% (Base: {base_score:.1f}%, Penalties: {quality_penalties:.1f}/{max_quality_penalties:.1f}, Available: {total_available}, Required: {total_required})"
             )
 
             # Compile report

@@ -78,6 +78,26 @@ def test_ticker_change_simulation():
             )
             print(f"💰 Fundamental metrics available: {fundamental_metrics}")
 
+            # Show data quality issues if any
+            recommendations = report_data.get("recommendations", [])
+            if recommendations:
+                print(
+                    f"⚠️  Data quality issues found ({len(recommendations)} recommendations):"
+                )
+                for i, rec in enumerate(recommendations[:3], 1):  # Show first 3
+                    print(f"   {i}. {rec}")
+                if len(recommendations) > 3:
+                    print(f"   ... and {len(recommendations) - 3} more")
+            else:
+                print("✅ No data quality issues detected")
+
+            # Show data recency
+            for statement in ["income_stmt", "balance_sheet", "cash_flow"]:
+                status = availability.get(statement, {})
+                if status.get("available"):
+                    last_date = status.get("last_available_date", "N/A")
+                    print(f"📅 {statement}: {last_date}")
+
             print(f"✅ Successfully processed {ticker}\n")
 
         except Exception as e:
