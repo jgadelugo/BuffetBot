@@ -580,7 +580,7 @@ def main():
                 f"""
                 <div style='text-align: center; padding: 20px; background-color: {score_color}20; border-radius: 10px;'>
                     <h2 style='color: {score_color}; margin: 0;'>Data Quality Score</h2>
-                    <h1 style='color: {score_color}; margin: 10px 0;'>{safe_format_percentage(quality_score)}</h1>
+                    <h1 style='color: {score_color}; margin: 10px 0;'>{quality_score:.1f}%</h1>
                 </div>
             """,
                 unsafe_allow_html=True,
@@ -1637,7 +1637,7 @@ def main():
                 '#FFA500' if quality_score >= 50 else
                 '#FF5252'
             }; color: white; border-radius: 10px;'>
-                <h2>Data Quality Score: {safe_format_percentage(quality_score)}</h2>
+                <h2>Data Quality Score: {quality_score:.1f}%</h2>
             </div>
         """,
             unsafe_allow_html=True,
@@ -1672,9 +1672,7 @@ def main():
             with st.expander(f"{statement.replace('_', ' ').title()} Availability"):
                 if status["available"]:
                     st.success("✓ Data is available")
-                    st.write(
-                        f"Completeness: {safe_format_percentage(status['completeness'])}"
-                    )
+                    st.write(f"Completeness: {status['completeness']:.1f}%")
                     st.write(f"Last available date: {status['last_available_date']}")
 
                     if status["missing_columns"]:
