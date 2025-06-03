@@ -43,7 +43,7 @@ class ViewMetadata:
     requires_data: bool
     requires_ticker: bool = True
     min_data_quality: float = 0.0
-    dependencies: list[str] = None
+    dependencies: list[str] | None = None
 
 
 class BaseView(ABC):
