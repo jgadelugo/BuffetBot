@@ -41,6 +41,11 @@ else
     echo "Please create a virtual environment first with: python -m venv venv"
 fi
 
-# Run the dashboard using the new entry point
+# Run the dashboard using the new structure
 echo "Starting BuffetBot Dashboard..."
-python "$SCRIPT_DIR/run_app.py" "$@"
+echo "Starting BuffetBot Dashboard on http://localhost:8501"
+echo "Press Ctrl+C to stop the server gracefully"
+echo ""
+
+# Use the run_dashboard.py script which uses proper package imports
+python "$SCRIPT_DIR/run_dashboard.py" "$@"

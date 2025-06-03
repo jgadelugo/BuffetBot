@@ -1,35 +1,25 @@
 #!/usr/bin/env python
 """
 Run script for BuffetBot Dashboard.
-This script ensures proper module paths are set before running the Streamlit app.
+This script runs the Streamlit app using the properly installed package.
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-# Add project root to Python path
-project_root = Path(__file__).parent.absolute()
-sys.path.insert(0, str(project_root))
-
-# Set PYTHONPATH environment variable - this is crucial!
-# Include both the project root and any existing PYTHONPATH
-existing_pythonpath = os.environ.get("PYTHONPATH", "")
-if existing_pythonpath:
-    os.environ["PYTHONPATH"] = f"{project_root}{os.pathsep}{existing_pythonpath}"
-else:
-    os.environ["PYTHONPATH"] = str(project_root)
-
 # Run the streamlit app
 if __name__ == "__main__":
+    # Get the project root for the main.py file
+    project_root = Path(__file__).parent.absolute()
+
     # Construct the command
     streamlit_cmd = [
         sys.executable,  # Use the current Python interpreter
         "-m",
         "streamlit",
         "run",
-        str(project_root / "dashboard" / "app.py"),
+        str(project_root / "main.py"),
         "--server.port",
         "8501",
         "--server.address",
@@ -41,15 +31,12 @@ if __name__ == "__main__":
         streamlit_cmd.extend(sys.argv[1:])
 
     print(f"Starting BuffetBot Dashboard...")
-    print(f"Project root: {project_root}")
+    print(f"Using main.py from: {project_root / 'main.py'}")
     print(f"Python executable: {sys.executable}")
-    print(f"PYTHONPATH: {os.environ.get('PYTHONPATH', 'Not set')}")
 
     try:
-        # Run streamlit with the modified environment
-        # Use the current environment with our modifications
-        env = os.environ.copy()
-        subprocess.run(streamlit_cmd, env=env)
+        # Run streamlit
+        subprocess.run(streamlit_cmd)
     except KeyboardInterrupt:
         print("\nDashboard stopped.")
     except Exception as e:

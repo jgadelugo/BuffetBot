@@ -1,0 +1,82 @@
+PROMPT FOR NEW CHAT - IMPLEMENTING BETTER APPROACH:
+
+I have a Python project called BuffetBot that's a stock analysis dashboard built with Streamlit. The project currently has import path issues that I've temporarily fixed by adding path setup code to multiple files, but I know this isn't following best practices.
+
+## Current Project Structure:
+```
+BuffetBot/
+├── dashboard/
+│   ├── app.py                    # Main Streamlit app
+│   ├── streamlit_app.py         # Wrapper for local development
+│   ├── config/
+│   │   └── settings.py
+│   ├── components/
+│   │   └── forecast_panel.py
+│   └── utils/
+│       └── data_processing.py
+├── data/
+│   ├── fetcher/
+│   │   ├── fetcher.py
+│   │   └── utils/
+│   │       ├── standardization.py
+│   │       ├── logger.py
+│   │       └── errors.py
+│   └── cleaner.py
+├── utils/
+│   ├── errors.py
+│   ├── logger.py
+│   └── (other utility files)
+├── pyproject.toml               # Already exists with package config
+├── setup.py                    # Exists but minimal
+├── requirements.txt
+├── main.py                     # Entry point for Streamlit Cloud
+└── run_dashboard.sh            # Local development script
+```
+
+## Current Problem:
+The project has namespace conflicts between `dashboard.utils` and the root `utils` package. Files deep in the structure (like `data/fetcher/utils/standardization.py`) can't import from the root `utils` package without path manipulation.
+
+## Temporary Fix Applied:
+I've added this code to multiple files:
+```python
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent.absolute()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+```
+
+This works but violates DRY principles and isn't maintainable.
+
+## What I Need:
+Please help me implement a proper solution using Python packaging best practices. I want to:
+
+1. **Eliminate all the repetitive path setup code**
+2. **Use proper relative imports or package installation**
+3. **Maintain compatibility with both local development (`./run_dashboard.sh`) and Streamlit Cloud deployment**
+4. **Follow Python packaging best practices**
+
+## Deployment Requirements:
+- Local development: `./run_dashboard.sh` should work
+- Streamlit Cloud: Should be able to deploy using `main.py` as entry point
+- The app uses imports like:
+  - `from utils.errors import DataError`
+  - `from data.fetcher import fetch_stock_data`
+  - `from dashboard.config.settings import configure_streamlit_page`
+
+## Question:
+What's the best way to restructure this project to eliminate the path setup code while maintaining all functionality? Should I use `pip install -e .` approach, restructure the imports, or something else?
+
+Please provide a step-by-step implementation plan with the specific changes needed to files and import statements.
+
+## Files Currently Modified with Path Setup Code:
+- dashboard/app.py
+- dashboard/streamlit_app.py
+- dashboard/utils/data_processing.py
+- dashboard/components/forecast_panel.py
+- data/fetcher/fetcher.py
+- data/fetcher/utils/standardization.py
+- data/fetcher/utils/logger.py
+- data/fetcher/utils/errors.py
+
+All these files have the same repetitive path setup code that should be eliminated with a proper solution.

@@ -49,18 +49,24 @@ docs = [
     "sphinx-rtd-theme>=2.0.0",
 ]
 
+# Entry points for command line interfaces
+[project.scripts]
+buffetbot = "buffetbot.cli:main"
+buffetbot-dashboard = "buffetbot.dashboard.app:main"
+
 [project.urls]
 Homepage = "https://github.com/your-username/buffetbot"
 Documentation = "https://buffetbot.readthedocs.io"
 Repository = "https://github.com/your-username/buffetbot.git"
 Issues = "https://github.com/your-username/buffetbot/issues"
 
-[tool.setuptools]
-packages = ["buffetbot"]
-package-dir = {"" = "."}
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests*", "*.tests*", "archive*", "venv*", "build*", "dist*", ".*"]
 
 [tool.setuptools.package-data]
-buffetbot = ["*.txt", "*.md"]
+"*" = ["*.txt", "*.md", "*.json", "*.yaml", "*.yml"]
 
 [tool.black]
 line-length = 88
@@ -161,12 +167,15 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.coverage.run]
-source = ["buffetbot"]
+source = ["."]
 omit = [
     "*/tests/*",
     "*/examples/*",
     "*/__init__.py",
     "*/setup.py",
+    "venv/*",
+    "build/*",
+    "dist/*",
 ]
 
 [tool.coverage.report]

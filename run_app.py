@@ -1,19 +1,11 @@
 #!/usr/bin/env python
 """
-Entry point for BuffetBot Dashboard that properly sets up Python paths.
+Entry point for BuffetBot Dashboard using the properly installed package.
 """
 
-import os
 import signal
 import sys
 from pathlib import Path
-
-# Add project root to Python path BEFORE any imports
-project_root = Path(__file__).parent.absolute()
-sys.path.insert(0, str(project_root))
-
-# Set PYTHONPATH environment variable
-os.environ["PYTHONPATH"] = str(project_root)
 
 
 # Signal handler for clean shutdown
@@ -31,11 +23,14 @@ if __name__ == "__main__":
     # Import streamlit and run the app
     import streamlit.web.cli as stcli
 
-    # Construct the streamlit command - use streamlit_app.py wrapper
+    # Use the main.py file which has proper imports
+    project_root = Path(__file__).parent.absolute()
+
+    # Construct the streamlit command - use main.py which has clean imports
     sys.argv = [
         "streamlit",
         "run",
-        str(project_root / "dashboard" / "streamlit_app.py"),
+        str(project_root / "main.py"),
         "--server.port",
         "8501",
         "--server.address",

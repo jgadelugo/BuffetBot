@@ -1,0 +1,16 @@
+[server]
+# Server configuration for deployment
+port = 8501
+address = "0.0.0.0"
+maxUploadSize = 200
+
+[theme]
+# Dark theme configuration
+primaryColor = "#FF6B6B"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#FAFAFA"
+
+[browser]
+# Browser configuration
+gatherUsageStats = false
