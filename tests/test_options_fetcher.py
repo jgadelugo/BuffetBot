@@ -78,7 +78,7 @@ def test_error_handling():
     # Test invalid ticker (should handle gracefully)
     try:
         result = fetch_long_dated_calls("INVALIDTICKER123", min_days_to_expiry=30)
-        if result.empty:
+        if not result["data_available"] or result["data"].empty:
             print("✅ Correctly handled invalid ticker (returned empty DataFrame)")
         else:
             print("❌ Unexpected: got data for invalid ticker")

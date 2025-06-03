@@ -2,6 +2,7 @@
 
 from typing import Any, Union
 
+import numpy as np
 import pandas as pd
 
 
@@ -43,6 +44,13 @@ def safe_get_last_price(price_data: pd.DataFrame | None) -> float | None:
             or "Close" not in price_data.columns
         ):
             return None
-        return float(price_data["Close"].iloc[-1])
+
+        last_price = price_data["Close"].iloc[-1]
+
+        # Check if the last price is NaN
+        if pd.isna(last_price):
+            return None
+
+        return float(last_price)
     except (IndexError, KeyError, ValueError, TypeError, AttributeError):
         return None

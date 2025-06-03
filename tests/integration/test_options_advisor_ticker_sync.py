@@ -178,13 +178,83 @@ class TestOptionsAdvisorTickerSync:
             # Registry may not be populated in test environment, which is fine
             pass
 
-    @patch("dashboard.views.options_advisor.handle_ticker_change")
-    def test_ticker_change_handling_integration(self, mock_handle_ticker_change):
+    @patch("buffetbot.dashboard.dashboard_utils.data_processing.handle_ticker_change")
+    @patch("streamlit.error")
+    @patch("streamlit.warning")
+    @patch("streamlit.header")
+    @patch("streamlit.info")
+    @patch("streamlit.markdown")
+    @patch("streamlit.columns")
+    @patch("streamlit.success")
+    @patch("streamlit.expander")
+    @patch("streamlit.subheader")
+    @patch("streamlit.slider")
+    @patch("streamlit.checkbox")
+    @patch("streamlit.button")
+    @patch("buffetbot.dashboard.components.disclaimers.render_investment_disclaimer")
+    @patch("buffetbot.dashboard.components.forecast_panel.render_forecast_panel")
+    @patch("buffetbot.dashboard.config.settings.get_dashboard_config")
+    def test_ticker_change_handling_integration(
+        self,
+        mock_get_config,
+        mock_forecast_panel,
+        mock_disclaimer,
+        mock_button,
+        mock_checkbox,
+        mock_slider,
+        mock_subheader,
+        mock_expander,
+        mock_success,
+        mock_columns,
+        mock_markdown,
+        mock_info,
+        mock_header,
+        mock_warning,
+        mock_error,
+        mock_handle_ticker_change,
+    ):
         """Test that ticker change handling is properly integrated."""
         from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         # Mock the ticker change handler
         mock_handle_ticker_change.return_value = True
+
+        # Mock config
+        mock_get_config.return_value = {
+            "min_min_days": 30,
+            "max_min_days": 365,
+            "default_min_days": 90,
+            "min_top_n": 1,
+            "max_top_n": 20,
+            "default_top_n": 5,
+        }
+
+        # Mock forecast panel
+        mock_forecast_panel.return_value = None
+
+        # Mock columns to return appropriate number of mocks
+        def mock_columns_side_effect(spec):
+            if isinstance(spec, list):
+                return [MagicMock() for _ in range(len(spec))]
+            elif isinstance(spec, int):
+                return [MagicMock() for _ in range(spec)]
+            else:
+                return [MagicMock(), MagicMock()]
+
+        mock_columns.side_effect = mock_columns_side_effect
+
+        # Mock sliders
+        mock_slider.return_value = 90
+
+        # Mock checkbox
+        mock_checkbox.return_value = False
+
+        # Mock button
+        mock_button.return_value = False
+
+        # Mock expander
+        mock_expander.return_value.__enter__ = MagicMock()
+        mock_expander.return_value.__exit__ = MagicMock()
 
         test_data = {"price_data": {"close": [100, 101, 102]}}
         test_ticker = "AAPL"
@@ -193,12 +263,12 @@ class TestOptionsAdvisorTickerSync:
             render_options_advisor_tab(test_data, test_ticker)
             # Verify that handle_ticker_change was called with the correct ticker
             mock_handle_ticker_change.assert_called_once_with("AAPL")
-        except Exception:
+        except Exception as e:
             # Function may fail due to streamlit mocking, but we care about the ticker handling
             # Check if the function was called at least once
             assert (
                 mock_handle_ticker_change.called
-            ), "handle_ticker_change should have been called"
+            ), f"handle_ticker_change should have been called, but got exception: {str(e)}"
             if mock_handle_ticker_change.call_args_list:
                 first_call = mock_handle_ticker_change.call_args_list[0]
                 assert (

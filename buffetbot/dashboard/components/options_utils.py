@@ -76,7 +76,8 @@ def get_data_score_badge(score_details: dict[str, Any]) -> str:
     Returns:
         str: Formatted badge string
     """
-    if not score_details:
+    # Handle invalid input types
+    if not isinstance(score_details, dict) or not score_details:
         return "❓ 0/5"
 
     total_indicators = 5
