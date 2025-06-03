@@ -1,60 +1,120 @@
 # BuffetBot Dashboard - Deployment Guide
 
-## Streamlit Cloud Deployment
+## 🚀 Streamlit Cloud Deployment (Post-Refactoring)
 
-### Main Entry Points
+### Quick Setup for Streamlit Cloud
 
-The application can be deployed using any of these entry points:
+1. **Repository**: `https://github.com/jgadelugo/BuffetBot`
+2. **Branch**: `main`
+3. **Main file path**: `main.py`
+4. **Python version**: 3.10+
 
-1. **`main.py`** - Recommended for Streamlit Cloud deployment
-2. **`dashboard/app.py`** - Direct app file with embedded path setup
-3. **`dashboard/streamlit_app.py`** - Wrapper for local development
+### Entry Points (Updated Structure)
 
-### Deployment Configuration
+After the refactoring, use **only** these entry points:
 
-When deploying to Streamlit Cloud:
+1. **`main.py`** ✅ **RECOMMENDED** - Clean entry point for Streamlit Cloud
+2. **`buffetbot/dashboard/streamlit_app.py`** - Alternative wrapper (if needed)
 
-1. **Main file**: Use `main.py` as the entry point
-2. **Python version**: 3.10 or higher (specified in `pyproject.toml`)
-3. **Dependencies**: All listed in `requirements.txt`
+⚠️ **DEPRECATED**: Old `dashboard/app.py` path no longer exists
 
-### Path Setup Fix
+### Deployment Files
 
-The main issue that was resolved:
-- **Problem**: Module import errors (`ModuleNotFoundError`) when deploying to cloud platforms
-- **Cause**: Python path not properly configured for absolute imports from project root
-- **Solution**: Added path setup code at the beginning of `dashboard/app.py` to ensure the project root is always in `sys.path`
+Ensure these files are properly configured:
 
-### Files Modified for Deployment Compatibility
+#### **`main.py`** (Entry Point)
+```python
+from buffetbot.dashboard.app import main
 
-1. **`dashboard/app.py`**: Added path setup code at the beginning
-2. **`main.py`**: Created as a clean entry point for cloud deployment
-3. **`.streamlit/config.toml`**: Configuration for Streamlit settings
-4. **`packages.txt`**: System dependencies for cloud deployment
-5. **`dashboard/streamlit_app.py`**: Simplified wrapper for local development
-
-### Local Development
-
-For local development, continue using:
-```bash
-./run_dashboard.sh
+if __name__ == "__main__":
+    main()
 ```
 
-This will use the existing setup with proper virtual environment activation.
+#### **`requirements.txt`** (Python Dependencies)
+All dependencies are specified and automatically installed
 
-### Troubleshooting
+#### **`packages.txt`** (System Dependencies)
+```
+build-essential
+```
 
-If you encounter import errors:
-1. Ensure the main entry point includes path setup code
-2. Verify all directories have `__init__.py` files
-3. Check that `requirements.txt` includes all dependencies
-4. Use absolute imports from the project root (e.g., `from utils.logger import get_logger`)
+#### **`.streamlit/config.toml`** (Streamlit Configuration)
+```toml
+[theme]
+primaryColor = "#FF6B6B"
+backgroundColor = "#0E1117"  # Dark theme
+secondaryBackgroundColor = "#262730"
+textColor = "#FAFAFA"
 
-### Testing Deployment Locally
+[server]
+port = 8501
+maxUploadSize = 200
+```
 
-To test the deployment setup locally:
+### 🎯 Streamlit Cloud Setup Steps
+
+1. **Go to**: [share.streamlit.io](https://share.streamlit.io)
+2. **Connect Repository**: `jgadelugo/BuffetBot`
+3. **Branch**: `main`
+4. **Main file path**: `main.py`
+5. **Click**: Deploy
+
+### ✅ Key Benefits of New Structure
+
+- **✅ No Path Setup**: Eliminated manual `sys.path` manipulation
+- **✅ Proper Packaging**: Uses `pip install -e .` for clean imports
+- **✅ Standard Imports**: All imports use `buffetbot.*` namespace
+- **✅ Cloud Compatible**: Works seamlessly with Streamlit Cloud
+- **✅ Zero Configuration**: No special environment setup needed
+
+### 🧪 Testing Deployment Locally
+
 ```bash
+# Method 1: Test exactly like Streamlit Cloud runs it
 streamlit run main.py
+
+# Method 2: Use the development script
+./run_dashboard.sh
+
+# Method 3: Use the Python wrapper
+python run_dashboard.py
 ```
 
-This mimics how Streamlit Cloud will run the application.
+### 🔧 Local Development vs Deployment
+
+| Environment | Command | Entry Point |
+|-------------|---------|-------------|
+| **Streamlit Cloud** | `streamlit run main.py` | `main.py` |
+| **Local Development** | `./run_dashboard.sh` | `run_dashboard.py` → `main.py` |
+| **Manual Local** | `streamlit run main.py` | `main.py` |
+
+### 🚨 Troubleshooting
+
+#### If deployment fails:
+
+1. **Check Entry Point**: Must be `main.py` (not old paths)
+2. **Verify Branch**: Must be `main` branch with latest commits
+3. **Python Version**: Ensure 3.10+ is selected
+4. **Requirements**: All dependencies in `requirements.txt`
+
+#### Common Issues:
+
+- ❌ **Using old `dashboard/app.py` path** → ✅ Use `main.py`
+- ❌ **Missing dependencies** → ✅ Check `requirements.txt`
+- ❌ **Import errors** → ✅ Ensure package installed properly
+
+### 🎉 Deployment Verification
+
+Once deployed, your app should:
+- ✅ Load with dark theme
+- ✅ Show "Stock Analysis Dashboard" title
+- ✅ Have working sidebar with ticker input
+- ✅ Display all tabs properly
+- ✅ No import or path errors
+
+### 📧 Support
+
+If you encounter issues, check:
+1. Streamlit Cloud deployment logs
+2. GitHub repository latest commits
+3. Package installation status
