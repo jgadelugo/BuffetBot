@@ -23,6 +23,11 @@ from dashboard.config.settings import (
 # Setup project path
 setup_project_path()
 
+from dashboard.components.analytics import (
+    initialize_analytics,
+    track_page_view,
+    track_ticker_analysis,
+)
 from dashboard.components.disclaimers import (
     render_compliance_footer,
     render_investment_disclaimer,
@@ -58,6 +63,9 @@ def render_data_collection_report(data: dict[str, Any], ticker: str) -> None:
         ticker: Stock ticker symbol
     """
     st.title(f"Data Collection Report - {ticker}")
+
+    # Track data report view
+    track_page_view("Data Collection Report", ticker)
 
     # Add back button
     if st.button("← Back to Dashboard"):
@@ -109,6 +117,11 @@ def main() -> None:
     # Initialize session state
     initialize_session_state()
 
+    # Initialize Google Analytics - IMPORTANT: This should be early in the app
+    initialize_analytics(
+        environment="production"
+    )  # Change to 'development' for local testing
+
     # Set page title and disclaimer
     st.title("Stock Analysis Dashboard")
     render_investment_disclaimer("header")
@@ -134,6 +147,9 @@ def main() -> None:
         )
         return
 
+    # Track ticker analysis
+    track_ticker_analysis(ticker, "dashboard_load")
+
     # Create tabs for different sections
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         [
@@ -147,26 +163,33 @@ def main() -> None:
         ]
     )
 
-    # Render tab content
+    # Render tab content with analytics tracking
     with tab1:
+        track_page_view("Overview Tab", ticker)
         render_overview_tab(data, ticker)
 
     with tab2:
+        track_page_view("Price Analysis Tab", ticker)
         render_price_analysis_page(data, ticker)
 
     with tab3:
+        track_page_view("Financial Health Tab", ticker)
         render_financial_health_page(data, ticker)
 
     with tab4:
+        track_page_view("Growth Metrics Tab", ticker)
         render_growth_metrics_tab(data, ticker)
 
     with tab5:
+        track_page_view("Risk Analysis Tab", ticker)
         render_risk_analysis_tab(data, ticker)
 
     with tab6:
+        track_page_view("Glossary Tab")
         render_glossary_tab()
 
     with tab7:
+        track_page_view("Options Advisor Tab")
         render_options_advisor_tab()
 
     # Check if we should show the data collection report

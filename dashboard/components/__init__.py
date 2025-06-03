@@ -2,6 +2,14 @@
 
 # Re-export commonly used components
 try:
+    from .analytics import (
+        initialize_analytics,
+        inject_google_analytics,
+        track_custom_event,
+        track_page_view,
+        track_ticker_analysis,
+        track_user_interaction,
+    )
     from .charts import (
         create_enhanced_price_gauge,
         create_growth_chart,
@@ -29,7 +37,14 @@ try:
     from .sidebar import render_sidebar
 
     __all__ = [
-        # Metrics components
+        # Analytics components
+        "initialize_analytics",
+        "inject_google_analytics",
+        "track_page_view",
+        "track_custom_event",
+        "track_ticker_analysis",
+        "track_user_interaction",
+        # Display components
         "display_metric_with_info",
         "display_metrics_grid",
         "display_metric_with_status",
@@ -45,10 +60,12 @@ try:
         # Price valuation components
         "PriceValuationCard",
         "create_valuation_summary",
-        # Other components
+        # Sidebar and layout
         "render_sidebar",
+        # Disclaimers and compliance
         "render_investment_disclaimer",
         "render_compliance_footer",
+        # Utility components
         "render_metric_card",
         "render_score_details_popover",
         "get_data_score_badge",
@@ -57,6 +74,6 @@ try:
     ]
 
 except ImportError as e:
-    # If some components are missing, provide graceful fallback
+    # Handle import errors gracefully during development
     print(f"Warning: Some components could not be imported: {e}")
     __all__ = []
