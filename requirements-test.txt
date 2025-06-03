@@ -1,0 +1,31 @@
+# Testing Framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0
+pytest-mock>=3.11.0
+
+# Code Quality and Linting
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Security Scanning
+bandit>=1.7.5
+safety>=2.3.5
+
+# Type Stubs
+types-requests>=2.31.0
+pandas-stubs>=2.0.0
+
+# Additional Testing Utilities
+factory-boy>=3.3.0
+freezegun>=1.2.0
+responses>=0.23.0
+
+# Performance Testing
+pytest-benchmark>=4.0.0
+
+# Mocking and Fixtures
+pytest-factoryboy>=2.5.0
+pytest-asyncio>=0.21.0

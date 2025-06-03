@@ -1,13 +1,15 @@
 """Enhanced chart components for financial visualization."""
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-logger = logging.getLogger(__name__)
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def create_enhanced_price_gauge(
@@ -492,3 +494,147 @@ def create_valuation_metrics_chart(metrics: dict[str, float]) -> go.Figure:
         logger.error(f"Error creating valuation metrics chart: {str(e)}")
         # Return empty figure
         return go.Figure()
+
+
+def create_price_gauge(current_price: float, intrinsic_value: float) -> go.Figure:
+    """Create a gauge chart for price comparison.
+
+    Args:
+        current_price: Current stock price
+        intrinsic_value: Calculated intrinsic value
+
+    Returns:
+        Plotly Figure object
+    """
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=current_price,
+            title={"text": "Current Price vs Intrinsic Value"},
+            gauge={
+                "axis": {"range": [0, max(current_price, intrinsic_value) * 1.2]},
+                "bar": {"color": "darkblue"},
+                "steps": [
+                    {"range": [0, intrinsic_value], "color": "lightgray"},
+                    {
+                        "range": [intrinsic_value, intrinsic_value * 1.2],
+                        "color": "gray",
+                    },
+                ],
+                "threshold": {
+                    "line": {"color": "red", "width": 4},
+                    "thickness": 0.75,
+                    "value": intrinsic_value,
+                },
+            },
+        )
+    )
+    return fig
+
+
+def create_growth_chart(price_data: pd.DataFrame) -> go.Figure:
+    """Create a growth chart with moving averages and Bollinger Bands.
+
+    Args:
+        price_data: DataFrame containing price data with 'Close' column
+
+    Returns:
+        Plotly Figure object
+    """
+    try:
+        # Calculate technical indicators
+        df = price_data.copy()
+
+        # Calculate moving averages
+        df["MA20"] = df["Close"].rolling(window=20).mean()
+        df["MA50"] = df["Close"].rolling(window=50).mean()
+        df["MA200"] = df["Close"].rolling(window=200).mean()
+
+        # Calculate Bollinger Bands
+        df["BB_Middle"] = df["Close"].rolling(window=20).mean()
+        df["BB_Std"] = df["Close"].rolling(window=20).std()
+        df["BB_Upper"] = df["BB_Middle"] + (df["BB_Std"] * 2)
+        df["BB_Lower"] = df["BB_Middle"] - (df["BB_Std"] * 2)
+
+        # Create figure
+        fig = go.Figure()
+
+        # Add price line
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df["Close"], name="Price", line=dict(color="blue"))
+        )
+
+        # Add moving averages
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["MA20"],
+                name="20-day MA",
+                line=dict(color="orange", dash="dash"),
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["MA50"],
+                name="50-day MA",
+                line=dict(color="green", dash="dash"),
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["MA200"],
+                name="200-day MA",
+                line=dict(color="red", dash="dash"),
+            )
+        )
+
+        # Add Bollinger Bands
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["BB_Upper"],
+                name="BB Upper",
+                line=dict(color="gray", dash="dot"),
+                fill=None,
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["BB_Lower"],
+                name="BB Lower",
+                line=dict(color="gray", dash="dot"),
+                fill="tonexty",
+            )
+        )
+
+        fig.update_layout(
+            title="Price History with Moving Averages",
+            xaxis_title="Date",
+            yaxis_title="Price",
+            hovermode="x unified",
+        )
+
+        return fig
+
+    except Exception as e:
+        logger.error(f"Error creating growth chart: {str(e)}")
+        # Return a simple price chart if technical indicators fail
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=price_data.index,
+                y=price_data["Close"],
+                name="Price",
+                line=dict(color="blue"),
+            )
+        )
+        fig.update_layout(
+            title="Price History", xaxis_title="Date", yaxis_title="Price"
+        )
+        return fig

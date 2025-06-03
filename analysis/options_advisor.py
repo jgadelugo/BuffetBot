@@ -186,12 +186,77 @@ def compute_returns(prices: pd.Series) -> pd.Series:
         raise CalculationError(f"Failed to compute returns: {str(e)}")
 
 
+def normalize_scoring_weights(
+    input_weights: dict[str, float], available_sources: list[str]
+) -> dict[str, float]:
+    """
+    Normalize scoring weights dynamically based on available data sources.
+
+    When one or more data sources are unavailable, this function redistributes
+    the weights proportionally among the remaining indicators, ensuring the
+    total weight always sums to 1.0.
+
+    Args:
+        input_weights: Original scoring weights for all indicators
+        available_sources: List of data source keys that have valid data
+
+    Returns:
+        dict: Normalized weights that sum to 1.0, containing only available sources
+
+    Examples:
+        >>> original = {"rsi": 0.2, "beta": 0.2, "momentum": 0.2, "iv": 0.2, "forecast": 0.2}
+        >>> available = ["rsi", "beta", "momentum", "iv"]  # forecast missing
+        >>> normalized = normalize_scoring_weights(original, available)
+        >>> # Result: {"rsi": 0.25, "beta": 0.25, "momentum": 0.25, "iv": 0.25}
+    """
+    if not available_sources:
+        logger.error("No available data sources for weight normalization")
+        return {}
+
+    if len(available_sources) == 1:
+        # Only one source available, give it 100% weight
+        return {available_sources[0]: 1.0}
+
+    # Calculate total weight of available sources
+    available_weight = sum(
+        input_weights[source] for source in available_sources if source in input_weights
+    )
+
+    if available_weight == 0:
+        # If no original weights exist for available sources, distribute equally
+        equal_weight = 1.0 / len(available_sources)
+        return {source: equal_weight for source in available_sources}
+
+    # Redistribute weights proportionally
+    normalized_weights = {}
+    for source in available_sources:
+        original_weight = input_weights.get(source, 0)
+        normalized_weights[source] = original_weight / available_weight
+
+    # Verify weights sum to 1.0 (within floating point tolerance)
+    total_weight = sum(normalized_weights.values())
+    if abs(total_weight - 1.0) > 0.001:
+        logger.warning(
+            f"Normalized weights sum to {total_weight:.6f}, not 1.0. Adjusting..."
+        )
+        # Minor adjustment to ensure exact sum of 1.0
+        adjustment_factor = 1.0 / total_weight
+        normalized_weights = {
+            k: v * adjustment_factor for k, v in normalized_weights.items()
+        }
+
+    logger.info(
+        f"Normalized weights for {len(available_sources)} sources: {normalized_weights}"
+    )
+    return normalized_weights
+
+
 def compute_scores(
     ticker: str,
     stock_prices: pd.Series,
     spy_prices: pd.Series,
     options_df: pd.DataFrame,
-) -> tuple[float, float, float, float, float]:
+) -> tuple[float, float, float, float, float, dict[str, bool]]:
     """
     Compute technical indicator scores and analyst forecast for options analysis.
 
@@ -202,17 +267,33 @@ def compute_scores(
         options_df: Options data DataFrame
 
     Returns:
-        Tuple[float, float, float, float, float]: RSI, Beta, Momentum, IV, and Forecast confidence scores
+        Tuple containing:
+            - RSI value (float)
+            - Beta value (float)
+            - Momentum value (float)
+            - Average IV value (float)
+            - Forecast confidence (float)
+            - Data availability status (dict[str, bool])
 
     Raises:
         CalculationError: If any technical indicator calculation fails
     """
     logger.info(f"Computing technical scores and forecast for {ticker}")
 
+    # Track which data sources are available
+    data_availability = {
+        "rsi": False,
+        "beta": False,
+        "momentum": False,
+        "iv": False,
+        "forecast": False,
+    }
+
     try:
         # Calculate RSI
         try:
             rsi = calculate_rsi(stock_prices, period=14)
+            data_availability["rsi"] = True
             logger.debug(f"RSI calculated: {rsi:.2f}")
         except OptionsMathError as e:
             logger.warning(f"RSI calculation failed for {ticker}: {str(e)}")
@@ -233,6 +314,7 @@ def compute_scores(
                 beta = 1.0  # Market beta as fallback
             else:
                 beta = calculate_beta(aligned_stock, aligned_spy)
+                data_availability["beta"] = True
                 logger.debug(f"Beta calculated: {beta:.3f}")
         except (OptionsMathError, CalculationError) as e:
             logger.warning(f"Beta calculation failed for {ticker}: {str(e)}")
@@ -241,6 +323,7 @@ def compute_scores(
         # Calculate Momentum
         try:
             momentum = calculate_momentum(stock_prices, window=20)
+            data_availability["momentum"] = True
             logger.debug(f"Momentum calculated: {momentum:.4f}")
         except OptionsMathError as e:
             logger.warning(f"Momentum calculation failed for {ticker}: {str(e)}")
@@ -249,6 +332,7 @@ def compute_scores(
         # Calculate Average Implied Volatility
         try:
             avg_iv = calculate_average_iv(options_df)
+            data_availability["iv"] = True
             logger.debug(f"Average IV calculated: {avg_iv:.4f}")
         except OptionsMathError as e:
             logger.warning(f"IV calculation failed for {ticker}: {str(e)}")
@@ -258,6 +342,7 @@ def compute_scores(
         try:
             forecast_data = get_analyst_forecast(ticker)
             forecast_confidence = forecast_data["confidence"]
+            data_availability["forecast"] = True
             logger.info(
                 f"Analyst forecast fetched for {ticker}: "
                 f"mean_target=${forecast_data['mean_target']:.2f}, "
@@ -267,11 +352,15 @@ def compute_scores(
             logger.warning(f"Forecast fetch failed for {ticker}: {str(e)}")
             forecast_confidence = 0.5  # Neutral confidence as fallback
 
+        available_sources = [k for k, v in data_availability.items() if v]
+        logger.info(
+            f"Data availability for {ticker}: {sum(data_availability.values())}/{len(data_availability)} sources available: {available_sources}"
+        )
         logger.info(
             f"All scores computed for {ticker}: RSI={rsi:.2f}, Beta={beta:.3f}, "
             f"Momentum={momentum:.4f}, IV={avg_iv:.4f}, Forecast={forecast_confidence:.3f}"
         )
-        return rsi, beta, momentum, avg_iv, forecast_confidence
+        return rsi, beta, momentum, avg_iv, forecast_confidence, data_availability
 
     except Exception as e:
         error_msg = f"Failed to compute scores for {ticker}: {str(e)}"
@@ -310,9 +399,10 @@ def _calculate_composite_scores(
     momentum: float,
     avg_iv: float,
     forecast_confidence: float,
+    data_availability: dict[str, bool],
 ) -> pd.DataFrame:
     """
-    Calculate composite scores for each option contract including analyst forecast.
+    Calculate composite scores for each option contract with dynamic weight normalization.
 
     Args:
         options_df: DataFrame containing options data
@@ -321,59 +411,96 @@ def _calculate_composite_scores(
         momentum: Momentum value for the underlying stock
         avg_iv: Average implied volatility
         forecast_confidence: Analyst forecast confidence score (0-1)
+        data_availability: Dict indicating which data sources are available
 
     Returns:
-        pd.DataFrame: Options DataFrame with composite scores added
+        pd.DataFrame: Options DataFrame with composite scores and metadata added
     """
     logger.info(f"Calculating composite scores for {len(options_df)} option contracts")
 
     # Create a copy to avoid modifying the original DataFrame
     scored_df = options_df.copy()
 
-    # Normalize individual scores to 0-1 range
-    # RSI: Lower RSI (oversold) is better for calls, so we invert
-    rsi_score = _normalize_score(rsi, 0, 100, invert=True)
+    # Determine available data sources
+    available_sources = [k for k, v in data_availability.items() if v]
 
-    # Beta: Moderate beta (around 1.0) is often preferred, but higher beta can mean more upside
-    # We'll favor slightly higher beta but penalize extreme values
-    if beta < 0.5:
-        beta_score = 0.2  # Very low beta gets low score
-    elif beta > 2.0:
-        beta_score = 0.3  # Very high beta gets penalized
+    # Log warning if fewer than 4 sources are available
+    if len(available_sources) < 4:
+        logger.warning(
+            f"Scoring with partial data: only {len(available_sources)}/5 sources available: {available_sources}. "
+            f"Missing: {[k for k, v in data_availability.items() if not v]}"
+        )
+
+    # Normalize weights based on available sources
+    normalized_weights = normalize_scoring_weights(SCORING_WEIGHTS, available_sources)
+
+    # Calculate individual normalized scores
+    score_components = {}
+
+    if data_availability["rsi"]:
+        # RSI: Lower RSI (oversold) is better for calls, so we invert
+        rsi_score = _normalize_score(rsi, 0, 100, invert=True)
+        score_components["rsi"] = rsi_score
+
+    if data_availability["beta"]:
+        # Beta: Moderate beta (around 1.0) is often preferred, but higher beta can mean more upside
+        # We'll favor slightly higher beta but penalize extreme values
+        if beta < 0.5:
+            beta_score = 0.2  # Very low beta gets low score
+        elif beta > 2.0:
+            beta_score = 0.3  # Very high beta gets penalized
+        else:
+            beta_score = _normalize_score(beta, 0.5, 1.5, invert=False)
+        score_components["beta"] = beta_score
+
+    if data_availability["momentum"]:
+        # Momentum: Higher momentum is better for calls
+        momentum_score = _normalize_score(momentum, -0.1, 0.1, invert=False)
+        score_components["momentum"] = momentum_score
+
+    if data_availability["forecast"]:
+        # Forecast: Higher confidence is better for calls (already normalized 0-1)
+        forecast_score = forecast_confidence
+        score_components["forecast"] = forecast_score
+
+    # Handle IV scoring (per-option basis)
+    if data_availability["iv"]:
+        # For individual options, we'll use their specific IV vs the average
+        # Lower IV relative to average is better (cheaper options)
+        scored_df["iv_score"] = scored_df["impliedVolatility"].apply(
+            lambda iv: _normalize_score(iv, avg_iv * 0.5, avg_iv * 1.5, invert=True)
+        )
     else:
-        beta_score = _normalize_score(beta, 0.5, 1.5, invert=False)
+        # If IV data is not available, assign neutral score
+        scored_df["iv_score"] = 0.5
 
-    # Momentum: Higher momentum is better for calls
-    momentum_score = _normalize_score(momentum, -0.1, 0.1, invert=False)
+    # Calculate composite score for each option using normalized weights
+    scored_df["CompositeScore"] = 0.0
 
-    # Forecast: Higher confidence is better for calls (already normalized 0-1)
-    forecast_score = forecast_confidence
+    for source, weight in normalized_weights.items():
+        if source == "iv":
+            # IV is calculated per option
+            scored_df["CompositeScore"] += weight * scored_df["iv_score"]
+        elif source in score_components:
+            # Other indicators are the same for all options of this ticker
+            scored_df["CompositeScore"] += weight * score_components[source]
 
-    # For individual options, we'll use their specific IV vs the average
-    # Lower IV relative to average is better (cheaper options)
-    scored_df["iv_score"] = scored_df["impliedVolatility"].apply(
-        lambda iv: _normalize_score(iv, avg_iv * 0.5, avg_iv * 1.5, invert=True)
-    )
+    # Add score details metadata to each row
+    score_details = {source: weight for source, weight in normalized_weights.items()}
+    scored_df["score_details"] = [score_details] * len(scored_df)
 
-    # Calculate composite score for each option
+    # Add technical indicator values
     scored_df["RSI"] = rsi
     scored_df["Beta"] = beta
     scored_df["Momentum"] = momentum
     scored_df["ForecastConfidence"] = forecast_confidence
 
-    scored_df["CompositeScore"] = (
-        SCORING_WEIGHTS["rsi"] * rsi_score
-        + SCORING_WEIGHTS["beta"] * beta_score
-        + SCORING_WEIGHTS["momentum"] * momentum_score
-        + SCORING_WEIGHTS["iv"] * scored_df["iv_score"]
-        + SCORING_WEIGHTS["forecast"] * forecast_score
-    )
-
     # Drop the temporary iv_score column
     scored_df = scored_df.drop("iv_score", axis=1)
 
     logger.info(
-        f"Composite scores calculated with forecast. Score range: {scored_df['CompositeScore'].min():.3f} - {scored_df['CompositeScore'].max():.3f}"
+        f"Composite scores calculated using {len(available_sources)}/5 data sources. "
+        f"Score range: {scored_df['CompositeScore'].min():.3f} - {scored_df['CompositeScore'].max():.3f}"
     )
 
     return scored_df
@@ -479,9 +606,14 @@ def recommend_long_calls(
 
         # Step 3: Compute technical indicators
         logger.info("Step 3: Computing technical indicators")
-        rsi, beta, momentum, avg_iv, forecast_confidence = compute_scores(
-            ticker, stock_prices, spy_prices, options_df
-        )
+        (
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+        ) = compute_scores(ticker, stock_prices, spy_prices, options_df)
 
         # Step 4: Fetch peers and perform ecosystem analysis
         logger.info("Step 4: Performing ecosystem analysis")
@@ -534,7 +666,13 @@ def recommend_long_calls(
         # Step 5: Calculate composite scores
         logger.info("Step 5: Calculating composite scores")
         scored_df = _calculate_composite_scores(
-            options_df, rsi, beta, momentum, avg_iv, forecast_confidence
+            options_df,
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
         )
 
         # Step 6: Apply ecosystem adjustment to composite scores
@@ -581,6 +719,7 @@ def recommend_long_calls(
                 "ecosystem_score",
                 "signal",
                 "confidence",
+                "score_details",  # Add score details for transparency
             ]
         ].copy()
 
@@ -592,6 +731,14 @@ def recommend_long_calls(
 
         # Reset index for clean output
         result_df = result_df.reset_index(drop=True)
+
+        # Log detailed information about data sources used
+        available_sources = [k for k, v in data_availability.items() if v]
+        if len(available_sources) < 5:
+            logger.info(
+                f"Final recommendations based on {len(available_sources)}/5 data sources: {available_sources}. "
+                f"Score weights were dynamically normalized."
+            )
 
         execution_time = (datetime.now() - start_time).total_seconds()
         logger.info(

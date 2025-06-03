@@ -20,6 +20,7 @@ try:
         InsufficientDataError,
         OptionsAdvisorError,
         get_scoring_weights,
+        normalize_scoring_weights,
         recommend_long_calls,
         update_scoring_weights,
     )
@@ -43,7 +44,7 @@ def test_scoring_weights():
     assert abs(total - 1.0) < 0.001, f"Weights should sum to 1.0, got {total}"
 
     # Test updating weights
-    new_weights = {"rsi": 0.3, "beta": 0.2, "momentum": 0.3, "iv": 0.2}
+    new_weights = {"rsi": 0.3, "beta": 0.2, "momentum": 0.3, "iv": 0.1, "forecast": 0.1}
     update_scoring_weights(new_weights)
     updated_weights = get_scoring_weights()
     assert updated_weights == new_weights, "Weights not updated correctly"
@@ -52,6 +53,49 @@ def test_scoring_weights():
     update_scoring_weights(current_weights)
 
     print("✅ Scoring weights tests passed")
+
+
+def test_normalize_scoring_weights():
+    """Test the new dynamic weight normalization functionality from Phase 4."""
+    print("\n🧪 Testing dynamic weight normalization (Phase 4)...")
+
+    original_weights = {
+        "rsi": 0.20,
+        "beta": 0.20,
+        "momentum": 0.20,
+        "iv": 0.20,
+        "forecast": 0.20,
+    }
+
+    # Test 1: All sources available
+    available = ["rsi", "beta", "momentum", "iv", "forecast"]
+    normalized = normalize_scoring_weights(original_weights, available)
+    assert abs(sum(normalized.values()) - 1.0) < 0.001, "Weights should sum to 1.0"
+    assert len(normalized) == 5, "Should have all 5 weights"
+    print("✅ All sources available test passed")
+
+    # Test 2: Missing forecast (common scenario)
+    available = ["rsi", "beta", "momentum", "iv"]
+    normalized = normalize_scoring_weights(original_weights, available)
+    assert abs(sum(normalized.values()) - 1.0) < 0.001, "Weights should sum to 1.0"
+    assert abs(normalized["rsi"] - 0.25) < 0.001, "Should redistribute to 0.25 each"
+    assert "forecast" not in normalized, "Missing source should not be in result"
+    print("✅ Missing forecast test passed")
+
+    # Test 3: Only one source available
+    available = ["rsi"]
+    normalized = normalize_scoring_weights(original_weights, available)
+    assert abs(normalized["rsi"] - 1.0) < 0.001, "Single source should get 100% weight"
+    assert len(normalized) == 1, "Should have only one weight"
+    print("✅ Single source test passed")
+
+    # Test 4: No sources available
+    available = []
+    normalized = normalize_scoring_weights(original_weights, available)
+    assert normalized == {}, "Should return empty dict for no sources"
+    print("✅ No sources test passed")
+
+    print("✅ Dynamic weight normalization tests passed")
 
 
 def test_recommend_long_calls():
@@ -69,7 +113,7 @@ def test_recommend_long_calls():
         print(f"✅ Successfully got {len(recommendations)} recommendations for {ticker}")
         print(f"Columns: {list(recommendations.columns)}")
 
-        # Verify expected columns are present
+        # Verify expected columns are present (updated for Phase 4)
         expected_columns = [
             "ticker",
             "strike",
@@ -80,6 +124,7 @@ def test_recommend_long_calls():
             "Beta",
             "Momentum",
             "CompositeScore",
+            "score_details",  # New column from Phase 4
         ]
         for col in expected_columns:
             assert col in recommendations.columns, f"Missing expected column: {col}"
@@ -95,6 +140,15 @@ def test_recommend_long_calls():
         assert all(
             recommendations["CompositeScore"] <= 1
         ), "Composite scores should be <= 1"
+
+        # Test Phase 4 specific features
+        # Verify score_details column exists and has proper structure
+        first_score_details = recommendations.iloc[0]["score_details"]
+        assert isinstance(first_score_details, dict), "score_details should be a dict"
+        assert (
+            abs(sum(first_score_details.values()) - 1.0) < 0.001
+        ), "score_details weights should sum to 1.0"
+        print("✅ score_details column properly structured")
 
         # Print sample results
         print("\nSample recommendations:")
@@ -149,16 +203,23 @@ def main():
         # Test 1: Scoring weights
         test_scoring_weights()
 
-        # Test 2: Input validation
+        # Test 2: Phase 4 - Dynamic weight normalization
+        test_normalize_scoring_weights()
+
+        # Test 3: Input validation
         test_input_validation()
 
-        # Test 3: Main functionality (may fail if no market data available)
+        # Test 4: Main functionality (may fail if no market data available)
         success = test_recommend_long_calls()
 
         print(f"\n🎉 Tests completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
         if success:
             print("✅ All tests passed successfully!")
+            print("🎯 Phase 4 features validated:")
+            print("   ✓ Dynamic weight normalization")
+            print("   ✓ Partial data handling")
+            print("   ✓ Score details metadata")
         else:
             print(
                 "⚠️ Some tests were skipped due to data availability, but core functionality works"
