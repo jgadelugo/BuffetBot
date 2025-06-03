@@ -1,5 +1,0 @@
-# System packages required for BuffetBot Dashboard
-# This file is used by Streamlit Cloud for system-level dependencies
-
-# Required for some financial libraries
-build-essential
