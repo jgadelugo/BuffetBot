@@ -15,12 +15,14 @@ import pandas as pd
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from buffetbot.dashboard.app import (
+from buffetbot.dashboard.dashboard_utils.data_utils import (
+    safe_get_last_price,
+    safe_get_nested_value,
+)
+from buffetbot.dashboard.dashboard_utils.formatters import (
     safe_format_currency,
     safe_format_number,
     safe_format_percentage,
-    safe_get_last_price,
-    safe_get_nested_value,
 )
 
 

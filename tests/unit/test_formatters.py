@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from buffetbot.dashboard.utils.formatters import (
+from buffetbot.dashboard.dashboard_utils.formatters import (
     safe_format_currency,
     safe_format_number,
     safe_format_percentage,

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from buffetbot.dashboard.utils.data_utils import (
+from buffetbot.dashboard.dashboard_utils.data_utils import (
     safe_get_last_price,
     safe_get_nested_value,
 )
