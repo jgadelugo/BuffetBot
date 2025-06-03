@@ -49,10 +49,10 @@ class TestOptionsAdvisorTickerSync:
             param_annotations["ticker"] == "str"
         ), f"ticker parameter should be str, got {param_annotations['ticker']}"
         # Check that data parameter has some form of Dict annotation
-        data_annotation = str(param_annotations["data"])
+        data_annotation = str(param_annotations["data"]).lower()
         assert (
-            "Dict" in data_annotation
-        ), f"data parameter should be Dict type, got {data_annotation}"
+            "dict" in data_annotation
+        ), f"data parameter should be Dict type, got {param_annotations['data']}"
 
     def test_function_import_from_views_module(self):
         """Test that the function can be imported from the views module."""
