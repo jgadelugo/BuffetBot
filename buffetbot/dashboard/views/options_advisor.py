@@ -6,13 +6,13 @@ from typing import Any, Dict
 
 import pandas as pd
 import streamlit as st
-from analysis.options_advisor import (
+
+from buffetbot.analysis.options_advisor import (
     InsufficientDataError,
     OptionsAdvisorError,
     get_scoring_weights,
     recommend_long_calls,
 )
-
 from buffetbot.dashboard.components.disclaimers import render_investment_disclaimer
 from buffetbot.dashboard.components.forecast_panel import render_forecast_panel
 from buffetbot.dashboard.components.metrics import display_metric_with_info

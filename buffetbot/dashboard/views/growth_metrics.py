@@ -3,8 +3,8 @@
 from typing import Any, Dict
 
 import streamlit as st
-from analysis.growth_analysis import analyze_growth_metrics
 
+from buffetbot.analysis.growth_analysis import analyze_growth_metrics
 from buffetbot.dashboard.components.disclaimers import render_investment_disclaimer
 from buffetbot.dashboard.components.metrics import (
     display_metric_with_info,

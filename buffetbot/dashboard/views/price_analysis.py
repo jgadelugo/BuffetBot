@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 
 # Import analysis functions
-from analysis.value_analysis import calculate_intrinsic_value
+from buffetbot.analysis.value_analysis import calculate_intrinsic_value
 
 # Import components using absolute imports
 from buffetbot.dashboard.components import (

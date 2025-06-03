@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 
 # Import analysis functions
-from analysis.health_analysis import analyze_financial_health
+from buffetbot.analysis.health_analysis import analyze_financial_health
 
 # Import components using absolute imports
 from buffetbot.dashboard.components import (

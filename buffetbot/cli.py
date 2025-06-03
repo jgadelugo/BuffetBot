@@ -14,17 +14,17 @@ from typing import Optional
 
 import pandas as pd
 import typer
-from analysis.options_advisor import (
-    CalculationError,
-    InsufficientDataError,
-    OptionsAdvisorError,
-    recommend_long_calls,
-)
 from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from buffetbot.analysis.options_advisor import (
+    CalculationError,
+    InsufficientDataError,
+    OptionsAdvisorError,
+    recommend_long_calls,
+)
 from buffetbot.utils.logger import setup_logger
 from buffetbot.utils.validators import validate_ticker
 

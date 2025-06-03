@@ -17,8 +17,8 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import yfinance as yf
-from analysis.ecosystem import EcosystemAnalyzer
 
+from buffetbot.analysis.ecosystem import EcosystemAnalyzer
 from buffetbot.data.forecast_fetcher import ForecastFetchError, get_analyst_forecast
 from buffetbot.data.options_fetcher import (
     OptionsDataError,
