@@ -482,6 +482,106 @@ def render_metric_card(key: str, metric: MetricDefinition):
     st.markdown(card_html, unsafe_allow_html=True)
 
 
+def render_score_details_popover(score_details: dict, row_index: int) -> None:
+    """
+    Render an expandable section showing scoring breakdown details.
+
+    Args:
+        score_details: Dictionary containing scoring weights for each indicator
+        row_index: Row index for unique key generation
+    """
+    if not score_details:
+        st.write("No scoring details available")
+        return
+
+    total_indicators = 5  # RSI, Beta, Momentum, IV, Forecast
+    available_indicators = len(score_details)
+
+    # Create color-coded indicator count
+    if available_indicators == total_indicators:
+        indicator_badge = f"🟢 {available_indicators}/{total_indicators} indicators"
+    elif available_indicators >= 3:
+        indicator_badge = f"🟡 {available_indicators}/{total_indicators} indicators"
+    else:
+        indicator_badge = f"🔴 {available_indicators}/{total_indicators} indicators"
+
+    st.markdown(f"**Data Score:** {indicator_badge}")
+
+    # Display weight breakdown
+    st.markdown("**Scoring Weights:**")
+    for indicator, weight in score_details.items():
+        indicator_display = {
+            "rsi": "📈 RSI",
+            "beta": "📊 Beta",
+            "momentum": "🚀 Momentum",
+            "iv": "💨 Implied Volatility",
+            "forecast": "🔮 Analyst Forecast",
+        }.get(indicator, indicator.upper())
+
+        st.markdown(f"- {indicator_display}: {weight:.1%}")
+
+    # Show missing indicators if any
+    all_indicators = {"rsi", "beta", "momentum", "iv", "forecast"}
+    missing_indicators = all_indicators - set(score_details.keys())
+
+    if missing_indicators:
+        st.markdown("**Missing Data:**")
+        for indicator in missing_indicators:
+            indicator_display = {
+                "rsi": "📈 RSI",
+                "beta": "📊 Beta",
+                "momentum": "🚀 Momentum",
+                "iv": "💨 Implied Volatility",
+                "forecast": "🔮 Analyst Forecast",
+            }.get(indicator, indicator.upper())
+            st.markdown(f"- {indicator_display}")
+
+
+def get_data_score_badge(score_details: dict) -> str:
+    """
+    Generate a data score badge showing how many indicators were used.
+
+    Args:
+        score_details: Dictionary containing scoring weights
+
+    Returns:
+        str: Formatted badge string
+    """
+    if not score_details:
+        return "❓ 0/5"
+
+    total_indicators = 5
+    available_indicators = len(score_details)
+
+    if available_indicators == total_indicators:
+        return f"🟢 {available_indicators}/5"
+    elif available_indicators >= 3:
+        return f"🟡 {available_indicators}/5"
+    else:
+        return f"🔴 {available_indicators}/5"
+
+
+def check_for_partial_data(recommendations: pd.DataFrame) -> bool:
+    """
+    Check if any recommendations are based on partial data.
+
+    Args:
+        recommendations: DataFrame containing options recommendations
+
+    Returns:
+        bool: True if any recommendations use fewer than 5 indicators
+    """
+    if recommendations.empty or "score_details" not in recommendations.columns:
+        return False
+
+    for _, row in recommendations.iterrows():
+        score_details = row.get("score_details", {})
+        if isinstance(score_details, dict) and len(score_details) < 5:
+            return True
+
+    return False
+
+
 def main():
     """Main dashboard function."""
     st.title("Stock Analysis Dashboard")
@@ -1223,6 +1323,19 @@ def main():
                             # Display results section
                             st.subheader("📈 Top Option Recommendations")
 
+                            # Check for partial data and display warning banner
+                            has_partial_data = check_for_partial_data(recommendations)
+                            if has_partial_data:
+                                st.warning(
+                                    "⚠️ Some scores are based on partial data. "
+                                    "Hover over score details for breakdown.",
+                                    icon="⚠️",
+                                )
+                                # Log the UI-level warning
+                                logger.warning(
+                                    f"UI Warning: Partial scoring data detected for {options_ticker} options analysis"
+                                )
+
                             # Display forecast summary if available
                             if forecast_data:
                                 st.markdown("#### 🎯 Forecast Context")
@@ -1255,8 +1368,31 @@ def main():
 
                                 st.markdown("---")
 
-                            # Display key metrics with tooltips
-                            st.markdown("#### Key Technical Indicators")
+                            # Display key metrics with tooltips and help icon
+                            col_header, col_help = st.columns([6, 1])
+
+                            with col_header:
+                                st.markdown("#### Key Technical Indicators")
+
+                            with col_help:
+                                with st.popover(
+                                    "❓ Score Help", help="Click for score explanation"
+                                ):
+                                    st.markdown(
+                                        """
+                                    **Score Explanation**
+
+                                    This score is based on 5 weighted indicators:
+                                    - 📈 **RSI** (Relative Strength Index): Momentum indicator
+                                    - 📊 **Beta**: Market correlation coefficient
+                                    - 🚀 **Momentum**: Price trend strength
+                                    - 💨 **Implied Volatility**: Option price uncertainty
+                                    - 🔮 **Forecast**: Analyst consensus confidence
+
+                                    If data is missing, the weights are redistributed proportionally
+                                    among available indicators to maintain fair comparison.
+                                    """
+                                    )
 
                             # Get scoring weights for display
                             scoring_weights = get_scoring_weights()
@@ -1337,6 +1473,8 @@ def main():
                                 col_headers.append("Momentum")
                                 col_headers.append("Forecast")
                                 col_headers.append("Composite Score")
+                                col_headers.append("Data Score")  # New column
+                                col_headers.append("Scoring Inputs")  # New column
 
                                 # Create tooltips for headers
                                 header_help = {
@@ -1348,6 +1486,8 @@ def main():
                                     "Momentum": "momentum",
                                     "Forecast": "forecast_confidence",
                                     "Composite Score": "composite_score",
+                                    "Data Score": "data_score_badge",
+                                    "Scoring Inputs": "scoring_breakdown",
                                 }
 
                                 # Display headers with help text in a table-like format
@@ -1358,11 +1498,28 @@ def main():
                                 ):
                                     with help_cols[i]:
                                         try:
-                                            metric_info = get_metric_info(metric_key)
-                                            help_text = f"{metric_info['description']}"
-                                            st.markdown(
-                                                f"**{header}** ℹ️", help=help_text
-                                            )
+                                            if metric_key in [
+                                                "data_score_badge",
+                                                "scoring_breakdown",
+                                            ]:
+                                                # Custom help text for new columns
+                                                if metric_key == "data_score_badge":
+                                                    help_text = "Shows how many of the 5 indicators were used in scoring"
+                                                else:
+                                                    help_text = "Expandable breakdown of scoring weights and missing data"
+                                                st.markdown(
+                                                    f"**{header}** ℹ️", help=help_text
+                                                )
+                                            else:
+                                                metric_info = get_metric_info(
+                                                    metric_key
+                                                )
+                                                help_text = (
+                                                    f"{metric_info['description']}"
+                                                )
+                                                st.markdown(
+                                                    f"**{header}** ℹ️", help=help_text
+                                                )
                                         except KeyError:
                                             st.markdown(f"**{header}**")
 
@@ -1395,8 +1552,13 @@ def main():
                                 lambda x: safe_format_number(x)
                             )
 
-                            # Select and rename columns for display
-                            display_df = display_df[
+                            # Add Data Score badges
+                            display_df["Data Score"] = display_df[
+                                "score_details"
+                            ].apply(lambda x: get_data_score_badge(x))
+
+                            # Select and rename columns for display (excluding the expandable column for now)
+                            table_display_df = display_df[
                                 [
                                     "Strike",
                                     "expiry",
@@ -1406,9 +1568,11 @@ def main():
                                     "Momentum",
                                     "Forecast",
                                     "Score",
+                                    "Data Score",
                                 ]
-                            ]
-                            display_df.columns = [
+                            ].copy()
+
+                            table_display_df.columns = [
                                 "Strike",
                                 "Expiry",
                                 "Price",
@@ -1417,6 +1581,7 @@ def main():
                                 "Momentum",
                                 "Forecast",
                                 "Composite Score",
+                                "Data Score",
                             ]
 
                             # Style the dataframe with conditional formatting
@@ -1473,9 +1638,11 @@ def main():
                                 except:
                                     return ""
 
-                            # Apply styling
+                            # Apply styling (same as before but include Data Score column)
                             styled_df = (
-                                display_df.style.map(highlight_rsi, subset=["RSI"])
+                                table_display_df.style.map(
+                                    highlight_rsi, subset=["RSI"]
+                                )
                                 .map(highlight_score, subset=["Composite Score"])
                                 .map(highlight_iv, subset=["IV"])
                                 .map(highlight_forecast, subset=["Forecast"])
@@ -1495,6 +1662,33 @@ def main():
                                 styled_df, use_container_width=True, hide_index=True
                             )
 
+                            # Add expandable scoring details section
+                            st.markdown("#### 📊 Detailed Scoring Breakdown")
+                            st.markdown(
+                                "Expand any row below to see the detailed scoring inputs and weights:"
+                            )
+
+                            for idx, row in display_df.iterrows():
+                                strike = row["strike"]
+                                expiry = row["expiry"]
+                                score_details = row.get("score_details", {})
+
+                                # Format expiry date
+                                try:
+                                    expiry_formatted = pd.to_datetime(expiry).strftime(
+                                        "%Y-%m-%d"
+                                    )
+                                except:
+                                    expiry_formatted = str(expiry)
+
+                                data_badge = get_data_score_badge(score_details)
+
+                                with st.expander(
+                                    f"${strike:.2f} Strike • {expiry_formatted} • {data_badge}",
+                                    expanded=False,
+                                ):
+                                    render_score_details_popover(score_details, idx)
+
                             # Add color legend
                             st.markdown(
                                 """
@@ -1502,6 +1696,11 @@ def main():
                             - 🟢 **Green**: Favorable values (Low RSI/IV, High Score/Forecast Confidence)
                             - 🟠 **Orange**: Neutral/Moderate values
                             - 🔴 **Red**: Less favorable values (High RSI/IV, Low Score/Forecast Confidence)
+
+                            **Data Score Legend:**
+                            - 🟢 **5/5**: All indicators available (full scoring)
+                            - 🟡 **3-4/5**: Most indicators available (good scoring)
+                            - 🔴 **1-2/5**: Few indicators available (limited scoring)
                             """
                             )
 

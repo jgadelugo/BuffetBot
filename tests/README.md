@@ -14,6 +14,8 @@ This directory contains all test files for the BuffetBot financial analysis tool
 - `test_robust_fetchers.py` - Tests for robust data fetching mechanisms
 - `test_ticker_change_detection.py` - Tests for ticker change detection
 - `test_ui_error_handling.py` - Tests for UI error handling
+- `test_ui_scoring_transparency.py` - Tests for UI scoring transparency features
+- `test_weight_normalization.py` - Tests for dynamic weight normalization
 
 ## Running Tests
 
@@ -44,6 +46,12 @@ python -m pytest tests/test_glossary.py::test_glossary
 # Run the fallback logic integration test
 python tests/test_fallback_logic.py
 
+# Run UI scoring transparency tests
+python tests/test_ui_scoring_transparency.py
+
+# Run weight normalization tests
+python tests/test_weight_normalization.py
+
 # Or through pytest
 python -m pytest tests/test_fallback_logic.py -v
 ```
@@ -55,6 +63,7 @@ python -m pytest tests/test_fallback_logic.py -v
 3. Use descriptive names that explain what is being tested
 4. Group related tests in test classes when appropriate
 5. Use fixtures from `conftest.py` for common test data
+6. Include both unit tests (class-based) and integration tests (standalone functions)
 
 ## Writing Tests
 
@@ -63,16 +72,24 @@ Example test structure:
 import pytest
 from glossary_data import get_metric_info
 
-def test_get_metric_info_valid():
-    """Test that get_metric_info returns correct data for valid metric."""
-    info = get_metric_info("pe_ratio")
-    assert info["name"] == "Price-to-Earnings (P/E) Ratio"
-    assert info["category"] == "value"
+class TestGlossaryFunctions:
+    """Test class for glossary functionality."""
 
-def test_get_metric_info_invalid():
-    """Test that get_metric_info raises KeyError for invalid metric."""
-    with pytest.raises(KeyError):
-        get_metric_info("invalid_metric")
+    def test_get_metric_info_valid(self):
+        """Test that get_metric_info returns correct data for valid metric."""
+        info = get_metric_info("pe_ratio")
+        assert info["name"] == "Price-to-Earnings (P/E) Ratio"
+        assert info["category"] == "value"
+
+    def test_get_metric_info_invalid(self):
+        """Test that get_metric_info raises KeyError for invalid metric."""
+        with pytest.raises(KeyError):
+            get_metric_info("invalid_metric")
+
+def test_integration_workflow():
+    """Integration test for complete workflow."""
+    # Test the full workflow end-to-end
+    pass
 ```
 
 ## Fixtures
@@ -80,3 +97,13 @@ def test_get_metric_info_invalid():
 Available fixtures from `conftest.py`:
 - `sample_metrics` - Sample calculated metrics dictionary
 - `sample_analysis_results` - Sample analysis results with all metric categories
+
+## UI Testing
+
+UI tests in `test_ui_scoring_transparency.py` test the scoring transparency features:
+- Data score badge generation with correct color coding
+- Partial data detection in recommendation DataFrames
+- Score details breakdown display
+- Graceful handling of edge cases (empty data, None values, etc.)
+
+These tests can be run both with pytest for detailed unit testing and directly as integration tests.
