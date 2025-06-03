@@ -94,7 +94,7 @@ def get_all_views() -> dict[str, dict[str, Any]]:
                 "title": "Options Advisor",
                 "description": "Options analysis and recommendations",
                 "icon": "🎯",
-                "requires_data": False,
+                "requires_data": True,
             },
             "price_analysis": {
                 "function": render_price_analysis_page,
@@ -193,7 +193,7 @@ def register_legacy_views() -> None:
                 description="Options analysis and recommendations",
                 icon="🎯",
                 category=ViewCategory.ADVANCED_TOOLS,
-                requires_data=False,
+                requires_data=True,
             ),
         ),
         (

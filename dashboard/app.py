@@ -189,8 +189,8 @@ def main() -> None:
         render_glossary_tab()
 
     with tab7:
-        track_page_view("Options Advisor Tab")
-        render_options_advisor_tab()
+        track_page_view("Options Advisor Tab", ticker)
+        render_options_advisor_tab(data, ticker)
 
     # Check if we should show the data collection report
     if st.session_state.get("show_data_report", False):
