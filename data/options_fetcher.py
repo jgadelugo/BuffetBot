@@ -5,9 +5,11 @@ This module provides functionality to fetch and process options data,
 specifically focusing on long-dated call options with customizable
 minimum days to expiry filtering.
 
-All functions implement robust fault handling - if real data is unavailable, the
-functions return empty structures with clear metadata flags, ensuring
-the advisory pipeline continues without breaking.
+All functions implement robust fault handling with multi-source fallback logic.
+If the primary provider (Yahoo Finance) fails or returns incomplete data, the module
+attempts fallback sources before returning failure. If real data is unavailable
+from all sources, the functions return empty structures with clear metadata flags,
+ensuring the advisory pipeline continues without breaking.
 """
 
 import logging
@@ -44,6 +46,7 @@ class OptionsResult(TypedDict):
     min_days_to_expiry: int
     total_expiry_dates: int | None
     valid_chains_processed: int | None
+    source_used: str | None
 
 
 def _calculate_days_to_expiry(expiry_date: str) -> int:
@@ -196,15 +199,71 @@ def _process_options_chain(
         return None
 
 
+def get_options_from_fmp_or_eod(
+    ticker: str, min_days_to_expiry: int = 180
+) -> pd.DataFrame:
+    """
+    Fetch options data from Financial Modeling Prep or EOD Historical Data as fallback source.
+
+    Args:
+        ticker: Stock ticker symbol
+        min_days_to_expiry: Minimum days to expiry for options filtering
+
+    Returns:
+        pd.DataFrame: Options data DataFrame with same schema as Yahoo Finance
+
+    Raises:
+        OptionsDataError: If data cannot be fetched or is invalid
+
+    Note:
+        This is a placeholder implementation for FMP/EOD API integration.
+        In production, this would make actual API calls to fallback providers.
+    """
+    try:
+        logger.info(f"Attempting to fetch options data from FMP/EOD for {ticker}")
+
+        # Placeholder implementation - in production, this would make real API calls
+        # Example API call structure for FMP:
+        # api_key = os.getenv('FMP_API_KEY')
+        # url = f"https://financialmodelingprep.com/api/v3/options/{ticker}?apikey={api_key}"
+        # response = requests.get(url, timeout=10)
+        # response.raise_for_status()
+        # data = response.json()
+
+        # Example API call structure for EOD:
+        # api_key = os.getenv('EOD_API_KEY')
+        # url = f"https://eodhistoricaldata.com/api/options/{ticker}.US?api_token={api_key}"
+        # response = requests.get(url, timeout=10)
+        # response.raise_for_status()
+        # data = response.json()
+
+        # For now, raise an exception to indicate the fallback is not available
+        raise OptionsDataError(
+            f"FMP/EOD options data not available for {ticker} - API integration not implemented",
+            "FALLBACK_NOT_IMPLEMENTED",
+        )
+
+    except OptionsDataError:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching FMP/EOD options data for {ticker}: {str(e)}")
+        raise OptionsDataError(
+            f"Failed to fetch FMP/EOD options data for {ticker}: {str(e)}",
+            "FALLBACK_FETCH_ERROR",
+        )
+
+
 def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> OptionsResult:
     """
-    Fetch long-dated call options for a given ticker symbol with robust error handling.
+    Fetch long-dated call options for a given ticker symbol with multi-source fallback logic.
 
-    This function retrieves call options data for the specified ticker,
-    filtering for options with at least the minimum days to expiry.
-    The results are sorted by expiry date and strike price. If real data
-    is unavailable, it returns an empty DataFrame with clear error information.
-    The pipeline will continue without breaking.
+    This function retrieves call options data for the specified ticker with robust
+    fallback capabilities. It first attempts to fetch from Yahoo Finance, and if that fails
+    or returns incomplete data, it falls back to alternative sources like Financial
+    Modeling Prep or EOD Historical Data. The results are filtered for options with at least
+    the minimum days to expiry and sorted by expiry date and strike price. If real data
+    is unavailable from all sources, it returns an empty DataFrame with clear error
+    information. The pipeline will continue without breaking.
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
@@ -220,6 +279,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             - min_days_to_expiry (int): The applied minimum days filter
             - total_expiry_dates (Optional[int]): Number of expiry dates found
             - valid_chains_processed (Optional[int]): Number of valid chains processed
+            - source_used (Optional[str]): Data source used ('yahoo', 'fmp', 'eod', or 'none')
 
         DataFrame columns (when data_available=True):
             - expiry: Option expiry date (YYYY-MM-DD)
@@ -238,7 +298,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
         >>> result = fetch_long_dated_calls('AAPL', min_days_to_expiry=180)
         >>> if result['data_available']:
         ...     calls_df = result['data']
-        ...     print(f"Found {len(calls_df)} long-dated call options")
+        ...     print(f"Found {len(calls_df)} long-dated call options from {result['source_used']}")
         ... else:
         ...     print(f"Options unavailable: {result['error_message']}")
 
@@ -261,6 +321,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
         "min_days_to_expiry": min_days_to_expiry,
         "total_expiry_dates": None,
         "valid_chains_processed": None,
+        "source_used": None,
     }
 
     try:
@@ -269,12 +330,14 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             error_msg = "Ticker must be a non-empty string"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         if min_days_to_expiry < 0:
             error_msg = "min_days_to_expiry must be non-negative"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         # Validate ticker format
@@ -284,6 +347,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             error_msg = f"Invalid ticker format '{ticker}': {str(e)}"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         ticker = ticker.upper().strip()
@@ -293,7 +357,10 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             f"Fetching long-dated call options for {ticker} with min {min_days_to_expiry} days to expiry"
         )
 
+        # Strategy 1: Try Yahoo Finance (primary source)
         try:
+            logger.info(f"Attempting primary fetch from Yahoo Finance for {ticker}")
+
             # Create yfinance Ticker object
             stock = yf.Ticker(ticker)
 
@@ -305,14 +372,12 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
                     f"Failed to retrieve options expiry dates for {ticker}: {str(e)}"
                 )
                 logger.error(error_msg)
-                result["error_message"] = error_msg
-                return result
+                raise OptionsDataError(error_msg)
 
             if not expiry_dates:
                 error_msg = f"No options data available for ticker {ticker}"
                 logger.warning(error_msg)
-                result["error_message"] = error_msg
-                return result
+                raise OptionsDataError(error_msg)
 
             result["total_expiry_dates"] = len(expiry_dates)
             logger.info(f"Found {len(expiry_dates)} expiry dates for {ticker}")
@@ -347,8 +412,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             if not all_calls_data:
                 error_msg = f"No long-dated call options found for {ticker} with min {min_days_to_expiry} days to expiry"
                 logger.warning(error_msg)
-                result["error_message"] = error_msg
-                return result  # Return empty DataFrame with error
+                raise OptionsDataError(error_msg)
 
             combined_df = pd.concat(all_calls_data, ignore_index=True)
 
@@ -383,18 +447,94 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
             result["data"] = combined_df
             result["data_available"] = True
             result["error_message"] = None
+            result["source_used"] = "yahoo"
 
             logger.info(
-                f"Successfully fetched {len(combined_df)} long-dated call options for {ticker} "
-                f"from {valid_chains_count} expiry dates"
+                f"✅ Successfully fetched {len(combined_df)} long-dated call options for {ticker} "
+                f"from Yahoo Finance using {valid_chains_count} expiry dates"
             )
 
             return result
+
+        except OptionsDataError as e:
+            primary_error = f"Yahoo Finance failed for {ticker}: {str(e)}"
+            logger.warning(primary_error)
+
+            # Strategy 2: Try FMP/EOD fallback
+            try:
+                logger.info(
+                    f"⚠️ Yahoo failed for {ticker}. Attempting FMP/EOD fallback..."
+                )
+                fallback_df = get_options_from_fmp_or_eod(ticker, min_days_to_expiry)
+
+                # Validate fallback data
+                validation_errors = _validate_options_data(fallback_df)
+                if validation_errors:
+                    logger.warning(
+                        f"Fallback data validation warnings for {ticker}: {validation_errors}"
+                    )
+
+                if fallback_df.empty:
+                    error_msg = f"No long-dated call options found in fallback data for {ticker}"
+                    logger.warning(error_msg)
+                    raise OptionsDataError(error_msg)
+
+                # Sort by expiry and strike
+                fallback_df = fallback_df.sort_values(["expiry", "strike"]).reset_index(
+                    drop=True
+                )
+
+                # Clean up data types
+                numeric_columns = [
+                    "strike",
+                    "lastPrice",
+                    "impliedVolatility",
+                    "volume",
+                    "openInterest",
+                    "delta",
+                    "ask",
+                    "bid",
+                ]
+                for col in numeric_columns:
+                    if col in fallback_df.columns:
+                        fallback_df[col] = pd.to_numeric(
+                            fallback_df[col], errors="coerce"
+                        )
+
+                # Set successful fallback result
+                result["data"] = fallback_df
+                result["data_available"] = True
+                result["error_message"] = None
+                result["source_used"] = "fmp"
+                result["total_expiry_dates"] = (
+                    len(fallback_df["expiry"].unique()) if not fallback_df.empty else 0
+                )
+                result["valid_chains_processed"] = result["total_expiry_dates"]
+
+                logger.info(
+                    f"✅ FMP/EOD fallback successful for {ticker}: "
+                    f"fetched {len(fallback_df)} long-dated call options"
+                )
+
+                return result
+
+            except OptionsDataError as fallback_e:
+                logger.warning(
+                    f"FMP/EOD fallback failed for {ticker}: {str(fallback_e)}"
+                )
+
+                # All sources failed
+                error_msg = f"All options sources failed for {ticker}. Primary: {str(e)}. Fallback: {str(fallback_e)}"
+                logger.error(error_msg)
+                result["error_message"] = error_msg
+                result["source_used"] = "none"
+                return result
 
         except Exception as e:
             error_msg = f"Unexpected error fetching options data for {ticker}: {str(e)}"
             logger.error(error_msg, exc_info=True)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
     except Exception as e:
@@ -402,6 +542,7 @@ def fetch_long_dated_calls(ticker: str, min_days_to_expiry: int = 180) -> Option
         error_msg = f"Critical error in options fetcher for {ticker}: {str(e)}"
         logger.error(error_msg, exc_info=True)
         result["error_message"] = error_msg
+        result["source_used"] = "none"
         return result
 
 

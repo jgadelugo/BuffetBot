@@ -491,24 +491,36 @@ def recommend_long_calls(
 
         try:
             # Get peer tickers
-            peer_tickers = get_peers(ticker)
-            logger.info(f"Found {len(peer_tickers)} peers for {ticker}: {peer_tickers}")
+            peer_result = get_peers(ticker)
 
-            # Initialize ecosystem analyzer
-            ecosystem_analyzer = EcosystemAnalyzer()
+            # Check if peer data is available and extract peer list
+            if peer_result.get("data_available", False):
+                peer_tickers = peer_result["peers"]
+                logger.info(
+                    f"Found {len(peer_tickers)} peers for {ticker}: {peer_tickers}"
+                )
 
-            # Perform ecosystem analysis
-            ecosystem_analysis = ecosystem_analyzer.analyze_ecosystem(ticker)
+                # Initialize ecosystem analyzer
+                ecosystem_analyzer = EcosystemAnalyzer()
 
-            # Extract ecosystem metrics
-            ecosystem_score = ecosystem_analysis.ecosystem_score.normalized_score
-            ecosystem_signal = ecosystem_analysis.recommendation
-            ecosystem_confidence = ecosystem_analysis.confidence
+                # Perform ecosystem analysis with custom peer list
+                ecosystem_analysis = ecosystem_analyzer.analyze_ecosystem(
+                    ticker, custom_peers=peer_tickers
+                )
 
-            logger.info(
-                f"Ecosystem analysis complete - Score: {ecosystem_score:.3f}, "
-                f"Signal: {ecosystem_signal}, Confidence: {ecosystem_confidence:.3f}"
-            )
+                # Extract ecosystem metrics
+                ecosystem_score = ecosystem_analysis.ecosystem_score.normalized_score
+                ecosystem_signal = ecosystem_analysis.recommendation
+                ecosystem_confidence = ecosystem_analysis.confidence
+
+                logger.info(
+                    f"Ecosystem analysis complete - Score: {ecosystem_score:.3f}, "
+                    f"Signal: {ecosystem_signal}, Confidence: {ecosystem_confidence:.3f}"
+                )
+            else:
+                error_msg = peer_result.get("error_message", "Unknown error")
+                logger.warning(f"No peer data available for {ticker}: {error_msg}")
+                logger.info("Proceeding with technical analysis only")
 
         except (PeerFetchError, DataFetcherError) as e:
             logger.warning(f"Ecosystem analysis failed for {ticker}: {str(e)}")

@@ -1475,10 +1475,10 @@ def main():
 
                             # Apply styling
                             styled_df = (
-                                display_df.style.applymap(highlight_rsi, subset=["RSI"])
-                                .applymap(highlight_score, subset=["Composite Score"])
-                                .applymap(highlight_iv, subset=["IV"])
-                                .applymap(highlight_forecast, subset=["Forecast"])
+                                display_df.style.map(highlight_rsi, subset=["RSI"])
+                                .map(highlight_score, subset=["Composite Score"])
+                                .map(highlight_iv, subset=["IV"])
+                                .map(highlight_forecast, subset=["Forecast"])
                                 .format(
                                     {
                                         "Expiry": lambda x: pd.to_datetime(x).strftime(

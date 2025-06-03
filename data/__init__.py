@@ -15,6 +15,11 @@ from .fetcher.utils.financial_calculations import (
     calculate_rsi,
     calculate_working_capital,
 )
+from .source_status import (
+    get_data_availability_status,
+    get_source_health_summary,
+    print_data_status,
+)
 
 __all__ = [
     "DataFetcher",
@@ -28,4 +33,7 @@ __all__ = [
     "calculate_gross_margin",
     "calculate_operating_margin",
     "calculate_net_margin",
+    "get_data_availability_status",
+    "print_data_status",
+    "get_source_health_summary",
 ]

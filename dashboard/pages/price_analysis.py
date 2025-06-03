@@ -226,7 +226,7 @@ def render_valuation_overview(
 
             metrics_normalized = {
                 "Value Score": min(margin_of_safety * 200, 100)
-                if margin_of_safety > 0
+                if margin_of_safety is not None and margin_of_safety > 0
                 else 0,
                 "Growth Score": min(
                     data["fundamentals"].get("revenue_growth", 0) * 500, 100

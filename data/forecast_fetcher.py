@@ -8,9 +8,11 @@ by prioritizing long-dated calls on stocks with strong consensus price targets.
 The module fetches 1-year analyst price targets and returns normalized confidence
 metrics based on the number of analysts and standard deviation of targets.
 
-All functions implement robust fault handling - if real data is unavailable, the
-functions return None or empty structures with clear metadata flags, ensuring
-the advisory pipeline continues without breaking.
+All functions implement robust fault handling with multi-source fallback logic.
+If the primary provider (Yahoo Finance) fails or returns incomplete data, the module
+attempts fallback sources before returning failure. If real data is unavailable
+from all sources, the functions return None or empty structures with clear
+metadata flags, ensuring the advisory pipeline continues without breaking.
 """
 
 import logging
@@ -51,6 +53,7 @@ class ForecastData(TypedDict):
     data_freshness: str | None
     data_available: bool
     error_message: str | None
+    source_used: str | None
 
 
 def _calculate_confidence_score(
@@ -175,14 +178,60 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
         )
 
 
+def get_forecast_from_fmp(ticker: str) -> dict[str, float | int]:
+    """
+    Fetch analyst forecast data from Financial Modeling Prep as fallback source.
+
+    Args:
+        ticker: Stock ticker symbol
+
+    Returns:
+        Dict containing analyst targets and statistics
+
+    Raises:
+        ForecastFetchError: If data cannot be fetched or is invalid
+
+    Note:
+        This is a placeholder implementation for FMP API integration.
+        In production, this would make actual API calls to Financial Modeling Prep.
+    """
+    try:
+        logger.info(f"Attempting to fetch forecast data from FMP for {ticker}")
+
+        # Placeholder implementation - in production, this would make real API calls
+        # Example API call structure:
+        # api_key = os.getenv('FMP_API_KEY')
+        # url = f"https://financialmodelingprep.com/api/v3/analyst-estimates/{ticker}?apikey={api_key}"
+        # response = requests.get(url, timeout=10)
+        # response.raise_for_status()
+        # data = response.json()
+
+        # For now, raise an exception to indicate the fallback is not available
+        raise ForecastFetchError(
+            f"FMP forecast data not available for {ticker} - API integration not implemented",
+            "FMP_NOT_IMPLEMENTED",
+        )
+
+    except ForecastFetchError:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching FMP forecast data for {ticker}: {str(e)}")
+        raise ForecastFetchError(
+            f"Failed to fetch FMP forecast data for {ticker}: {str(e)}",
+            "FMP_FETCH_ERROR",
+        )
+
+
 def get_analyst_forecast(ticker: str, window_days: int | None = None) -> ForecastData:
     """
-    Fetch 1-year analyst price targets and forecast statistics with robust error handling.
+    Fetch 1-year analyst price targets and forecast statistics with multi-source fallback logic.
 
-    This function fetches analyst price targets from available data sources
-    and returns normalized confidence metrics. If real data is unavailable,
-    it returns a structure with data_available=False and clear error information.
-    The pipeline will continue without breaking.
+    This function fetches analyst price targets from available data sources with robust
+    fallback capabilities. It first attempts to fetch from Yahoo Finance, and if that fails
+    or returns incomplete data, it falls back to alternative sources like Financial
+    Modeling Prep. If real data is unavailable from all sources, it returns a structure
+    with data_available=False and clear error information. The pipeline will continue
+    without breaking.
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
@@ -207,12 +256,13 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             - data_freshness (Optional[str]): Description of data recency
             - data_available (bool): True if real data was fetched successfully
             - error_message (Optional[str]): Error description if data_available=False
+            - source_used (Optional[str]): Data source used ('yahoo', 'fmp', or 'none')
 
     Examples:
         >>> # Get all available forecasts
         >>> forecast = get_analyst_forecast('AAPL')
         >>> if forecast['data_available']:
-        ...     print(f"Mean target: ${forecast['mean_target']:.2f}")
+        ...     print(f"Mean target: ${forecast['mean_target']:.2f} (Source: {forecast['source_used']})")
         ... else:
         ...     print(f"Forecast unavailable: {forecast['error_message']}")
 
@@ -239,6 +289,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
         "data_freshness": None,
         "data_available": False,
         "error_message": None,
+        "source_used": None,
     }
 
     try:
@@ -247,6 +298,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             error_msg = "Ticker must be a non-empty string"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         if window_days is not None and (
@@ -255,6 +307,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             error_msg = "window_days must be a positive integer"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         ticker = ticker.upper().strip()
@@ -266,6 +319,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             error_msg = f"Invalid ticker format '{ticker}': {str(e)}"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         logger.info(
@@ -273,8 +327,9 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             + (f" with {window_days}-day window" if window_days else " (all forecasts)")
         )
 
-        # Try to fetch real data
+        # Strategy 1: Try Yahoo Finance (primary source)
         try:
+            logger.info(f"Attempting primary fetch from Yahoo Finance for {ticker}")
             data = _fetch_yahoo_analyst_data(ticker)
 
             # Note: Yahoo Finance doesn't provide forecast publish dates
@@ -318,6 +373,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
                     "data_freshness": data_freshness,
                     "data_available": True,
                     "error_message": None,
+                    "source_used": "yahoo",
                 }
             )
 
@@ -327,10 +383,11 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
                 logger.error(error_msg)
                 result["data_available"] = False
                 result["error_message"] = error_msg
+                result["source_used"] = "none"
                 return result
 
             logger.info(
-                f"Successfully fetched forecast for {ticker} ({data_freshness}): "
+                f"✅ Successfully fetched forecast for {ticker} from Yahoo Finance ({data_freshness}): "
                 f"mean=${result['mean_target']:.2f}, analysts={result['num_analysts']}, "
                 f"confidence={result['confidence']:.3f}"
             )
@@ -338,15 +395,85 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
             return result
 
         except ForecastFetchError as e:
-            error_msg = f"Failed to fetch forecast data for {ticker}: {str(e)}"
-            logger.warning(error_msg)
-            result["error_message"] = error_msg
-            return result
+            primary_error = f"Yahoo Finance failed for {ticker}: {str(e)}"
+            logger.warning(primary_error)
+
+            # Strategy 2: Try FMP fallback
+            try:
+                logger.info(f"⚠️ Yahoo failed for {ticker}. Attempting FMP fallback...")
+                fallback_data = get_forecast_from_fmp(ticker)
+
+                # Process fallback data similar to Yahoo data
+                if window_days is not None:
+                    age_factor = min(window_days / 180.0, 1.0)
+                    fallback_data["num_analysts"] = max(
+                        1, int(fallback_data["num_analysts"] * age_factor)
+                    )
+
+                confidence = _calculate_confidence_score(
+                    fallback_data["num_analysts"],
+                    fallback_data["std_dev"],
+                    fallback_data["mean_target"],
+                )
+
+                if window_days is None:
+                    data_freshness = "All available forecasts"
+                elif window_days <= 30:
+                    data_freshness = f"Last {window_days} days"
+                elif window_days <= 90:
+                    data_freshness = f"Last {window_days//30} months"
+                elif window_days <= 365:
+                    data_freshness = f"Last {window_days//30} months"
+                else:
+                    data_freshness = f"Last {window_days//365} years"
+
+                result.update(
+                    {
+                        "mean_target": fallback_data["mean_target"],
+                        "median_target": fallback_data["median_target"],
+                        "high_target": fallback_data["high_target"],
+                        "low_target": fallback_data["low_target"],
+                        "std_dev": fallback_data["std_dev"],
+                        "num_analysts": fallback_data["num_analysts"],
+                        "confidence": round(confidence, 3),
+                        "data_freshness": data_freshness,
+                        "data_available": True,
+                        "error_message": None,
+                        "source_used": "fmp",
+                    }
+                )
+
+                if result["mean_target"] <= 0:
+                    error_msg = f"Invalid mean target price from FMP for {ticker}"
+                    logger.error(error_msg)
+                    result["data_available"] = False
+                    result["error_message"] = error_msg
+                    result["source_used"] = "none"
+                    return result
+
+                logger.info(
+                    f"✅ FMP fallback successful for {ticker} ({data_freshness}): "
+                    f"mean=${result['mean_target']:.2f}, analysts={result['num_analysts']}, "
+                    f"confidence={result['confidence']:.3f}"
+                )
+
+                return result
+
+            except ForecastFetchError as fallback_e:
+                logger.warning(f"FMP fallback failed for {ticker}: {str(fallback_e)}")
+
+                # All sources failed
+                error_msg = f"All forecast sources failed for {ticker}. Primary: {str(e)}. Fallback: {str(fallback_e)}"
+                logger.error(error_msg)
+                result["error_message"] = error_msg
+                result["source_used"] = "none"
+                return result
 
         except Exception as e:
             error_msg = f"Unexpected error fetching forecast for {ticker}: {str(e)}"
             logger.error(error_msg, exc_info=True)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
     except Exception as e:
@@ -354,6 +481,7 @@ def get_analyst_forecast(ticker: str, window_days: int | None = None) -> Forecas
         error_msg = f"Critical error in forecast fetcher for {ticker}: {str(e)}"
         logger.error(error_msg, exc_info=True)
         result["error_message"] = error_msg
+        result["source_used"] = "none"
         return result
 
 

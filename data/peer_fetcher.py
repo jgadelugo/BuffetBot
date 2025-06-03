@@ -2,11 +2,14 @@
 Peer Fetcher Module
 
 This module provides functionality to fetch peer/competitor stocks for a given ticker.
-It attempts to use free APIs first, then falls back to a static peer mapping.
+It implements multi-source fallback logic, attempting to use APIs first, then falling
+back to a comprehensive static peer mapping.
 
-All functions implement robust fault handling - if real data is unavailable, the
-functions return empty structures with clear metadata flags, ensuring
-the advisory pipeline continues without breaking.
+All functions implement robust fault handling with multi-source fallback logic.
+If the primary provider (Yahoo Finance) fails or returns incomplete data, the module
+attempts fallback sources before returning failure. If real data is unavailable
+from all sources, the functions return empty structures with clear metadata flags,
+ensuring the advisory pipeline continues without breaking.
 """
 
 import time
@@ -57,6 +60,7 @@ class PeerResult(TypedDict):
     ticker: str
     data_source: str | None
     total_peers_found: int
+    source_used: str | None
 
 
 class PeerInfoResult(TypedDict):
@@ -243,14 +247,55 @@ def _filter_valid_peers(peers: list[str], original_ticker: str) -> list[str]:
     return valid_peers
 
 
+def get_peers_from_fmp(ticker: str) -> list[str]:
+    """
+    Fetch peer companies from Financial Modeling Prep as fallback source.
+
+    Args:
+        ticker: Stock ticker symbol
+
+    Returns:
+        List[str]: List of peer ticker symbols
+
+    Raises:
+        Exception: If API call fails
+
+    Note:
+        This is a placeholder implementation for FMP API integration.
+        In production, this would make actual API calls to Financial Modeling Prep.
+    """
+    try:
+        logger.info(f"Attempting to fetch peers from FMP for {ticker}")
+
+        # Placeholder implementation - in production, this would make real API calls
+        # Example API call structure:
+        # api_key = os.getenv('FMP_API_KEY')
+        # url = f"https://financialmodelingprep.com/api/v3/stock_peers?symbol={ticker}&apikey={api_key}"
+        # response = requests.get(url, timeout=10)
+        # response.raise_for_status()
+        # data = response.json()
+        # return data.get('peersList', [])
+
+        # For now, raise an exception to indicate the fallback is not available
+        raise Exception(
+            f"FMP peer data not available for {ticker} - API integration not implemented"
+        )
+
+    except Exception as e:
+        logger.warning(f"FMP peer fetch failed for {ticker}: {str(e)}")
+        raise
+
+
 def get_peers(ticker: str) -> PeerResult:
     """
-    Get peer/competitor stocks for a given ticker with robust error handling.
+    Get peer/competitor stocks for a given ticker with multi-source fallback logic.
 
-    This function attempts to fetch peer companies using the following strategy:
-    1. Try to fetch from yfinance API
-    2. Fall back to static peer mapping
-    3. Return empty result with error information if no peers found
+    This function attempts to fetch peer companies using the following strategy with
+    robust fallback capabilities:
+    1. Try to fetch from Yahoo Finance API (primary source)
+    2. Try to fetch from Financial Modeling Prep API (secondary fallback)
+    3. Fall back to comprehensive static peer mapping (final fallback)
+    4. Return empty result with error information if no peers found from any source
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'NVDA')
@@ -261,13 +306,14 @@ def get_peers(ticker: str) -> PeerResult:
             - data_available (bool): True if peers were found successfully
             - error_message (Optional[str]): Error description if data_available=False
             - ticker (str): The requested ticker symbol (normalized)
-            - data_source (Optional[str]): Source of peer data ('yfinance_api' or 'static_mapping')
+            - data_source (Optional[str]): Source of peer data ('yfinance_api', 'fmp', or 'static_mapping')
             - total_peers_found (int): Number of peers found
+            - source_used (Optional[str]): Final source used ('yahoo', 'fmp', 'fallback_static', or 'none')
 
     Examples:
         >>> result = get_peers('NVDA')
         >>> if result['data_available']:
-        ...     print(f"Found {result['total_peers_found']} peers: {result['peers']}")
+        ...     print(f"Found {result['total_peers_found']} peers from {result['source_used']}: {result['peers']}")
         ... else:
         ...     print(f"Peers unavailable: {result['error_message']}")
 
@@ -278,7 +324,8 @@ def get_peers(ticker: str) -> PeerResult:
         ...     'error_message': None,
         ...     'ticker': 'NVDA',
         ...     'data_source': 'static_mapping',
-        ...     'total_peers_found': 8
+        ...     'total_peers_found': 8,
+        ...     'source_used': 'fallback_static'
         ... }
 
     Note:
@@ -294,6 +341,7 @@ def get_peers(ticker: str) -> PeerResult:
         "ticker": ticker,
         "data_source": None,
         "total_peers_found": 0,
+        "source_used": None,
     }
 
     try:
@@ -304,11 +352,13 @@ def get_peers(ticker: str) -> PeerResult:
             error_msg = f"Invalid ticker: {str(e)}"
             logger.warning(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
         except Exception as e:
             error_msg = f"Unexpected error validating ticker '{ticker}': {str(e)}"
             logger.error(error_msg, exc_info=True)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
         result["ticker"] = normalized_ticker  # Update with normalized ticker
@@ -316,26 +366,57 @@ def get_peers(ticker: str) -> PeerResult:
 
         peers = []
         data_source = None
+        source_used = None
 
-        # Strategy 1: Try yfinance API
+        # Strategy 1: Try Yahoo Finance API (primary source)
         try:
+            logger.info(
+                f"Attempting primary fetch from Yahoo Finance for {normalized_ticker}"
+            )
             peers = _fetch_peers_from_yfinance(normalized_ticker)
             if peers:
                 data_source = "yfinance_api"
+                source_used = "yahoo"
                 logger.info(
-                    f"Successfully fetched {len(peers)} peers from yfinance API"
+                    f"✅ Successfully fetched {len(peers)} peers from Yahoo Finance API"
                 )
         except Exception as e:
-            logger.debug(f"yfinance API fetch failed: {str(e)}")
+            primary_error = f"Yahoo Finance failed for {normalized_ticker}: {str(e)}"
+            logger.warning(primary_error)
 
-        # Strategy 2: Fall back to static mapping
+        # Strategy 2: Try FMP fallback (secondary source)
         if not peers:
             try:
+                logger.info(
+                    f"⚠️ Yahoo failed for {normalized_ticker}. Attempting FMP fallback..."
+                )
+                peers = get_peers_from_fmp(normalized_ticker)
+                if peers:
+                    data_source = "fmp_api"
+                    source_used = "fmp"
+                    logger.info(
+                        f"✅ FMP fallback successful for {normalized_ticker}: fetched {len(peers)} peers"
+                    )
+            except Exception as e:
+                logger.warning(f"FMP fallback failed for {normalized_ticker}: {str(e)}")
+
+        # Strategy 3: Fall back to static mapping (final fallback)
+        if not peers:
+            try:
+                logger.info(
+                    f"⚠️ API sources failed for {normalized_ticker}. Using static fallback..."
+                )
                 peers = _fetch_peers_from_static_map(normalized_ticker)
                 if peers:
                     data_source = "static_mapping"
+                    source_used = "fallback_static"
+                    logger.info(
+                        f"✅ Static fallback successful for {normalized_ticker}: found {len(peers)} peers"
+                    )
             except Exception as e:
-                logger.warning(f"Static mapping fetch failed: {str(e)}")
+                logger.warning(
+                    f"Static mapping fetch failed for {normalized_ticker}: {str(e)}"
+                )
 
         # Filter and validate peers
         if peers:
@@ -350,15 +431,17 @@ def get_peers(ticker: str) -> PeerResult:
                             "error_message": None,
                             "data_source": data_source,
                             "total_peers_found": len(valid_peers),
+                            "source_used": source_used,
                         }
                     )
 
                     logger.info(
-                        f"Successfully fetched {len(valid_peers)} peers for {normalized_ticker}",
+                        f"Successfully fetched {len(valid_peers)} peers for {normalized_ticker} from {source_used}",
                         extra={
                             "ticker": normalized_ticker,
                             "peer_count": len(valid_peers),
                             "data_source": data_source,
+                            "source_used": source_used,
                             "peers": valid_peers,
                         },
                     )
@@ -367,17 +450,20 @@ def get_peers(ticker: str) -> PeerResult:
                     error_msg = f"No valid peers found after filtering for ticker {normalized_ticker}"
                     logger.warning(error_msg)
                     result["error_message"] = error_msg
+                    result["source_used"] = "none"
                     return result
 
             except Exception as e:
                 error_msg = f"Error filtering peers for {normalized_ticker}: {str(e)}"
                 logger.error(error_msg, exc_info=True)
                 result["error_message"] = error_msg
+                result["source_used"] = "none"
                 return result
         else:
-            error_msg = f"No peers found for ticker {normalized_ticker}"
-            logger.warning(error_msg)
+            error_msg = f"All peer sources failed for ticker {normalized_ticker}"
+            logger.error(error_msg)
             result["error_message"] = error_msg
+            result["source_used"] = "none"
             return result
 
     except Exception as e:
@@ -385,6 +471,7 @@ def get_peers(ticker: str) -> PeerResult:
         error_msg = f"Critical error fetching peers for {ticker}: {str(e)}"
         logger.error(error_msg, exc_info=True)
         result["error_message"] = error_msg
+        result["source_used"] = "none"
         return result
 
 

@@ -365,8 +365,14 @@ class EcosystemAnalyzer:
                 peers = custom_peers
                 logger.info(f"Using custom peers for {ticker}: {peers}")
             else:
-                peers = get_peers(ticker)
-                logger.info(f"Found {len(peers)} peers for {ticker}")
+                peer_result = get_peers(ticker)
+                if peer_result.get("data_available", False):
+                    peers = peer_result["peers"]
+                    logger.info(f"Found {len(peers)} peers for {ticker}: {peers}")
+                else:
+                    error_msg = peer_result.get("error_message", "Unknown error")
+                    logger.warning(f"Failed to get peers for {ticker}: {error_msg}")
+                    peers = []
 
             # Step 2: Get detailed peer information
             peer_data_info = get_peer_info(ticker)
