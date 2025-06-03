@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dashboard.components.options_utils import (
+from buffetbot.dashboard.components.options_utils import (
     check_for_partial_data,
     create_styling_functions,
     get_data_score_badge,

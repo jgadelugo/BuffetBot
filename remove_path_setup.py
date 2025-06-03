@@ -114,10 +114,10 @@ def update_imports_in_file(file_path: Path) -> bool:
 
         # Common import replacements
         replacements = {
-            "from utils.": "from buffetbot.utils.",
-            "from data.": "from buffetbot.data.",
-            "from dashboard.": "from buffetbot.dashboard.",
-            "from analysis.": "from buffetbot.analysis.",
+            "from buffetbot.utils.": "from buffetbot.utils.",
+            "from buffetbot.data.": "from buffetbot.data.",
+            "from buffetbot.dashboard.": "from buffetbot.dashboard.",
+            "from buffetbot.analysis.": "from buffetbot.analysis.",
             "from recommend.": "from buffetbot.recommend.",
             "import utils.": "import buffetbot.utils.",
             "import data.": "import buffetbot.data.",

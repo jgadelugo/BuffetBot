@@ -6,7 +6,7 @@ Run this with: streamlit run test_analytics.py
 
 import streamlit as st
 
-from dashboard.components.analytics import (
+from buffetbot.dashboard.components.analytics import (
     initialize_analytics,
     track_custom_event,
     track_page_view,

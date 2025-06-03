@@ -15,9 +15,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from data.forecast_fetcher import get_analyst_forecast, get_forecast_summary
-from data.options_fetcher import fetch_long_dated_calls, get_options_summary
-from data.peer_fetcher import add_static_peers, get_peer_info, get_peers
+from buffetbot.data.forecast_fetcher import get_analyst_forecast, get_forecast_summary
+from buffetbot.data.options_fetcher import fetch_long_dated_calls, get_options_summary
+from buffetbot.data.peer_fetcher import add_static_peers, get_peer_info, get_peers
 
 # Set up basic logging
 logging.basicConfig(

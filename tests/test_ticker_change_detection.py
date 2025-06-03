@@ -14,10 +14,10 @@ if project_root not in sys.path:
 
 import logging
 
-from data.cleaner import clean_financial_data
-from data.fetcher import fetch_stock_data
-from utils.data_report import DataCollectionReport
-from utils.logger import setup_logger
+from buffetbot.data.cleaner import clean_financial_data
+from buffetbot.data.fetcher import fetch_stock_data
+from buffetbot.utils.data_report import DataCollectionReport
+from buffetbot.utils.logger import setup_logger
 
 # Set up logging
 logger = setup_logger(__name__, "logs/test_ticker_change.log")

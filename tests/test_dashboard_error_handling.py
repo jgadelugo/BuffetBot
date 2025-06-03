@@ -15,7 +15,7 @@ import pandas as pd
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from dashboard.app import (
+from buffetbot.dashboard.app import (
     safe_format_currency,
     safe_format_number,
     safe_format_percentage,

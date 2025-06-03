@@ -24,7 +24,7 @@ class TestOptionsAdvisorTickerSync:
         """Test that the options advisor function has the correct signature."""
         import inspect
 
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         # Get function signature
         sig = inspect.signature(render_options_advisor_tab)
@@ -56,7 +56,7 @@ class TestOptionsAdvisorTickerSync:
 
     def test_function_import_from_views_module(self):
         """Test that the function can be imported from the views module."""
-        from dashboard.views import render_options_advisor_tab
+        from buffetbot.dashboard.views import render_options_advisor_tab
 
         # Test that the function exists
         assert callable(
@@ -64,7 +64,7 @@ class TestOptionsAdvisorTickerSync:
         ), "render_options_advisor_tab should be callable"
 
         # Test that it's properly exported
-        from dashboard.views import __all__
+        from buffetbot.dashboard.views import __all__
 
         assert (
             "render_options_advisor_tab" in __all__
@@ -78,7 +78,7 @@ class TestOptionsAdvisorTickerSync:
         self, mock_columns, mock_markdown, mock_header
     ):
         """Test that the function handles valid inputs without errors."""
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         # Mock streamlit components
         mock_columns.return_value = [MagicMock(), MagicMock()]
@@ -103,7 +103,7 @@ class TestOptionsAdvisorTickerSync:
     @patch("streamlit.error")
     def test_function_validates_ticker_input(self, mock_error):
         """Test that the function properly validates ticker input."""
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         test_data = {"price_data": {"close": [100, 101, 102]}}
 
@@ -123,7 +123,7 @@ class TestOptionsAdvisorTickerSync:
     @patch("streamlit.warning")
     def test_function_handles_missing_data(self, mock_warning):
         """Test that the function handles missing or invalid data gracefully."""
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         test_ticker = "AAPL"
 
@@ -150,7 +150,7 @@ class TestOptionsAdvisorTickerSync:
 
     def test_view_metadata_updated_correctly(self):
         """Test that the view metadata reflects the function now requires data."""
-        from dashboard.views import get_all_views
+        from buffetbot.dashboard.views import get_all_views
 
         all_views = get_all_views()
         options_advisor_view = all_views["advanced_tools"]["options_advisor"]
@@ -165,7 +165,7 @@ class TestOptionsAdvisorTickerSync:
 
     def test_legacy_view_registry_updated(self):
         """Test that the legacy view registry is also updated correctly."""
-        from dashboard.views.base import view_registry
+        from buffetbot.dashboard.views.base import view_registry
 
         # Check if the view is registered (may not be in all configurations)
         try:
@@ -181,7 +181,7 @@ class TestOptionsAdvisorTickerSync:
     @patch("dashboard.views.options_advisor.handle_ticker_change")
     def test_ticker_change_handling_integration(self, mock_handle_ticker_change):
         """Test that ticker change handling is properly integrated."""
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         # Mock the ticker change handler
         mock_handle_ticker_change.return_value = True
@@ -212,7 +212,7 @@ class TestOptionsAdvisorAppIntegration:
     def test_app_imports_function_correctly(self):
         """Test that the main app can import the function correctly."""
         try:
-            from dashboard.app import main
+            from buffetbot.dashboard.app import main
 
             # If we can import main, the imports in app.py should work
             assert callable(main), "Main app function should be callable"
@@ -223,7 +223,7 @@ class TestOptionsAdvisorAppIntegration:
         """Test that the function can be called with the signature used in app.py."""
         import inspect
 
-        from dashboard.views.options_advisor import render_options_advisor_tab
+        from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
         # Get the signature
         sig = inspect.signature(render_options_advisor_tab)

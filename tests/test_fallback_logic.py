@@ -12,9 +12,9 @@ from pathlib import Path
 # Add the project root to the Python path (parent of tests directory)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data.forecast_fetcher import get_analyst_forecast
-from data.options_fetcher import fetch_long_dated_calls
-from data.peer_fetcher import get_peers
+from buffetbot.data.forecast_fetcher import get_analyst_forecast
+from buffetbot.data.options_fetcher import fetch_long_dated_calls
+from buffetbot.data.peer_fetcher import get_peers
 
 
 def test_forecast_fallback():

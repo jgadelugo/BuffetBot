@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from utils.options_math import (
+from buffetbot.utils.options_math import (
     OptionsMathError,
     calculate_average_iv,
     calculate_beta,

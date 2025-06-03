@@ -15,7 +15,7 @@ import pandas as pd
 sys.path.append(".")
 
 try:
-    from analysis.options_advisor import (
+    from buffetbot.analysis.options_advisor import (
         CalculationError,
         InsufficientDataError,
         OptionsAdvisorError,

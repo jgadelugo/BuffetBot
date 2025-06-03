@@ -11,7 +11,7 @@ project_root = str(Path(__file__).parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from data.options_fetcher import (
+from buffetbot.data.options_fetcher import (
     OptionsDataError,
     fetch_long_dated_calls,
     get_options_summary,

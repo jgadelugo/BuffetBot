@@ -24,7 +24,7 @@ class TestUIScoringTransparency:
     def setup_method(self):
         """Set up test fixtures before each test method."""
         # Import the functions from dashboard app
-        from dashboard.app import (
+        from buffetbot.dashboard.app import (
             check_for_partial_data,
             get_data_score_badge,
             render_score_details_popover,
@@ -207,7 +207,7 @@ def test_scoring_functions_integration():
     print("=" * 60)
 
     # Import the functions from dashboard app
-    from dashboard.app import (
+    from buffetbot.dashboard.app import (
         check_for_partial_data,
         get_data_score_badge,
         render_score_details_popover,

@@ -6,9 +6,9 @@ import pandas as pd
 import pytest
 import streamlit as st
 
-from dashboard.views.glossary import render_glossary_tab
-from dashboard.views.overview import render_overview_tab
-from dashboard.views.risk_analysis import render_risk_analysis_tab
+from buffetbot.dashboard.views.glossary import render_glossary_tab
+from buffetbot.dashboard.views.overview import render_overview_tab
+from buffetbot.dashboard.views.risk_analysis import render_risk_analysis_tab
 
 
 class TestTabIntegration:
@@ -298,7 +298,7 @@ class TestUserInteraction:
     def test_session_state_management(self):
         """Test session state management across components."""
         # Test session state initialization
-        from dashboard.config.settings import initialize_session_state
+        from buffetbot.dashboard.config.settings import initialize_session_state
 
         # Initialize session state
         initialize_session_state()
@@ -313,7 +313,7 @@ class TestUserInteraction:
     @patch("streamlit.sidebar.button")
     def test_sidebar_interaction(self, mock_button, mock_slider, mock_text_input):
         """Test sidebar user interaction."""
-        from dashboard.components.sidebar import render_sidebar
+        from buffetbot.dashboard.components.sidebar import render_sidebar
 
         # Mock user inputs
         mock_text_input.return_value = "AAPL"

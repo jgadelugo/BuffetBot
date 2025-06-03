@@ -6,7 +6,7 @@ showing how to check data availability status for individual tickers and
 get health summaries across multiple tickers.
 """
 
-from data.source_status import (
+from buffetbot.data.source_status import (
     get_data_availability_status,
     get_source_health_summary,
     print_data_status,

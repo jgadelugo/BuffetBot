@@ -12,7 +12,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from analysis.options_advisor import normalize_scoring_weights
+from buffetbot.analysis.options_advisor import normalize_scoring_weights
 
 
 def test_normalize_scoring_weights():

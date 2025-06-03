@@ -19,9 +19,9 @@ from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
 
-from analysis.ecosystem import EcosystemAnalyzer
-from data.peer_fetcher import PeerFetchError, get_peer_info, get_peers
-from utils.logger import get_logger, setup_logger
+from buffetbot.analysis.ecosystem import EcosystemAnalyzer
+from buffetbot.data.peer_fetcher import PeerFetchError, get_peer_info, get_peers
+from buffetbot.utils.logger import get_logger, setup_logger
 
 # Setup logging
 setup_logger()
