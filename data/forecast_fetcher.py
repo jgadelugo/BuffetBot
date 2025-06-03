@@ -7,12 +7,16 @@ by prioritizing long-dated calls on stocks with strong consensus price targets.
 
 The module fetches 1-year analyst price targets and returns normalized confidence
 metrics based on the number of analysts and standard deviation of targets.
+
+All functions implement robust fault handling - if real data is unavailable, the
+functions return None or empty structures with clear metadata flags, ensuring
+the advisory pipeline continues without breaking.
 """
 
 import logging
 import statistics
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, TypedDict, Union
 
 import requests
 import yfinance as yf
@@ -33,6 +37,22 @@ class ForecastFetchError(Exception):
         super().__init__(message)
 
 
+class ForecastData(TypedDict):
+    """Type definition for forecast data structure."""
+
+    mean_target: float | None
+    median_target: float | None
+    high_target: float | None
+    low_target: float | None
+    std_dev: float | None
+    num_analysts: int | None
+    confidence: float | None
+    window_days: int | None
+    data_freshness: str | None
+    data_available: bool
+    error_message: str | None
+
+
 def _calculate_confidence_score(
     num_analysts: int, std_dev: float, mean_target: float
 ) -> float:
@@ -46,6 +66,12 @@ def _calculate_confidence_score(
 
     Returns:
         float: Confidence score between 0 and 1
+
+    Examples:
+        >>> _calculate_confidence_score(10, 5.2, 150.0)
+        0.753
+        >>> _calculate_confidence_score(0, 0, 0)
+        0.0
     """
     if num_analysts == 0 or mean_target <= 0:
         return 0.0
@@ -64,7 +90,7 @@ def _calculate_confidence_score(
 
 def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
     """
-    Fetch analyst data from Yahoo Finance.
+    Fetch analyst data from Yahoo Finance with robust error handling.
 
     Args:
         ticker: Stock ticker symbol
@@ -74,6 +100,11 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
 
     Raises:
         ForecastFetchError: If data cannot be fetched or is invalid
+
+    Examples:
+        >>> data = _fetch_yahoo_analyst_data('AAPL')
+        >>> print(f"Mean target: ${data['mean_target']:.2f}")
+        Mean target: $185.50
     """
     try:
         logger.info(f"Fetching Yahoo Finance analyst data for {ticker}")
@@ -88,12 +119,6 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
 
         # Extract analyst targets from Yahoo Finance
         analyst_targets = []
-        target_keys = [
-            "targetMeanPrice",
-            "targetHighPrice",
-            "targetLowPrice",
-            "targetMedianPrice",
-        ]
 
         # Get basic target data
         mean_target = info.get("targetMeanPrice")
@@ -102,7 +127,6 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
         median_target = info.get("targetMedianPrice")
 
         # Get recommendation data for analyst count estimation
-        recommendations = info.get("recommendationKey", "none")
         num_analysts = info.get("numberOfAnalystOpinions", 0)
 
         # Validate we have at least mean target
@@ -151,65 +175,16 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
         )
 
 
-def _get_mock_forecast_data(
-    ticker: str, window_days: int | None = None
-) -> dict[str, float | int]:
-    """
-    Generate mock forecast data for testing when real APIs are unavailable.
-
-    Args:
-        ticker: Stock ticker symbol
-        window_days: Optional time window in days to filter forecasts
-
-    Returns:
-        Dict containing mock analyst forecast data
-    """
-    logger.warning(f"Using mock forecast data for {ticker}")
-
-    # Generate realistic mock data based on ticker
-    import random
-
-    random.seed(hash(ticker) % 2**32)  # Consistent mock data per ticker
-
-    base_price = 100.0  # Mock base price
-    mean_target = base_price * (1 + random.uniform(0.05, 0.25))  # 5-25% upside
-    std_dev = mean_target * random.uniform(0.05, 0.15)  # 5-15% std dev
-    num_analysts = random.randint(3, 15)
-
-    # Apply time filtering to mock data
-    if window_days is not None:
-        # Simulate age-based analyst reduction for mock data
-        age_factor = min(window_days / 365.0, 1.0)  # 1 year = full data
-        num_analysts = max(1, int(num_analysts * age_factor))
-
-        # Adjust target dispersion based on recency (more recent = tighter range)
-        recency_factor = 1.0 - (window_days / 730.0)  # 2 years = max dispersion
-        std_dev *= max(0.5, 1.0 + recency_factor * 0.5)
-
-    high_target = mean_target + (std_dev * 1.5)
-    low_target = max(mean_target - (std_dev * 1.5), base_price * 0.8)
-    median_target = mean_target + random.uniform(-std_dev * 0.3, std_dev * 0.3)
-
-    return {
-        "mean_target": round(mean_target, 2),
-        "median_target": round(median_target, 2),
-        "high_target": round(high_target, 2),
-        "low_target": round(low_target, 2),
-        "std_dev": round(std_dev, 2),
-        "num_analysts": num_analysts,
-        "raw_targets": [low_target, median_target, mean_target, high_target],
-    }
-
-
 def get_analyst_forecast(
     ticker: str, window_days: int | None = None
-) -> dict[str, float | int]:
+) -> ForecastData:
     """
-    Fetch 1-year analyst price targets and forecast statistics with optional time filtering.
+    Fetch 1-year analyst price targets and forecast statistics with robust error handling.
 
     This function fetches analyst price targets from available data sources
-    and returns normalized confidence metrics. It prioritizes Yahoo Finance
-    data but falls back to mock data for testing when APIs are unavailable.
+    and returns normalized confidence metrics. If real data is unavailable,
+    it returns a structure with data_available=False and clear error information.
+    The pipeline will continue without breaking.
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
@@ -222,143 +197,199 @@ def get_analyst_forecast(
                     - None: All available forecasts
 
     Returns:
-        Dict containing forecast data:
-            - mean_target (float): Average analyst price target
-            - median_target (float): Median analyst price target
-            - high_target (float): Highest analyst price target
-            - low_target (float): Lowest analyst price target
-            - std_dev (float): Standard deviation of price targets
-            - num_analysts (int): Number of analysts providing targets
-            - confidence (float): Normalized confidence score (0-1)
-            - window_days (int|None): Applied time filter window
-            - data_freshness (str): Description of data recency
+        ForecastData: Dictionary containing forecast data with these keys:
+            - mean_target (Optional[float]): Average analyst price target
+            - median_target (Optional[float]): Median analyst price target
+            - high_target (Optional[float]): Highest analyst price target
+            - low_target (Optional[float]): Lowest analyst price target
+            - std_dev (Optional[float]): Standard deviation of price targets
+            - num_analysts (Optional[int]): Number of analysts providing targets
+            - confidence (Optional[float]): Normalized confidence score (0-1)
+            - window_days (Optional[int]): Applied time filter window
+            - data_freshness (Optional[str]): Description of data recency
+            - data_available (bool): True if real data was fetched successfully
+            - error_message (Optional[str]): Error description if data_available=False
 
-    Raises:
-        ForecastFetchError: If ticker is invalid or data cannot be fetched
-
-    Example:
+    Examples:
         >>> # Get all available forecasts
         >>> forecast = get_analyst_forecast('AAPL')
-        >>> print(f"Mean target: ${forecast['mean_target']:.2f}")
+        >>> if forecast['data_available']:
+        ...     print(f"Mean target: ${forecast['mean_target']:.2f}")
+        ... else:
+        ...     print(f"Forecast unavailable: {forecast['error_message']}")
 
         >>> # Get only forecasts from last 3 months
         >>> recent_forecast = get_analyst_forecast('AAPL', window_days=90)
-        >>> print(f"Recent confidence: {recent_forecast['confidence']:.2f}")
+        >>> if recent_forecast['data_available']:
+        ...     print(f"Recent confidence: {recent_forecast['confidence']:.2f}")
+
+    Note:
+        This function never raises exceptions - it always returns a valid
+        ForecastData structure. Check the 'data_available' flag to determine
+        if real data was successfully fetched.
     """
-    # Input validation
-    if not ticker or not isinstance(ticker, str):
-        raise ForecastFetchError("Ticker must be a non-empty string", "INVALID_TICKER")
-
-    if window_days is not None and (
-        not isinstance(window_days, int) or window_days <= 0
-    ):
-        raise ForecastFetchError(
-            "window_days must be a positive integer", "INVALID_WINDOW"
-        )
-
-    ticker = ticker.upper().strip()
-
-    try:
-        validate_ticker(ticker)
-    except Exception as e:
-        raise ForecastFetchError(
-            f"Invalid ticker format '{ticker}': {str(e)}", "INVALID_TICKER"
-        )
-
-    logger.info(
-        f"Fetching analyst forecast for {ticker}"
-        + (f" with {window_days}-day window" if window_days else " (all forecasts)")
-    )
-
-    # Try to fetch real data first
-    try:
-        data = _fetch_yahoo_analyst_data(ticker)
-        use_mock = False
-
-        # Note: Yahoo Finance doesn't provide forecast publish dates
-        # For real implementation, you would filter forecasts by publish date here
-        # For now, we'll simulate time filtering effect on the existing data
-        if window_days is not None:
-            # Simulate time filtering impact on real data
-            age_factor = min(window_days / 180.0, 1.0)  # 6 months = full data
-            data["num_analysts"] = max(1, int(data["num_analysts"] * age_factor))
-            logger.info(
-                f"Applied time filter simulation: reduced analysts to {data['num_analysts']}"
-            )
-
-    except ForecastFetchError as e:
-        logger.warning(f"Failed to fetch real data for {ticker}: {e}")
-        logger.info(f"Falling back to mock data for {ticker}")
-        data = _get_mock_forecast_data(ticker, window_days)
-        use_mock = True
-
-    # Calculate confidence score
-    confidence = _calculate_confidence_score(
-        data["num_analysts"], data["std_dev"], data["mean_target"]
-    )
-
-    # Determine data freshness description
-    if window_days is None:
-        data_freshness = "All available forecasts"
-    elif window_days <= 30:
-        data_freshness = f"Last {window_days} days"
-    elif window_days <= 90:
-        data_freshness = f"Last {window_days//30} months"
-    elif window_days <= 365:
-        data_freshness = f"Last {window_days//30} months"
-    else:
-        data_freshness = f"Last {window_days//365} years"
-
-    # Build result dictionary
-    result = {
-        "mean_target": data["mean_target"],
-        "median_target": data["median_target"],
-        "high_target": data["high_target"],
-        "low_target": data["low_target"],
-        "std_dev": data["std_dev"],
-        "num_analysts": data["num_analysts"],
-        "confidence": round(confidence, 3),
+    # Initialize default response structure
+    result: ForecastData = {
+        "mean_target": None,
+        "median_target": None,
+        "high_target": None,
+        "low_target": None,
+        "std_dev": None,
+        "num_analysts": None,
+        "confidence": None,
         "window_days": window_days,
-        "data_freshness": data_freshness,
+        "data_freshness": None,
+        "data_available": False,
+        "error_message": None,
     }
 
-    # Log results
-    if use_mock:
+    try:
+        # Input validation
+        if not ticker or not isinstance(ticker, str):
+            error_msg = "Ticker must be a non-empty string"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+
+        if window_days is not None and (
+            not isinstance(window_days, int) or window_days <= 0
+        ):
+            error_msg = "window_days must be a positive integer"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+
+        ticker = ticker.upper().strip()
+
+        # Validate ticker format
+        try:
+            validate_ticker(ticker)
+        except Exception as e:
+            error_msg = f"Invalid ticker format '{ticker}': {str(e)}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+
         logger.info(
-            f"Mock forecast for {ticker} ({data_freshness}): "
-            f"mean=${result['mean_target']:.2f}, confidence={result['confidence']:.3f}"
-        )
-    else:
-        logger.info(
-            f"Real forecast for {ticker} ({data_freshness}): "
-            f"mean=${result['mean_target']:.2f}, analysts={result['num_analysts']}, "
-            f"confidence={result['confidence']:.3f}"
+            f"Fetching analyst forecast for {ticker}"
+            + (f" with {window_days}-day window" if window_days else " (all forecasts)")
         )
 
-    # Validate result
-    if result["mean_target"] <= 0:
-        raise ForecastFetchError(
-            f"Invalid mean target price for {ticker}", "INVALID_TARGET"
-        )
+        # Try to fetch real data
+        try:
+            data = _fetch_yahoo_analyst_data(ticker)
 
-    return result
+            # Note: Yahoo Finance doesn't provide forecast publish dates
+            # For real implementation, you would filter forecasts by publish date here
+            # For now, we'll simulate time filtering effect on the existing data
+            if window_days is not None:
+                # Simulate time filtering impact on real data
+                age_factor = min(window_days / 180.0, 1.0)  # 6 months = full data
+                data["num_analysts"] = max(1, int(data["num_analysts"] * age_factor))
+                logger.info(
+                    f"Applied time filter simulation: reduced analysts to {data['num_analysts']}"
+                )
+
+            # Calculate confidence score
+            confidence = _calculate_confidence_score(
+                data["num_analysts"], data["std_dev"], data["mean_target"]
+            )
+
+            # Determine data freshness description
+            if window_days is None:
+                data_freshness = "All available forecasts"
+            elif window_days <= 30:
+                data_freshness = f"Last {window_days} days"
+            elif window_days <= 90:
+                data_freshness = f"Last {window_days//30} months"
+            elif window_days <= 365:
+                data_freshness = f"Last {window_days//30} months"
+            else:
+                data_freshness = f"Last {window_days//365} years"
+
+            # Build successful result
+            result.update(
+                {
+                    "mean_target": data["mean_target"],
+                    "median_target": data["median_target"],
+                    "high_target": data["high_target"],
+                    "low_target": data["low_target"],
+                    "std_dev": data["std_dev"],
+                    "num_analysts": data["num_analysts"],
+                    "confidence": round(confidence, 3),
+                    "data_freshness": data_freshness,
+                    "data_available": True,
+                    "error_message": None,
+                }
+            )
+
+            # Validate result
+            if result["mean_target"] <= 0:
+                error_msg = f"Invalid mean target price for {ticker}"
+                logger.error(error_msg)
+                result["data_available"] = False
+                result["error_message"] = error_msg
+                return result
+
+            logger.info(
+                f"Successfully fetched forecast for {ticker} ({data_freshness}): "
+                f"mean=${result['mean_target']:.2f}, analysts={result['num_analysts']}, "
+                f"confidence={result['confidence']:.3f}"
+            )
+
+            return result
+
+        except ForecastFetchError as e:
+            error_msg = f"Failed to fetch forecast data for {ticker}: {str(e)}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+
+        except Exception as e:
+            error_msg = f"Unexpected error fetching forecast for {ticker}: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["error_message"] = error_msg
+            return result
+
+    except Exception as e:
+        # Catch-all for any unexpected errors in validation or setup
+        error_msg = f"Critical error in forecast fetcher for {ticker}: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        result["error_message"] = error_msg
+        return result
 
 
-def get_forecast_summary(ticker: str) -> str:
+def get_forecast_summary(ticker: str) -> str | None:
     """
-    Get a human-readable summary of analyst forecast data.
+    Get a human-readable summary of analyst forecast data with robust error handling.
 
     Args:
         ticker: Stock ticker symbol
 
     Returns:
-        str: Formatted summary of forecast data
+        Optional[str]: Formatted summary of forecast data, or None if unavailable
 
-    Raises:
-        ForecastFetchError: If forecast data cannot be fetched
+    Examples:
+        >>> summary = get_forecast_summary('AAPL')
+        >>> if summary:
+        ...     print(summary)
+        ... else:
+        ...     print("Forecast summary unavailable")
+
+        Analyst Forecast Summary for AAPL:
+          Mean Target: $185.50
+          Range: $170.00 - $200.00
+          Analysts: 25
+          Confidence: 78.5%
     """
     try:
         forecast = get_analyst_forecast(ticker)
+
+        if not forecast["data_available"]:
+            logger.warning(
+                f"Cannot generate forecast summary for {ticker}: {forecast['error_message']}"
+            )
+            return None
 
         summary = f"""
 Analyst Forecast Summary for {ticker}:
@@ -371,6 +402,8 @@ Analyst Forecast Summary for {ticker}:
         return summary
 
     except Exception as e:
-        raise ForecastFetchError(
-            f"Failed to generate forecast summary for {ticker}: {str(e)}"
+        logger.error(
+            f"Unexpected error generating forecast summary for {ticker}: {str(e)}",
+            exc_info=True,
         )
+        return None

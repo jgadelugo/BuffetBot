@@ -3,12 +3,16 @@ Peer Fetcher Module
 
 This module provides functionality to fetch peer/competitor stocks for a given ticker.
 It attempts to use free APIs first, then falls back to a static peer mapping.
+
+All functions implement robust fault handling - if real data is unavailable, the
+functions return empty structures with clear metadata flags, ensuring
+the advisory pipeline continues without breaking.
 """
 
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import requests
 import yfinance as yf
@@ -42,6 +46,28 @@ class PeerData:
     name: str | None = None
     sector: str | None = None
     industry: str | None = None
+
+
+class PeerResult(TypedDict):
+    """Type definition for peer fetcher result structure."""
+
+    peers: list[str]
+    data_available: bool
+    error_message: str | None
+    ticker: str
+    data_source: str | None
+    total_peers_found: int
+
+
+class PeerInfoResult(TypedDict):
+    """Type definition for detailed peer info result structure."""
+
+    peer_data: list[PeerData]
+    data_available: bool
+    error_message: str | None
+    ticker: str
+    successful_lookups: int
+    failed_lookups: int
 
 
 # Static peer mapping as fallback
@@ -217,36 +243,79 @@ def _filter_valid_peers(peers: list[str], original_ticker: str) -> list[str]:
     return valid_peers
 
 
-def get_peers(ticker: str) -> list[str]:
+def get_peers(ticker: str) -> PeerResult:
     """
-    Get peer/competitor stocks for a given ticker.
+    Get peer/competitor stocks for a given ticker with robust error handling.
 
     This function attempts to fetch peer companies using the following strategy:
     1. Try to fetch from yfinance API
     2. Fall back to static peer mapping
-    3. Raise PeerFetchError if no peers found
+    3. Return empty result with error information if no peers found
 
     Args:
         ticker: Stock ticker symbol (e.g., 'AAPL', 'NVDA')
 
     Returns:
-        List[str]: List of peer ticker symbols
+        PeerResult: Dictionary containing:
+            - peers (List[str]): List of peer ticker symbols
+            - data_available (bool): True if peers were found successfully
+            - error_message (Optional[str]): Error description if data_available=False
+            - ticker (str): The requested ticker symbol (normalized)
+            - data_source (Optional[str]): Source of peer data ('yfinance_api' or 'static_mapping')
+            - total_peers_found (int): Number of peers found
 
-    Raises:
-        PeerFetchError: If ticker is invalid or no peers found
+    Examples:
+        >>> result = get_peers('NVDA')
+        >>> if result['data_available']:
+        ...     print(f"Found {result['total_peers_found']} peers: {result['peers']}")
+        ... else:
+        ...     print(f"Peers unavailable: {result['error_message']}")
 
-    Example:
-        >>> peers = get_peers('NVDA')
-        >>> print(peers)
-        ['AMD', 'INTC', 'TSM', 'AVGO', 'QCOM', 'MU', 'AMAT', 'LRCX']
+        >>> # Example successful result:
+        >>> {
+        ...     'peers': ['AMD', 'INTC', 'TSM', 'AVGO', 'QCOM', 'MU', 'AMAT', 'LRCX'],
+        ...     'data_available': True,
+        ...     'error_message': None,
+        ...     'ticker': 'NVDA',
+        ...     'data_source': 'static_mapping',
+        ...     'total_peers_found': 8
+        ... }
+
+    Note:
+        This function never raises exceptions - it always returns a valid
+        PeerResult structure. Check the 'data_available' flag to determine
+        if peer data was successfully fetched.
     """
+    # Initialize default response structure
+    result: PeerResult = {
+        "peers": [],
+        "data_available": False,
+        "error_message": None,
+        "ticker": ticker,
+        "data_source": None,
+        "total_peers_found": 0,
+    }
+
     try:
         # Validate and normalize ticker
-        normalized_ticker = _validate_ticker(ticker)
+        try:
+            normalized_ticker = _validate_ticker(ticker)
+        except PeerFetchError as e:
+            error_msg = f"Invalid ticker: {str(e)}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+        except Exception as e:
+            error_msg = f"Unexpected error validating ticker '{ticker}': {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["error_message"] = error_msg
+            return result
+
+        result["ticker"] = normalized_ticker  # Update with normalized ticker
         logger.info(f"Fetching peers for ticker: {normalized_ticker}")
 
         peers = []
-        data_source = "unknown"
+        data_source = None
 
         # Strategy 1: Try yfinance API
         try:
@@ -261,97 +330,197 @@ def get_peers(ticker: str) -> list[str]:
 
         # Strategy 2: Fall back to static mapping
         if not peers:
-            peers = _fetch_peers_from_static_map(normalized_ticker)
-            if peers:
-                data_source = "static_mapping"
+            try:
+                peers = _fetch_peers_from_static_map(normalized_ticker)
+                if peers:
+                    data_source = "static_mapping"
+            except Exception as e:
+                logger.warning(f"Static mapping fetch failed: {str(e)}")
 
         # Filter and validate peers
-        valid_peers = _filter_valid_peers(peers, normalized_ticker)
+        if peers:
+            try:
+                valid_peers = _filter_valid_peers(peers, normalized_ticker)
 
-        if not valid_peers:
+                if valid_peers:
+                    result.update(
+                        {
+                            "peers": valid_peers,
+                            "data_available": True,
+                            "error_message": None,
+                            "data_source": data_source,
+                            "total_peers_found": len(valid_peers),
+                        }
+                    )
+
+                    logger.info(
+                        f"Successfully fetched {len(valid_peers)} peers for {normalized_ticker}",
+                        extra={
+                            "ticker": normalized_ticker,
+                            "peer_count": len(valid_peers),
+                            "data_source": data_source,
+                            "peers": valid_peers,
+                        },
+                    )
+                    return result
+                else:
+                    error_msg = f"No valid peers found after filtering for ticker {normalized_ticker}"
+                    logger.warning(error_msg)
+                    result["error_message"] = error_msg
+                    return result
+
+            except Exception as e:
+                error_msg = f"Error filtering peers for {normalized_ticker}: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                result["error_message"] = error_msg
+                return result
+        else:
             error_msg = f"No peers found for ticker {normalized_ticker}"
-            logger.error(error_msg)
-            raise PeerFetchError(
-                error_msg,
-                ticker=normalized_ticker,
-                details={"data_source_attempted": data_source},
-            )
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
 
-        # Log success
-        logger.info(
-            f"Successfully fetched {len(valid_peers)} peers for {normalized_ticker}",
-            extra={
-                "ticker": normalized_ticker,
-                "peer_count": len(valid_peers),
-                "data_source": data_source,
-                "peers": valid_peers,
-            },
-        )
-
-        return valid_peers
-
-    except PeerFetchError:
-        # Re-raise PeerFetchError as-is
-        raise
     except Exception as e:
-        # Handle unexpected errors
-        error_msg = f"Unexpected error fetching peers for {ticker}: {str(e)}"
+        # Catch-all for any unexpected errors
+        error_msg = f"Critical error fetching peers for {ticker}: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        raise PeerFetchError(
-            error_msg,
-            ticker=ticker,
-            details={"error_type": type(e).__name__, "error_message": str(e)},
-        )
+        result["error_message"] = error_msg
+        return result
 
 
-def get_peer_info(ticker: str) -> list[PeerData]:
+def get_peer_info(ticker: str) -> PeerInfoResult:
     """
-    Get detailed peer information including company names and sectors.
+    Get detailed peer information including company names and sectors with robust error handling.
 
     Args:
         ticker: Stock ticker symbol
 
     Returns:
-        List[PeerData]: List of peer data objects with additional information
+        PeerInfoResult: Dictionary containing:
+            - peer_data (List[PeerData]): List of peer data objects with additional information
+            - data_available (bool): True if peer info was fetched successfully
+            - error_message (Optional[str]): Error description if data_available=False
+            - ticker (str): The requested ticker symbol (normalized)
+            - successful_lookups (int): Number of peers with detailed info retrieved
+            - failed_lookups (int): Number of peers where detailed info failed
 
-    Raises:
-        PeerFetchError: If ticker is invalid or no peers found
+    Examples:
+        >>> result = get_peer_info('AAPL')
+        >>> if result['data_available']:
+        ...     for peer in result['peer_data']:
+        ...         print(f"{peer.ticker}: {peer.name}")
+        ... else:
+        ...     print(f"Peer info unavailable: {result['error_message']}")
+
+        >>> # Example successful result structure:
+        >>> {
+        ...     'peer_data': [
+        ...         PeerData(ticker='MSFT', name='Microsoft Corporation', sector='Technology'),
+        ...         PeerData(ticker='GOOGL', name='Alphabet Inc.', sector='Technology'),
+        ...     ],
+        ...     'data_available': True,
+        ...     'error_message': None,
+        ...     'ticker': 'AAPL',
+        ...     'successful_lookups': 2,
+        ...     'failed_lookups': 0
+        ... }
+
+    Note:
+        This function never raises exceptions - it always returns a valid
+        PeerInfoResult structure. Check the 'data_available' flag to determine
+        if peer data was successfully fetched.
     """
-    peer_tickers = get_peers(ticker)
-    peer_info = []
+    # Initialize default response structure
+    result: PeerInfoResult = {
+        "peer_data": [],
+        "data_available": False,
+        "error_message": None,
+        "ticker": ticker,
+        "successful_lookups": 0,
+        "failed_lookups": 0,
+    }
 
-    logger.info(f"Fetching detailed info for {len(peer_tickers)} peers of {ticker}")
+    try:
+        # First get the list of peer tickers
+        peer_result = get_peers(ticker)
 
-    for peer_ticker in peer_tickers:
-        try:
-            # Try to get additional info from yfinance
-            stock = yf.Ticker(peer_ticker)
-            info = stock.info
+        if not peer_result["data_available"]:
+            error_msg = f"Cannot get peer info - peer lookup failed: {peer_result['error_message']}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            result["ticker"] = peer_result["ticker"]  # Use normalized ticker
+            return result
 
-            peer_data = PeerData(
-                ticker=peer_ticker,
-                name=info.get("longName") if info else None,
-                sector=info.get("sector") if info else None,
-                industry=info.get("industry") if info else None,
-            )
+        peer_tickers = peer_result["peers"]
+        result["ticker"] = peer_result["ticker"]  # Use normalized ticker
 
-            peer_info.append(peer_data)
-            logger.debug(f"Added peer info for {peer_ticker}: {peer_data.name}")
+        if not peer_tickers:
+            error_msg = f"No peers found for {peer_result['ticker']}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
 
-        except Exception as e:
-            # If we can't get additional info, just add basic ticker info
-            logger.warning(
-                f"Could not fetch detailed info for peer {peer_ticker}: {str(e)}"
-            )
-            peer_info.append(PeerData(ticker=peer_ticker))
+        logger.info(
+            f"Fetching detailed info for {len(peer_tickers)} peers of {peer_result['ticker']}"
+        )
 
-    logger.info(f"Successfully fetched detailed info for {len(peer_info)} peers")
-    return peer_info
+        peer_info = []
+        successful_count = 0
+        failed_count = 0
+
+        for peer_ticker in peer_tickers:
+            try:
+                # Try to get additional info from yfinance
+                stock = yf.Ticker(peer_ticker)
+                info = stock.info
+
+                peer_data = PeerData(
+                    ticker=peer_ticker,
+                    name=info.get("longName") if info else None,
+                    sector=info.get("sector") if info else None,
+                    industry=info.get("industry") if info else None,
+                )
+
+                peer_info.append(peer_data)
+                successful_count += 1
+                logger.debug(f"Added peer info for {peer_ticker}: {peer_data.name}")
+
+            except Exception as e:
+                # If we can't get additional info, just add basic ticker info
+                logger.warning(
+                    f"Could not fetch detailed info for peer {peer_ticker}: {str(e)}"
+                )
+                peer_info.append(PeerData(ticker=peer_ticker))
+                failed_count += 1
+
+        # Set successful result
+        result.update(
+            {
+                "peer_data": peer_info,
+                "data_available": True,
+                "error_message": None,
+                "successful_lookups": successful_count,
+                "failed_lookups": failed_count,
+            }
+        )
+
+        logger.info(
+            f"Successfully fetched detailed info for {len(peer_info)} peers "
+            f"({successful_count} successful, {failed_count} failed lookups)"
+        )
+        return result
+
+    except Exception as e:
+        # Catch-all for any unexpected errors
+        error_msg = f"Critical error fetching peer info for {ticker}: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        result["error_message"] = error_msg
+        return result
 
 
-def add_static_peers(ticker: str, peers: list[str]) -> None:
+def add_static_peers(ticker: str, peers: list[str]) -> dict[str, Any]:
     """
-    Add or update peer mapping in the static peer map.
+    Add or update peer mapping in the static peer map with robust error handling.
 
     This is useful for adding custom peer relationships that aren't
     available through APIs.
@@ -360,27 +529,119 @@ def add_static_peers(ticker: str, peers: list[str]) -> None:
         ticker: Stock ticker symbol
         peers: List of peer ticker symbols
 
-    Raises:
-        PeerFetchError: If ticker or peers are invalid
+    Returns:
+        Dict[str, Any]: Result dictionary containing:
+            - success (bool): True if peers were added successfully
+            - error_message (Optional[str]): Error description if success=False
+            - ticker (Optional[str]): The normalized ticker symbol
+            - valid_peers_added (int): Number of valid peers added
+            - invalid_peers_skipped (int): Number of invalid peers skipped
+
+    Examples:
+        >>> result = add_static_peers('TSLA', ['RIVN', 'LCID', 'NIO'])
+        >>> if result['success']:
+        ...     print(f"Added {result['valid_peers_added']} peers for {result['ticker']}")
+        ... else:
+        ...     print(f"Failed to add peers: {result['error_message']}")
+
+        >>> # Example successful result:
+        >>> {
+        ...     'success': True,
+        ...     'error_message': None,
+        ...     'ticker': 'TSLA',
+        ...     'valid_peers_added': 3,
+        ...     'invalid_peers_skipped': 0
+        ... }
+
+    Note:
+        This function never raises exceptions - it always returns a valid
+        result dictionary. Check the 'success' flag to determine if the
+        operation completed successfully.
     """
-    normalized_ticker = _validate_ticker(ticker)
+    # Initialize default response structure
+    result = {
+        "success": False,
+        "error_message": None,
+        "ticker": None,
+        "valid_peers_added": 0,
+        "invalid_peers_skipped": 0,
+    }
 
-    if not peers or not isinstance(peers, list):
-        raise PeerFetchError("Peers must be a non-empty list", ticker=ticker)
-
-    # Validate all peer tickers
-    valid_peers = []
-    for peer in peers:
+    try:
+        # Validate ticker
         try:
-            valid_peer = _validate_ticker(peer)
-            valid_peers.append(valid_peer)
+            normalized_ticker = _validate_ticker(ticker)
+            result["ticker"] = normalized_ticker
         except PeerFetchError as e:
-            logger.warning(f"Skipping invalid peer {peer}: {str(e)}")
+            error_msg = f"Invalid ticker: {str(e)}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
+        except Exception as e:
+            error_msg = f"Unexpected error validating ticker '{ticker}': {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["error_message"] = error_msg
+            return result
 
-    if not valid_peers:
-        raise PeerFetchError("No valid peers provided", ticker=ticker)
+        # Validate peers input
+        if not peers or not isinstance(peers, list):
+            error_msg = "Peers must be a non-empty list"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            return result
 
-    STATIC_PEER_MAP[normalized_ticker] = valid_peers
-    logger.info(
-        f"Added/updated {len(valid_peers)} peers for {normalized_ticker} in static mapping"
-    )
+        # Validate all peer tickers
+        valid_peers = []
+        invalid_count = 0
+
+        for peer in peers:
+            try:
+                valid_peer = _validate_ticker(peer)
+                valid_peers.append(valid_peer)
+            except PeerFetchError as e:
+                logger.warning(f"Skipping invalid peer {peer}: {str(e)}")
+                invalid_count += 1
+            except Exception as e:
+                logger.warning(f"Unexpected error validating peer {peer}: {str(e)}")
+                invalid_count += 1
+
+        if not valid_peers:
+            error_msg = "No valid peers provided after validation"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            result["invalid_peers_skipped"] = invalid_count
+            return result
+
+        # Add to static mapping
+        try:
+            STATIC_PEER_MAP[normalized_ticker] = valid_peers
+
+            result.update(
+                {
+                    "success": True,
+                    "error_message": None,
+                    "valid_peers_added": len(valid_peers),
+                    "invalid_peers_skipped": invalid_count,
+                }
+            )
+
+            logger.info(
+                f"Added/updated {len(valid_peers)} peers for {normalized_ticker} in static mapping "
+                f"(skipped {invalid_count} invalid peers)"
+            )
+            return result
+
+        except Exception as e:
+            error_msg = f"Failed to update static peer mapping: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["error_message"] = error_msg
+            result["valid_peers_added"] = 0
+            result["invalid_peers_skipped"] = invalid_count
+            return result
+
+    except Exception as e:
+        # Catch-all for any unexpected errors
+        error_msg = f"Critical error adding static peers for {ticker}: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        result["error_message"] = error_msg
+        return result
