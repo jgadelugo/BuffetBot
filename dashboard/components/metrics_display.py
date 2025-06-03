@@ -1,7 +1,7 @@
 """Enhanced metrics display components with visual status indicators."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -9,7 +9,7 @@ import streamlit as st
 logger = logging.getLogger(__name__)
 
 
-def format_metric_value(value: any, metric_type: str = None) -> str:
+def format_metric_value(value: Any, metric_type: str = None) -> str:
     """Format metric value with appropriate decimal places.
 
     Args:
@@ -117,9 +117,9 @@ def display_metrics_grid_enhanced(
 
 def display_metric_with_status(
     label: str,
-    value: any,
+    value: Any,
     status: str = "neutral",
-    delta: any | None = None,
+    delta: Any | None = None,
     help_text: str | None = None,
     show_trend: bool = True,
     metric_type: str = None,
@@ -176,7 +176,7 @@ def display_metric_with_status(
 
 
 def create_comparison_table(
-    metrics: list[tuple[str, any, any, str]],
+    metrics: list[tuple[str, Any, Any, str]],
     headers: list[str] = ["Metric", "Actual", "Expected", "Status"],
 ) -> None:
     """Create a comparison table with color-coded status.
