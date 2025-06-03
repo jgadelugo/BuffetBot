@@ -152,4 +152,4 @@ make run-streamlit
 
 ## Questions?
 
-Feel free to open an issue for any questions about contributing! 
+Feel free to open an issue for any questions about contributing!

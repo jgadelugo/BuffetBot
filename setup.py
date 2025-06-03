@@ -7,4 +7,4 @@ is included for compatibility with older tools.
 from setuptools import setup
 
 # The actual configuration is in pyproject.toml
-setup() 
+setup()

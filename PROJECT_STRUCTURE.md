@@ -112,4 +112,4 @@ from analysis.growth_analysis import analyze_growth
 from utils.data_fetcher import fetch_stock_data
 ```
 
-This structure follows Python packaging best practices and makes the project maintainable, scalable, and easy to distribute. 
+This structure follows Python packaging best practices and makes the project maintainable, scalable, and easy to distribute.

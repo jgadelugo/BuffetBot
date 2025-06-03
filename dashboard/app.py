@@ -9,15 +9,15 @@ if project_root not in sys.path:
 
 import io
 import json
-from datetime import datetime, timedelta
-
-import pandas as pd
-import plotly.graph_objects as go
-import streamlit as st
-import plotly.express as px
-from typing import Optional, Dict, Any, Union
 import logging
 import warnings
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional, Union
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 # Debug path issues
 print(f"DEBUG: __file__ = {__file__}")
@@ -108,7 +108,7 @@ st.set_page_config(
 )
 
 
-def safe_format_currency(value: Optional[float], decimal_places: int = 2) -> str:
+def safe_format_currency(value: float | None, decimal_places: int = 2) -> str:
     """Safely format a value as currency, handling None values."""
     if value is None or pd.isna(value):
         return "N/A"
@@ -118,7 +118,7 @@ def safe_format_currency(value: Optional[float], decimal_places: int = 2) -> str
         return "N/A"
 
 
-def safe_format_percentage(value: Optional[float], decimal_places: int = 1) -> str:
+def safe_format_percentage(value: float | None, decimal_places: int = 1) -> str:
     """Safely format a value as percentage, handling None values."""
     if value is None or pd.isna(value):
         return "N/A"
@@ -128,7 +128,7 @@ def safe_format_percentage(value: Optional[float], decimal_places: int = 1) -> s
         return "N/A"
 
 
-def safe_format_number(value: Optional[float], decimal_places: int = 2) -> str:
+def safe_format_number(value: float | None, decimal_places: int = 2) -> str:
     """Safely format a number, handling None values."""
     if value is None or pd.isna(value):
         return "N/A"
@@ -138,7 +138,7 @@ def safe_format_number(value: Optional[float], decimal_places: int = 2) -> str:
         return "N/A"
 
 
-def safe_get_nested_value(data: Dict[str, Any], *keys) -> Any:
+def safe_get_nested_value(data: dict[str, Any], *keys) -> Any:
     """Safely get a nested dictionary value, returning None if any key is missing."""
     try:
         result = data
@@ -151,12 +151,17 @@ def safe_get_nested_value(data: Dict[str, Any], *keys) -> Any:
         return None
 
 
-def safe_get_last_price(price_data: Optional[pd.DataFrame]) -> Optional[float]:
+def safe_get_last_price(price_data: pd.DataFrame | None) -> float | None:
     """Safely get the last closing price from price data."""
     try:
-        if price_data is None or not isinstance(price_data, pd.DataFrame) or price_data.empty or 'Close' not in price_data.columns:
+        if (
+            price_data is None
+            or not isinstance(price_data, pd.DataFrame)
+            or price_data.empty
+            or "Close" not in price_data.columns
+        ):
             return None
-        return float(price_data['Close'].iloc[-1])
+        return float(price_data["Close"].iloc[-1])
     except (IndexError, KeyError, ValueError, TypeError, AttributeError):
         return None
 
@@ -528,15 +533,19 @@ def main():
         with col1:
             display_metric_with_info(
                 "Current Price",
-                safe_format_currency(safe_get_last_price(data['price_data'])),
-                safe_format_percentage(safe_get_nested_value(data, 'metrics', 'price_change')),
+                safe_format_currency(safe_get_last_price(data["price_data"])),
+                safe_format_percentage(
+                    safe_get_nested_value(data, "metrics", "price_change")
+                ),
                 metric_key="latest_price",
             )
 
         with col2:
             display_metric_with_info(
                 "Market Cap",
-                safe_format_currency(safe_get_nested_value(data, 'fundamentals', 'market_cap')),
+                safe_format_currency(
+                    safe_get_nested_value(data, "fundamentals", "market_cap")
+                ),
                 f"P/E: {safe_format_number(safe_get_nested_value(data, 'fundamentals', 'pe_ratio'))}",
                 metric_key="market_cap",
             )
@@ -544,7 +553,9 @@ def main():
         with col3:
             display_metric_with_info(
                 "Volatility",
-                safe_format_percentage(safe_get_nested_value(data, 'metrics', 'volatility')),
+                safe_format_percentage(
+                    safe_get_nested_value(data, "metrics", "volatility")
+                ),
                 f"RSI: {safe_format_number(safe_get_nested_value(data, 'metrics', 'rsi'))}",
                 metric_key="volatility",
             )
@@ -613,15 +624,21 @@ def main():
 
                 growth_metrics = {
                     "Revenue Growth": {
-                        "value": safe_format_percentage(growth_metrics_result.get('revenue_growth')),
+                        "value": safe_format_percentage(
+                            growth_metrics_result.get("revenue_growth")
+                        ),
                         "metric_key": "revenue_growth",
                     },
                     "Earnings Growth": {
-                        "value": safe_format_percentage(growth_metrics_result.get('earnings_growth')),
+                        "value": safe_format_percentage(
+                            growth_metrics_result.get("earnings_growth")
+                        ),
                         "metric_key": "earnings_growth",
                     },
                     "EPS Growth": {
-                        "value": safe_format_percentage(growth_metrics_result.get('eps_growth')),
+                        "value": safe_format_percentage(
+                            growth_metrics_result.get("eps_growth")
+                        ),
                         "metric_key": "eps_growth",
                     },
                 }
@@ -633,7 +650,7 @@ def main():
                     st.markdown("---")
                     display_metric_with_info(
                         "Growth Score",
-                        safe_format_number(growth_metrics_result.get('growth_score')),
+                        safe_format_number(growth_metrics_result.get("growth_score")),
                         "Overall Growth Assessment",
                         metric_key="growth_score",
                     )
@@ -743,7 +760,9 @@ def main():
                         # Check beta availability
                         beta_val = safe_get_nested_value(data, "fundamentals", "beta")
                         if beta_val is not None:
-                            st.success(f"✓ Beta Available ({safe_format_number(beta_val)})")
+                            st.success(
+                                f"✓ Beta Available ({safe_format_number(beta_val)})"
+                            )
                         else:
                             st.warning("⚠ Beta is null")
 
@@ -768,7 +787,7 @@ def main():
 
                     if "beta" in market_risk and market_risk["beta"] is not None:
                         market_metrics["Beta"] = {
-                            "value": safe_format_number(market_risk['beta']),
+                            "value": safe_format_number(market_risk["beta"]),
                             "metric_key": "beta",
                         }
 
@@ -777,7 +796,7 @@ def main():
                         and market_risk["volatility"] is not None
                     ):
                         market_metrics["Annualized Volatility"] = {
-                            "value": safe_format_percentage(market_risk['volatility']),
+                            "value": safe_format_percentage(market_risk["volatility"]),
                             "metric_key": "volatility",
                         }
 
@@ -801,7 +820,9 @@ def main():
                         and financial_risk["debt_to_equity"] is not None
                     ):
                         financial_metrics["Debt to Equity"] = {
-                            "value": safe_format_number(financial_risk['debt_to_equity']),
+                            "value": safe_format_number(
+                                financial_risk["debt_to_equity"]
+                            ),
                             "metric_key": "debt_to_equity",
                         }
 
@@ -810,7 +831,9 @@ def main():
                         and financial_risk["interest_coverage"] is not None
                     ):
                         financial_metrics["Interest Coverage"] = {
-                            "value": safe_format_number(financial_risk['interest_coverage']),
+                            "value": safe_format_number(
+                                financial_risk["interest_coverage"]
+                            ),
                             "metric_key": "interest_coverage",
                         }
 
@@ -834,7 +857,9 @@ def main():
                         and business_risk["operating_margin"] is not None
                     ):
                         business_metrics["Operating Margin"] = {
-                            "value": safe_format_percentage(business_risk['operating_margin']),
+                            "value": safe_format_percentage(
+                                business_risk["operating_margin"]
+                            ),
                             "metric_key": "operating_margin",
                         }
 
@@ -844,7 +869,7 @@ def main():
                         and business_risk["revenue"] > 0
                     ):
                         business_metrics["Revenue"] = {
-                            "value": safe_format_currency(business_risk['revenue']),
+                            "value": safe_format_currency(business_risk["revenue"]),
                             "metric_key": "revenue",
                         }
 
@@ -1144,14 +1169,18 @@ def main():
                                 with col1:
                                     st.metric(
                                         "🎯 Analyst Target",
-                                        safe_format_currency(forecast_data['mean_target']),
+                                        safe_format_currency(
+                                            forecast_data["mean_target"]
+                                        ),
                                         help="Average analyst price target",
                                     )
 
                                 with col2:
                                     st.metric(
                                         "🔒 Forecast Confidence",
-                                        safe_format_percentage(forecast_data['confidence']),
+                                        safe_format_percentage(
+                                            forecast_data["confidence"]
+                                        ),
                                         help="Analyst consensus confidence score",
                                     )
 
@@ -1186,7 +1215,7 @@ def main():
                                 with met_col1:
                                     display_metric_with_info(
                                         "RSI",
-                                        safe_format_number(first_row['RSI']),
+                                        safe_format_number(first_row["RSI"]),
                                         delta=None,
                                         metric_key="rsi",
                                     )
@@ -1194,7 +1223,7 @@ def main():
                                 with met_col2:
                                     display_metric_with_info(
                                         "Beta",
-                                        safe_format_number(first_row['Beta']),
+                                        safe_format_number(first_row["Beta"]),
                                         delta=None,
                                         metric_key="beta",
                                     )
@@ -1202,7 +1231,7 @@ def main():
                                 with met_col3:
                                     display_metric_with_info(
                                         "Momentum",
-                                        safe_format_number(first_row['Momentum']),
+                                        safe_format_number(first_row["Momentum"]),
                                         delta=None,
                                         metric_key="momentum",
                                     )
@@ -1210,7 +1239,7 @@ def main():
                                 with met_col4:
                                     display_metric_with_info(
                                         "Avg IV",
-                                        safe_format_percentage(first_row['IV']),
+                                        safe_format_percentage(first_row["IV"]),
                                         delta=None,
                                         metric_key="implied_volatility",
                                     )
@@ -1219,7 +1248,9 @@ def main():
                                     if "ForecastConfidence" in first_row:
                                         display_metric_with_info(
                                             "Forecast",
-                                            safe_format_percentage(first_row['ForecastConfidence']),
+                                            safe_format_percentage(
+                                                first_row["ForecastConfidence"]
+                                            ),
                                             delta=None,
                                             help_text="Analyst forecast confidence score",
                                         )
@@ -1641,7 +1672,9 @@ def main():
             with st.expander(f"{statement.replace('_', ' ').title()} Availability"):
                 if status["available"]:
                     st.success("✓ Data is available")
-                    st.write(f"Completeness: {safe_format_percentage(status['completeness'])}")
+                    st.write(
+                        f"Completeness: {safe_format_percentage(status['completeness'])}"
+                    )
                     st.write(f"Last available date: {status['last_available_date']}")
 
                     if status["missing_columns"]:

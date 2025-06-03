@@ -121,4 +121,4 @@ docker-build:  ## Build Docker image
 	docker build -t buffetbot:latest .
 
 docker-run:  ## Run Docker container
-	docker run -it --rm -p 8501:8501 buffetbot:latest 
+	docker run -it --rm -p 8501:8501 buffetbot:latest

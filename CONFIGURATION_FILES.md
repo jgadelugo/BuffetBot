@@ -122,4 +122,4 @@ This document describes all the configuration files added to the BuffetBot proje
    make coverage  # Generate coverage report
    ```
 
-These configuration files follow Python community best practices and make the project more maintainable, consistent, and professional. 
+These configuration files follow Python community best practices and make the project more maintainable, consistent, and professional.

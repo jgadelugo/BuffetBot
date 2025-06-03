@@ -10,7 +10,7 @@ This document outlines the comprehensive error handling improvements implemented
 
 **1. Data Fetcher Modules Enhanced:**
 - `data/forecast_fetcher.py`
-- `data/options_fetcher.py` 
+- `data/options_fetcher.py`
 - `data/peer_fetcher.py`
 
 **2. Error Handling Strategy:**
@@ -172,16 +172,16 @@ def fetch_data(ticker: str) -> DataResult:
                 "error_message": "Invalid ticker",
                 "data": None
             }
-        
+
         # Fetch data
         result = external_api_call(ticker)
-        
+
         return {
             "data_available": True,
             "data": result,
             "error_message": None
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching data: {str(e)}")
         return {
@@ -235,4 +235,4 @@ def safe_get_nested_value(data: Dict[str, Any], *keys) -> Any:
 
 ## Conclusion
 
-The implemented error handling improvements transform BuffetBot from a fragile system that crashes on data unavailability to a robust, production-ready application that gracefully handles errors and provides clear feedback to users. The system now maintains high availability and user experience even when external data sources are unreliable. 
+The implemented error handling improvements transform BuffetBot from a fragile system that crashes on data unavailability to a robust, production-ready application that gracefully handles errors and provides clear feedback to users. The system now maintains high availability and user experience even when external data sources are unreliable.

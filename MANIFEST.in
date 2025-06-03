@@ -35,4 +35,4 @@ prune .mypy_cache
 prune htmlcov
 prune node_modules
 prune venv
-prune .venv 
+prune .venv

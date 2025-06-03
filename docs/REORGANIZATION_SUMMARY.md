@@ -96,4 +96,4 @@ make help
 | `glossary_ui_README.md` | `docs/glossary/ui_implementations.md` |
 | `run_tests.py` | `scripts/run_tests.py` |
 
-All imports in test files and examples have been updated to reflect the new structure. 
+All imports in test files and examples have been updated to reflect the new structure.

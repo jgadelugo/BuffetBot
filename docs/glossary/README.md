@@ -66,7 +66,7 @@ def analyze_company(ticker):
         "current_ratio": 1.5,
         "debt_to_equity": 0.8
     }
-    
+
     # Add context from glossary
     for metric_key, value in results.items():
         info = get_metric_info(metric_key)
@@ -122,14 +122,14 @@ def create_dashboard_config():
     dashboard = {
         "sections": []
     }
-    
+
     for category in ["growth", "value", "health", "risk"]:
         metrics = get_metrics_by_category(category)
         section = {
             "title": f"{category.title()} Indicators",
             "metrics": []
         }
-        
+
         for key, metric in metrics.items():
             section["metrics"].append({
                 "id": key,
@@ -137,9 +137,9 @@ def create_dashboard_config():
                 "tooltip": metric["description"],
                 "formula": metric["formula"]
             })
-        
+
         dashboard["sections"].append(section)
-    
+
     return dashboard
 ```
 
@@ -158,7 +158,7 @@ def create_dashboard_config():
 3. **Leverage type hints**:
    ```python
    from glossary_data import MetricDefinition
-   
+
    def format_metric(metric: MetricDefinition) -> str:
        return f"{metric['name']} ({metric['category']})"
    ```
@@ -179,4 +179,4 @@ To add new metrics to the glossary:
 - Include industry-specific variations
 - Add calculation examples with real numbers
 - Create metric relationship mappings
-- Add multi-language support for international users 
+- Add multi-language support for international users

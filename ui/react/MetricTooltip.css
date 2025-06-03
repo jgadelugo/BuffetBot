@@ -209,45 +209,45 @@
     border-color: #444;
     color: #f0f0f0;
   }
-  
+
   .metric-tooltip-title {
     color: #ffffff;
   }
-  
+
   .metric-tooltip-description {
     color: #cccccc;
   }
-  
+
   .metric-tooltip-formula,
   .metric-tooltip-range {
     color: #aaaaaa;
   }
-  
+
   .metric-tooltip-formula code {
     background: #3a3a3a;
     color: #f0f0f0;
   }
-  
+
   .metric-tooltip-arrow-top {
     border-color: #2a2a2a transparent transparent transparent;
   }
-  
+
   .metric-tooltip-arrow-bottom {
     border-color: transparent transparent #2a2a2a transparent;
   }
-  
+
   .metric-tooltip-arrow-left {
     border-color: transparent transparent transparent #2a2a2a;
   }
-  
+
   .metric-tooltip-arrow-right {
     border-color: transparent #2a2a2a transparent transparent;
   }
-  
+
   .metric-tooltip-trigger {
     border-bottom-color: #999;
   }
-  
+
   .metric-tooltip-trigger:hover,
   .metric-tooltip-trigger:focus {
     border-bottom-color: #64b5f6;
@@ -260,11 +260,11 @@
     max-width: 280px;
     font-size: 13px;
   }
-  
+
   .metric-tooltip-title {
     font-size: 15px;
   }
-  
+
   .metric-tooltip-formula code {
     font-size: 11px;
   }
@@ -275,7 +275,7 @@
   .metric-tooltip {
     border-width: 2px;
   }
-  
+
   .metric-tooltip-trigger:focus-visible {
     outline-width: 3px;
   }
@@ -286,9 +286,9 @@
   .metric-tooltip {
     animation: none;
   }
-  
+
   .metric-tooltip-trigger,
   .metric-tooltip-icon {
     transition: none;
   }
-} 
+}

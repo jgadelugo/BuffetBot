@@ -3,19 +3,19 @@ Error handling utilities for the data fetcher.
 """
 
 from utils.errors import (
-    ErrorSeverity,
+    DataCleaningError,
     DataError,
     DataFetcherError,
     DataValidationError,
-    DataCleaningError,
-    handle_data_error
+    ErrorSeverity,
+    handle_data_error,
 )
 
 __all__ = [
-    'ErrorSeverity',
-    'DataError',
-    'DataFetcherError',
-    'DataValidationError',
-    'DataCleaningError',
-    'handle_data_error'
-] 
+    "ErrorSeverity",
+    "DataError",
+    "DataFetcherError",
+    "DataValidationError",
+    "DataCleaningError",
+    "handle_data_error",
+]

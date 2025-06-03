@@ -187,17 +187,17 @@ Contributions are welcome!
 
 ## ❓ FAQ
 
-**Q: What data source is used?**  
+**Q: What data source is used?**
 A: You'll need to plug in your own data source. The functions are adaptable for APIs or local datasets.
 
-**Q: Can I use this with a database or data lake?**  
+**Q: Can I use this with a database or data lake?**
 A: Yes, with minor adjustments to data ingestion sections.
 
 ---
 
 ## 📄 License
 
-MIT License  
+MIT License
 <!-- TODO: Replace if another license applies -->
 
 ---
@@ -212,6 +212,6 @@ MIT License
 
 ## 📬 Contact
 
-Maintainer: [Your Name]  
-Email: [your.email@example.com]  
+Maintainer: [Your Name]
+Email: [your.email@example.com]
 GitHub: [@your-username](https://github.com/your-username)

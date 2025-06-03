@@ -175,9 +175,7 @@ def _fetch_yahoo_analyst_data(ticker: str) -> dict[str, float | int]:
         )
 
 
-def get_analyst_forecast(
-    ticker: str, window_days: int | None = None
-) -> ForecastData:
+def get_analyst_forecast(ticker: str, window_days: int | None = None) -> ForecastData:
     """
     Fetch 1-year analyst price targets and forecast statistics with robust error handling.
 

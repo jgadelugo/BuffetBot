@@ -34,7 +34,7 @@ const GlossaryComponent = () => {
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(([_, metric]) => 
+      filtered = filtered.filter(([_, metric]) =>
         metric.name.toLowerCase().includes(searchLower) ||
         metric.description.toLowerCase().includes(searchLower)
       );
@@ -46,13 +46,13 @@ const GlossaryComponent = () => {
   // Group metrics by category
   const groupedMetrics = useMemo(() => {
     const groups = { growth: [], value: [], health: [], risk: [] };
-    
+
     filteredMetrics.forEach(([key, metric]) => {
       if (groups[metric.category]) {
         groups[metric.category].push({ key, ...metric });
       }
     });
-    
+
     return groups;
   }, [filteredMetrics]);
 
@@ -63,7 +63,7 @@ const GlossaryComponent = () => {
       acc[metric.category] = (acc[metric.category] || 0) + 1;
       return acc;
     }, {});
-    
+
     return { total, byCategory };
   }, []);
 
@@ -76,10 +76,10 @@ const GlossaryComponent = () => {
 
   const highlightText = (text, highlight) => {
     if (!highlight) return text;
-    
+
     const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
-    return parts.map((part, index) => 
-      part.toLowerCase() === highlight.toLowerCase() 
+    return parts.map((part, index) =>
+      part.toLowerCase() === highlight.toLowerCase()
         ? <mark key={index} className="highlight">{part}</mark>
         : part
     );
@@ -87,9 +87,9 @@ const GlossaryComponent = () => {
 
   const MetricCard = ({ metric }) => {
     const config = categoryConfig[metric.category];
-    
+
     return (
-      <div 
+      <div
         className="metric-card"
         style={{ borderLeftColor: config.color }}
       >
@@ -97,11 +97,11 @@ const GlossaryComponent = () => {
           <h3 className="metric-name">
             {highlightText(metric.name, searchTerm)}
           </h3>
-          <span 
+          <span
             className="category-badge"
-            style={{ 
-              backgroundColor: config.bgColor, 
-              color: config.color 
+            style={{
+              backgroundColor: config.bgColor,
+              color: config.color
             }}
           >
             {config.icon} {metric.category.toUpperCase()}
@@ -120,11 +120,11 @@ const GlossaryComponent = () => {
 
   const exportToCSV = () => {
     const rows = [['Key', 'Name', 'Category', 'Description', 'Formula']];
-    
+
     Object.entries(GLOSSARY).forEach(([key, metric]) => {
       rows.push([key, metric.name, metric.category, metric.description, metric.formula]);
     });
-    
+
     const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -241,18 +241,18 @@ const GlossaryComponent = () => {
             // Grouped view
             Object.entries(groupedMetrics).map(([category, metrics]) => {
               if (metrics.length === 0) return null;
-              
+
               const config = categoryConfig[category];
               const isExpanded = expandedCategories[category];
-              
+
               return (
                 <div key={category} className="category-group">
-                  <h2 
+                  <h2
                     className="category-header"
                     onClick={() => toggleCategory(category)}
                   >
                     <span>
-                      {config.icon} {category.toUpperCase()} METRICS 
+                      {config.icon} {category.toUpperCase()} METRICS
                       <span className="metric-count">({metrics.length})</span>
                     </span>
                     <span className="expand-icon">
@@ -293,4 +293,4 @@ const GlossaryComponent = () => {
   );
 };
 
-export default GlossaryComponent; 
+export default GlossaryComponent;

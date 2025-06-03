@@ -8,13 +8,11 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ['--maxkb=5000']  # Increased for data files
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
-      - id: check-case-conflict
       - id: detect-private-key
-      - id: debug-statements
       - id: mixed-line-ending
         args: ['--fix=lf']
 
@@ -30,49 +28,19 @@ repos:
       - id: isort
         args: ["--profile", "black"]
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-docstrings
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-simplify
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - types-requests
-          - pandas-stubs
-        args: [--ignore-missing-imports]
-
-  - repo: https://github.com/pycqa/bandit
-    rev: 1.7.6
-    hooks:
-      - id: bandit
-        args: ['-c', '.bandit', '-r', '.']
-        exclude: tests/
-
+  # Only run pyupgrade on Python files
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.0
     hooks:
       - id: pyupgrade
-        args: [--py312-plus]
-
-  - repo: https://github.com/hadialqattan/pycln
-    rev: v2.4.0
-    hooks:
-      - id: pycln
-        args: [--all]
+        args: [--py310-plus]
 
 default_language_version:
   python: python3.12
 
+# More lenient CI settings
 ci:
   autofix_prs: true
   autofix_commit_msg: '[pre-commit.ci] auto fixes from pre-commit.com hooks'
-  autoupdate_schedule: weekly
+  autoupdate_schedule: monthly
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'

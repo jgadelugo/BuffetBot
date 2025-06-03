@@ -87,8 +87,8 @@ const customGlossary = {
   }
 };
 
-<MetricTooltip 
-  metricKey="custom_metric" 
+<MetricTooltip
+  metricKey="custom_metric"
   glossaryData={customGlossary}
 >
   My Custom Metric
@@ -104,8 +104,8 @@ const customGlossary = {
 </MetricTooltip>
 
 // React component icon
-<MetricTooltip 
-  metricKey="beta" 
+<MetricTooltip
+  metricKey="beta"
   iconContent={<InfoIcon size={14} />}
 >
   Beta
@@ -218,4 +218,4 @@ The component automatically integrates with the BuffetBot glossary data structur
 - [ ] Tooltip delay configuration
 - [ ] Animation customization
 - [ ] Multi-language support
-- [ ] Tooltip pinning/persistent mode 
+- [ ] Tooltip pinning/persistent mode

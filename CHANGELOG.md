@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of BuffetBot financial analysis toolkit
 - Core analysis modules:
   - Growth analysis
-  - Value analysis  
+  - Value analysis
   - Health analysis
   - Risk analysis
 - Financial metrics calculations
@@ -58,4 +58,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Security` in case of vulnerabilities
 
 [Unreleased]: https://github.com/your-username/buffetbot/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/your-username/buffetbot/releases/tag/v1.0.0 
+[1.0.0]: https://github.com/your-username/buffetbot/releases/tag/v1.0.0

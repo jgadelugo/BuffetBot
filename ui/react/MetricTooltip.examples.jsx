@@ -3,7 +3,7 @@ import MetricTooltip, { withMetricTooltip } from './MetricTooltip';
 
 /**
  * MetricTooltip Usage Examples
- * 
+ *
  * This file demonstrates various ways to use the MetricTooltip component
  * in your dashboards and metric tables.
  */
@@ -44,8 +44,8 @@ export const DashboardCardExample = () => {
   return (
     <div className="dashboard-card">
       <h3>
-        <MetricTooltip 
-          metricKey="revenue_growth" 
+        <MetricTooltip
+          metricKey="revenue_growth"
           className="metric-header"
           position="right"
         >
@@ -53,10 +53,10 @@ export const DashboardCardExample = () => {
         </MetricTooltip>
       </h3>
       <div className="metric-value">15.2%</div>
-      
+
       <div className="metric-detail">
-        <MetricTooltip 
-          metricKey="gross_margin" 
+        <MetricTooltip
+          metricKey="gross_margin"
           showIcon={false}
           className="subtle-metric"
         >
@@ -84,11 +84,11 @@ export const HOCExample = () => {
       <EnhancedMetricLabel metricKey="current_ratio" value="1.8">
         Current Ratio
       </EnhancedMetricLabel>
-      
+
       <EnhancedMetricLabel metricKey="beta" value="1.2">
         Beta
       </EnhancedMetricLabel>
-      
+
       <EnhancedMetricLabel metricKey="operating_margin" value="0.18">
         Operating Margin
       </EnhancedMetricLabel>
@@ -110,15 +110,15 @@ export const CustomIconExample = () => {
 
   return (
     <div className="custom-metrics">
-      <MetricTooltip 
+      <MetricTooltip
         metricKey="custom_metric"
         iconContent="❓"
         glossaryData={customGlossary}
       >
         Custom Analysis Score
       </MetricTooltip>
-      
-      <MetricTooltip 
+
+      <MetricTooltip
         metricKey="volatility"
         iconContent={<span style={{ fontSize: '0.8em' }}>📊</span>}
       >
@@ -142,16 +142,16 @@ export const ChartIntegrationExample = () => {
         [Chart Component]
       </div>
       <div className="chart-legend">
-        <MetricTooltip 
-          metricKey="pe_ratio" 
+        <MetricTooltip
+          metricKey="pe_ratio"
           position="bottom"
           className="legend-item"
         >
           <span className="legend-color" style={{ backgroundColor: '#4a90e2' }}></span>
           P/E Ratio
         </MetricTooltip>
-        <MetricTooltip 
-          metricKey="earnings_growth" 
+        <MetricTooltip
+          metricKey="earnings_growth"
           position="bottom"
           className="legend-item"
         >
@@ -168,7 +168,7 @@ export const MobileResponsiveExample = () => {
   return (
     <div className="mobile-metric-list">
       <div className="metric-row">
-        <MetricTooltip 
+        <MetricTooltip
           metricKey="market_cap"
           position="bottom"  // Better for mobile
         >
@@ -176,9 +176,9 @@ export const MobileResponsiveExample = () => {
         </MetricTooltip>
         <span className="metric-value">$2.5T</span>
       </div>
-      
+
       <div className="metric-row">
-        <MetricTooltip 
+        <MetricTooltip
           metricKey="free_cash_flow"
           position="bottom"
         >
@@ -196,32 +196,32 @@ const exampleStyles = `
     width: 100%;
     border-collapse: collapse;
   }
-  
+
   .metric-table th,
   .metric-table td {
     padding: 12px;
     text-align: left;
     border-bottom: 1px solid #e0e0e0;
   }
-  
+
   .dashboard-card {
     padding: 20px;
     border-radius: 8px;
     background: #f5f5f5;
   }
-  
+
   .metric-value {
     font-size: 24px;
     font-weight: bold;
     color: #333;
   }
-  
+
   .metric-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
   }
-  
+
   .metric-label-container {
     display: flex;
     justify-content: space-between;
@@ -230,24 +230,24 @@ const exampleStyles = `
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
-  
+
   .legend-item {
     display: inline-flex;
     align-items: center;
     margin-right: 20px;
   }
-  
+
   .legend-color {
     width: 12px;
     height: 12px;
     border-radius: 2px;
     margin-right: 8px;
   }
-  
+
   .mobile-metric-list .metric-row {
     display: flex;
     justify-content: space-between;
     padding: 16px 0;
     border-bottom: 1px solid #e0e0e0;
   }
-`; 
+`;

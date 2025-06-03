@@ -187,4 +187,4 @@ When adding new features:
 Enable debug logging by setting the log level:
 ```python
 logger.setLevel(logging.DEBUG)
-``` 
+```

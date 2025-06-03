@@ -180,9 +180,8 @@ def recommend(
     top_n: int = typer.Option(
         5, "--top-n", help="Number of top recommendations to return"
     ),
-    output: str | None = typer.Option(
-        None, "--output", help="Export results to CSV file"
-    ),
+    output: str
+    | None = typer.Option(None, "--output", help="Export results to CSV file"),
 ) -> None:
     """
     Recommend long-dated call options using comprehensive technical analysis.

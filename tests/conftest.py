@@ -4,8 +4,9 @@ This file contains fixtures and configuration that will be automatically
 available to all test files in the tests directory.
 """
 
-import sys
 import os
+import sys
+
 import pytest
 
 # Add the parent directory to the Python path so we can import BuffetBot modules
@@ -21,7 +22,7 @@ def sample_metrics():
         "pe_ratio": 15.2,
         "revenue_growth": 0.12,
         "return_on_equity": 0.18,
-        "gross_margin": 0.35
+        "gross_margin": 0.35,
     }
 
 
@@ -34,7 +35,7 @@ def sample_analysis_results():
             "earnings_growth": 0.18,
             "eps_growth": 0.12,
             "revenue_cagr": 0.14,
-            "fcf_growth": 0.20
+            "fcf_growth": 0.20,
         },
         "financial_ratios": {
             "current_ratio": 1.8,
@@ -42,16 +43,8 @@ def sample_analysis_results():
             "return_on_equity": 0.22,
             "gross_margin": 0.35,
             "operating_margin": 0.18,
-            "net_margin": 0.12
+            "net_margin": 0.12,
         },
-        "risk_metrics": {
-            "beta": 1.2,
-            "volatility": 0.25,
-            "overall_risk_score": 45.5
-        },
-        "value_metrics": {
-            "pe_ratio": 18.5,
-            "pb_ratio": 3.2,
-            "peg_ratio": 1.1
-        }
-    } 
+        "risk_metrics": {"beta": 1.2, "volatility": 0.25, "overall_risk_score": 45.5},
+        "value_metrics": {"pe_ratio": 18.5, "pb_ratio": 3.2, "peg_ratio": 1.1},
+    }

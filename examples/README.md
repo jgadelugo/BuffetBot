@@ -70,4 +70,4 @@ Planned examples to be added:
 - Dashboard visualization example
 - Batch processing example
 - Custom metric definition example
-- Real-time monitoring example 
+- Real-time monitoring example

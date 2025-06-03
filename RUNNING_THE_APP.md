@@ -44,4 +44,4 @@ kill -9 <PID>
 ## Features
 - **Automatic port cleanup**: The run script checks for and clears port 8501 before starting
 - **Graceful shutdown**: Handles Ctrl+C properly for clean termination
-- **Virtual environment**: Automatically activates the venv if present 
+- **Virtual environment**: Automatically activates the venv if present

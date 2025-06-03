@@ -62,4 +62,4 @@ def test_get_metric_info_invalid():
 
 Available fixtures from `conftest.py`:
 - `sample_metrics` - Sample calculated metrics dictionary
-- `sample_analysis_results` - Sample analysis results with all metric categories 
+- `sample_analysis_results` - Sample analysis results with all metric categories

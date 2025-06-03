@@ -2,16 +2,16 @@
 
 from .config import (
     DashboardConfig,
-    get_status_color,
+    calculate_status,
     format_currency,
     format_percentage,
-    calculate_status
+    get_status_color,
 )
 
 __all__ = [
-    'DashboardConfig',
-    'get_status_color',
-    'format_currency',
-    'format_percentage',
-    'calculate_status'
-] 
+    "DashboardConfig",
+    "get_status_color",
+    "format_currency",
+    "format_percentage",
+    "calculate_status",
+]

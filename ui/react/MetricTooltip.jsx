@@ -8,7 +8,7 @@ const GLOSSARY = window.GLOSSARY || {};
 
 /**
  * MetricTooltip Component
- * 
+ *
  * A reusable tooltip component that displays metric information from the glossary.
  * Features:
  * - Accessible (ARIA attributes, keyboard navigation)
@@ -16,20 +16,20 @@ const GLOSSARY = window.GLOSSARY || {};
  * - Memoized for performance
  * - Customizable styling
  */
-const MetricTooltip = memo(({ 
-  metricKey, 
-  children, 
-  className = '', 
+const MetricTooltip = memo(({
+  metricKey,
+  children,
+  className = '',
   position = 'top',
   showIcon = true,
   iconContent = 'ℹ️',
-  glossaryData = GLOSSARY 
+  glossaryData = GLOSSARY
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState(position);
   const tooltipRef = useRef(null);
   const triggerRef = useRef(null);
-  
+
   // Get metric information from glossary
   const metricInfo = glossaryData[metricKey] || {
     name: metricKey,
@@ -44,9 +44,9 @@ const MetricTooltip = memo(({
       const triggerRect = triggerRef.current.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       let newPosition = position;
-      
+
       // Check if tooltip goes outside viewport and adjust position
       if (position === 'top' && triggerRect.top - tooltipRect.height < 0) {
         newPosition = 'bottom';
@@ -57,14 +57,14 @@ const MetricTooltip = memo(({
       } else if (position === 'right' && triggerRect.right + tooltipRect.width > viewportWidth) {
         newPosition = 'left';
       }
-      
+
       // Additional check for horizontal overflow
-      if ((newPosition === 'top' || newPosition === 'bottom') && 
+      if ((newPosition === 'top' || newPosition === 'bottom') &&
           triggerRect.left + tooltipRect.width / 2 > viewportWidth) {
         tooltipRef.current.style.left = 'auto';
         tooltipRef.current.style.right = '0';
       }
-      
+
       setTooltipPosition(newPosition);
     }
   }, [isVisible, position]);
@@ -79,19 +79,19 @@ const MetricTooltip = memo(({
 
   // Show tooltip
   const showTooltip = () => setIsVisible(true);
-  
+
   // Hide tooltip
   const hideTooltip = () => setIsVisible(false);
 
   return (
-    <span 
+    <span
       className={`metric-tooltip-container ${className}`}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
       onFocus={showTooltip}
       onBlur={hideTooltip}
     >
-      <span 
+      <span
         ref={triggerRef}
         className="metric-tooltip-trigger"
         role="button"
@@ -103,7 +103,7 @@ const MetricTooltip = memo(({
         {children || metricInfo.name}
         {showIcon && <span className="metric-tooltip-icon" aria-hidden="true">{iconContent}</span>}
       </span>
-      
+
       {isVisible && (
         <div
           ref={tooltipRef}
@@ -154,8 +154,8 @@ export const withMetricTooltip = (Component) => {
       <Component {...props} />
     </MetricTooltip>
   );
-  
+
   WrappedComponent.displayName = `withMetricTooltip(${Component.displayName || Component.name || 'Component'})`;
-  
+
   return WrappedComponent;
-}; 
+};

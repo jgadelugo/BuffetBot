@@ -3,225 +3,292 @@ Column mappings for financial statement standardization.
 """
 
 COLUMN_MAPPINGS = {
-    'income': {
-        'Total Revenue': [
-            'Revenue', 'Net Sales', 'Operating Revenue', 'Sales Revenue',
-            'Total Sales', 'Net Revenue', 'Gross Sales'
+    "income": {
+        "Total Revenue": [
+            "Revenue",
+            "Net Sales",
+            "Operating Revenue",
+            "Sales Revenue",
+            "Total Sales",
+            "Net Revenue",
+            "Gross Sales",
         ],
-        'Cost of Revenue': [
-            'Cost of Goods Sold', 'COGS', 'Cost of Sales', 'Cost of Products Sold',
-            'Reconciled Cost Of Revenue'
+        "Cost of Revenue": [
+            "Cost of Goods Sold",
+            "COGS",
+            "Cost of Sales",
+            "Cost of Products Sold",
+            "Reconciled Cost Of Revenue",
         ],
-        'Gross Profit': [
-            'Gross Income', 'Gross Margin', 'Gross Earnings'
+        "Gross Profit": ["Gross Income", "Gross Margin", "Gross Earnings"],
+        "Operating Expenses": [
+            "Selling General And Administration",
+            "SG&A",
+            "Operating Costs",
+            "Research And Development",
+            "R&D",
+            "Operating Expense",
         ],
-        'Operating Expenses': [
-            'Selling General And Administration', 'SG&A', 'Operating Costs',
-            'Research And Development', 'R&D', 'Operating Expense'
+        "Operating Income": [
+            "Operating Profit",
+            "Operating Earnings",
+            "EBIT",
+            "EBITDA",
+            "Earnings Before Interest and Taxes",
+            "Operating Income As Reported",
+            "Total Operating Income As Reported",
         ],
-        'Operating Income': [
-            'Operating Profit', 'Operating Earnings', 'EBIT', 'EBITDA',
-            'Earnings Before Interest and Taxes', 'Operating Income As Reported',
-            'Total Operating Income As Reported'
+        "Interest Expense": [
+            "Interest Paid",
+            "Interest Charges",
+            "Interest Expense Non Operating",
+            "Net Interest Expense",
         ],
-        'Interest Expense': [
-            'Interest Paid', 'Interest Charges', 'Interest Expense Non Operating',
-            'Net Interest Expense'
+        "Interest Income": [
+            "Interest Earned",
+            "Interest Revenue",
+            "Interest Income Non Operating",
+            "Net Interest Income",
         ],
-        'Interest Income': [
-            'Interest Earned', 'Interest Revenue', 'Interest Income Non Operating',
-            'Net Interest Income'
+        "Other Income": [
+            "Other Income Expense",
+            "Non-Operating Income",
+            "Other Non Operating Income Expenses",
+            "Net Non Operating Interest Income Expense",
         ],
-        'Other Income': [
-            'Other Income Expense', 'Non-Operating Income', 'Other Non Operating Income Expenses',
-            'Net Non Operating Interest Income Expense'
+        "Pretax Income": [
+            "Income Before Tax",
+            "Earnings Before Tax",
+            "EBT",
+            "Income Before Income Taxes",
+            "Profit Before Tax",
         ],
-        'Pretax Income': [
-            'Income Before Tax', 'Earnings Before Tax', 'EBT', 'Income Before Income Taxes',
-            'Profit Before Tax'
+        "Tax Expense": [
+            "Income Tax Expense",
+            "Provision for Income Taxes",
+            "Tax Provision",
+            "Income Tax Provision",
         ],
-        'Tax Expense': [
-            'Income Tax Expense', 'Provision for Income Taxes', 'Tax Provision',
-            'Income Tax Provision'
+        "Net Income": [
+            "Net Profit",
+            "Net Earnings",
+            "Profit",
+            "Net Income Common Stockholders",
+            "Net Income Including Noncontrolling Interests",
+            "Net Income Continuous Operations",
+            "Net Income From Continuing Operation Net Minority Interest",
+            "Net Income From Continuing And Discontinued Operation",
+            "Diluted NI Availto Com Stockholders",
         ],
-        'Net Income': [
-            'Net Profit', 'Net Earnings', 'Profit', 'Net Income Common Stockholders',
-            'Net Income Including Noncontrolling Interests', 'Net Income Continuous Operations',
-            'Net Income From Continuing Operation Net Minority Interest',
-            'Net Income From Continuing And Discontinued Operation',
-            'Diluted NI Availto Com Stockholders'
+        "EPS": [
+            "Earnings Per Share",
+            "Basic EPS",
+            "Diluted EPS",
+            "EPS Basic",
+            "EPS Diluted",
         ],
-        'EPS': [
-            'Earnings Per Share', 'Basic EPS', 'Diluted EPS', 'EPS Basic', 'EPS Diluted'
+        "Shares Outstanding": [
+            "Weighted Average Shares",
+            "Basic Average Shares",
+            "Diluted Average Shares",
+            "Ordinary Shares Number",
+            "Share Issued",
         ],
-        'Shares Outstanding': [
-            'Weighted Average Shares', 'Basic Average Shares', 'Diluted Average Shares',
-            'Ordinary Shares Number', 'Share Issued'
-        ]
     },
-    'balance': {
-        'Total Assets': [
-            'Assets', 'Total Assets And Liabilities', 'Total Asset (Net)'
+    "balance": {
+        "Total Assets": ["Assets", "Total Assets And Liabilities", "Total Asset (Net)"],
+        "Total Current Assets": ["Current Assets", "Total Current Asset"],
+        "Cash and Equivalents": [
+            "Cash",
+            "Cash And Cash Equivalents",
+            "Cash Financial",
+            "Cash Equivalents",
+            "Cash Cash Equivalents And Short Term Investments",
         ],
-        'Total Current Assets': [
-            'Current Assets', 'Total Current Asset'
+        "Short Term Investments": [
+            "Marketable Securities",
+            "Short Term Investments",
+            "Other Short Term Investments",
+            "Available For Sale Securities",
+            "Investmentin Financial Assets",
         ],
-        'Cash and Equivalents': [
-            'Cash', 'Cash And Cash Equivalents', 'Cash Financial', 'Cash Equivalents',
-            'Cash Cash Equivalents And Short Term Investments'
+        "Accounts Receivable": [
+            "Receivables",
+            "Trade Receivables",
+            "Accounts Receivable Net",
+            "Other Receivables",
+            "Changes In Account Receivables",
         ],
-        'Short Term Investments': [
-            'Marketable Securities', 'Short Term Investments', 'Other Short Term Investments',
-            'Available For Sale Securities', 'Investmentin Financial Assets'
+        "Inventory": ["Inventories", "Total Inventory", "Change In Inventory"],
+        "Other Current Assets": [
+            "Other Current Asset",
+            "Prepaid Expenses",
+            "Deferred Assets",
         ],
-        'Accounts Receivable': [
-            'Receivables', 'Trade Receivables', 'Accounts Receivable Net',
-            'Other Receivables', 'Changes In Account Receivables'
+        "Total Non-Current Assets": [
+            "Non-Current Assets",
+            "Long Term Assets",
+            "Total Non Current Assets",
         ],
-        'Inventory': [
-            'Inventories', 'Total Inventory', 'Change In Inventory'
+        "Property Plant and Equipment": [
+            "PP&E",
+            "Net PPE",
+            "Gross PPE",
+            "Properties",
+            "Land And Improvements",
+            "Machinery Furniture Equipment",
+            "Other Properties",
+            "Leases",
         ],
-        'Other Current Assets': [
-            'Other Current Asset', 'Prepaid Expenses', 'Deferred Assets'
+        "Accumulated Depreciation": [
+            "Depreciation",
+            "Accumulated Depreciation And Amortization",
         ],
-        'Total Non-Current Assets': [
-            'Non-Current Assets', 'Long Term Assets', 'Total Non Current Assets'
+        "Goodwill": ["Goodwill And Intangible Assets", "Goodwill Net"],
+        "Intangible Assets": ["Other Intangible Assets", "Intangible Assets Net"],
+        "Total Liabilities": [
+            "Liabilities",
+            "Total Liabilities And Equity",
+            "Total Liabilities Net Minority Interest",
         ],
-        'Property Plant and Equipment': [
-            'PP&E', 'Net PPE', 'Gross PPE', 'Properties', 'Land And Improvements',
-            'Machinery Furniture Equipment', 'Other Properties', 'Leases'
+        "Total Current Liabilities": ["Current Liabilities", "Total Current Liability"],
+        "Accounts Payable": [
+            "Payables",
+            "Trade Payables",
+            "Accounts Payable Net",
+            "Change In Account Payable",
+            "Change In Payable",
         ],
-        'Accumulated Depreciation': [
-            'Depreciation', 'Accumulated Depreciation And Amortization'
+        "Short Term Debt": [
+            "Current Debt",
+            "Current Portion of Long Term Debt",
+            "Current Debt And Capital Lease Obligation",
+            "Current Capital Lease Obligation",
+            "Commercial Paper",
+            "Other Current Borrowings",
         ],
-        'Goodwill': [
-            'Goodwill And Intangible Assets', 'Goodwill Net'
+        "Other Current Liabilities": [
+            "Other Current Liability",
+            "Accrued Expenses",
+            "Deferred Revenue",
+            "Current Deferred Revenue",
+            "Current Deferred Liabilities",
+            "Change In Other Current Liabilities",
+            "Change In Payables And Accrued Expense",
         ],
-        'Intangible Assets': [
-            'Other Intangible Assets', 'Intangible Assets Net'
+        "Total Non-Current Liabilities": [
+            "Non-Current Liabilities",
+            "Long Term Liabilities",
+            "Total Non Current Liabilities Net Minority Interest",
         ],
-        'Total Liabilities': [
-            'Liabilities', 'Total Liabilities And Equity', 'Total Liabilities Net Minority Interest'
+        "Long Term Debt": [
+            "Long Term Debt And Capital Lease Obligation",
+            "Long Term Capital Lease Obligation",
+            "Long Term Debt Net",
+            "Total Debt",
         ],
-        'Total Current Liabilities': [
-            'Current Liabilities', 'Total Current Liability'
+        "Other Non-Current Liabilities": [
+            "Other Non Current Liabilities",
+            "Deferred Tax Liabilities",
+            "Non Current Deferred Liabilities",
+            "Tradeand Other Payables Non Current",
         ],
-        'Accounts Payable': [
-            'Payables', 'Trade Payables', 'Accounts Payable Net',
-            'Change In Account Payable', 'Change In Payable'
+        "Total Stockholder Equity": [
+            "Stockholders Equity",
+            "Total Equity",
+            "Common Stock Equity",
+            "Total Equity Gross Minority Interest",
+            "Total Capitalization",
         ],
-        'Short Term Debt': [
-            'Current Debt', 'Current Portion of Long Term Debt', 'Current Debt And Capital Lease Obligation',
-            'Current Capital Lease Obligation', 'Commercial Paper', 'Other Current Borrowings'
+        "Common Stock": [
+            "Capital Stock",
+            "Common Stock And Additional Paid In Capital",
         ],
-        'Other Current Liabilities': [
-            'Other Current Liability', 'Accrued Expenses', 'Deferred Revenue',
-            'Current Deferred Revenue', 'Current Deferred Liabilities',
-            'Change In Other Current Liabilities', 'Change In Payables And Accrued Expense'
+        "Retained Earnings": ["Retained Earnings", "Accumulated Retained Earnings"],
+        "Treasury Stock": [
+            "Treasury Shares",
+            "Treasury Stock Common",
+            "Treasury Shares Number",
         ],
-        'Total Non-Current Liabilities': [
-            'Non-Current Liabilities', 'Long Term Liabilities', 'Total Non Current Liabilities Net Minority Interest'
+        "Other Equity": [
+            "Other Equity Adjustments",
+            "Gains Losses Not Affecting Retained Earnings",
+            "Accumulated Other Comprehensive Income",
         ],
-        'Long Term Debt': [
-            'Long Term Debt And Capital Lease Obligation', 'Long Term Capital Lease Obligation',
-            'Long Term Debt Net', 'Total Debt'
-        ],
-        'Other Non-Current Liabilities': [
-            'Other Non Current Liabilities', 'Deferred Tax Liabilities',
-            'Non Current Deferred Liabilities', 'Tradeand Other Payables Non Current'
-        ],
-        'Total Stockholder Equity': [
-            'Stockholders Equity', 'Total Equity', 'Common Stock Equity',
-            'Total Equity Gross Minority Interest', 'Total Capitalization'
-        ],
-        'Common Stock': [
-            'Capital Stock', 'Common Stock And Additional Paid In Capital'
-        ],
-        'Retained Earnings': [
-            'Retained Earnings', 'Accumulated Retained Earnings'
-        ],
-        'Treasury Stock': [
-            'Treasury Shares', 'Treasury Stock Common', 'Treasury Shares Number'
-        ],
-        'Other Equity': [
-            'Other Equity Adjustments', 'Gains Losses Not Affecting Retained Earnings',
-            'Accumulated Other Comprehensive Income'
-        ]
     },
-    'cash_flow': {
-        'Operating Cash Flow': [
-            'Cash Flow From Operations', 'Net Cash Provided by Operating Activities',
-            'Cash Flow From Continuing Operating Activities'
+    "cash_flow": {
+        "Operating Cash Flow": [
+            "Cash Flow From Operations",
+            "Net Cash Provided by Operating Activities",
+            "Cash Flow From Continuing Operating Activities",
         ],
-        'Net Income': [
-            'Net Income From Continuing Operations', 'Net Income From Continuing And Discontinued Operation'
+        "Net Income": [
+            "Net Income From Continuing Operations",
+            "Net Income From Continuing And Discontinued Operation",
         ],
-        'Depreciation and Amortization': [
-            'Depreciation Amortization Depletion', 'Depreciation And Amortization'
+        "Depreciation and Amortization": [
+            "Depreciation Amortization Depletion",
+            "Depreciation And Amortization",
         ],
-        'Stock Based Compensation': [
-            'Stock Compensation', 'Share Based Compensation'
+        "Stock Based Compensation": ["Stock Compensation", "Share Based Compensation"],
+        "Deferred Tax": ["Deferred Income Tax", "Deferred Taxes"],
+        "Change in Working Capital": [
+            "Change In Working Capital",
+            "Change In Other Working Capital",
         ],
-        'Deferred Tax': [
-            'Deferred Income Tax', 'Deferred Taxes'
+        "Change in Receivables": [
+            "Change In Receivables",
+            "Changes In Account Receivables",
         ],
-        'Change in Working Capital': [
-            'Change In Working Capital', 'Change In Other Working Capital'
+        "Change in Inventory": ["Change In Inventory"],
+        "Change in Payables": [
+            "Change In Payable",
+            "Change In Account Payable",
+            "Change In Payables And Accrued Expense",
         ],
-        'Change in Receivables': [
-            'Change In Receivables', 'Changes In Account Receivables'
+        "Change in Other Working Capital": [
+            "Change In Other Current Assets",
+            "Change In Other Current Liabilities",
         ],
-        'Change in Inventory': [
-            'Change In Inventory'
+        "Investing Cash Flow": [
+            "Cash Flow From Investing",
+            "Cash Flow From Continuing Investing Activities",
         ],
-        'Change in Payables': [
-            'Change In Payable', 'Change In Account Payable',
-            'Change In Payables And Accrued Expense'
+        "Capital Expenditure": [
+            "Purchase Of PPE",
+            "Capital Expenditures",
+            "Net PPE Purchase And Sale",
         ],
-        'Change in Other Working Capital': [
-            'Change In Other Current Assets', 'Change In Other Current Liabilities'
+        "Acquisitions": ["Purchase Of Business", "Net Business Purchase And Sale"],
+        "Investments": [
+            "Purchase Of Investment",
+            "Sale Of Investment",
+            "Net Investment Purchase And Sale",
         ],
-        'Investing Cash Flow': [
-            'Cash Flow From Investing', 'Cash Flow From Continuing Investing Activities'
+        "Financing Cash Flow": [
+            "Cash Flow From Financing",
+            "Cash Flow From Continuing Financing Activities",
         ],
-        'Capital Expenditure': [
-            'Purchase Of PPE', 'Capital Expenditures', 'Net PPE Purchase And Sale'
+        "Debt Issuance": [
+            "Issuance Of Debt",
+            "Long Term Debt Issuance",
+            "Net Long Term Debt Issuance",
         ],
-        'Acquisitions': [
-            'Purchase Of Business', 'Net Business Purchase And Sale'
+        "Debt Repayment": [
+            "Repayment Of Debt",
+            "Long Term Debt Payments",
+            "Net Issuance Payments Of Debt",
         ],
-        'Investments': [
-            'Purchase Of Investment', 'Sale Of Investment', 'Net Investment Purchase And Sale'
+        "Equity Issuance": [
+            "Issuance Of Capital Stock",
+            "Common Stock Issuance",
+            "Net Common Stock Issuance",
         ],
-        'Financing Cash Flow': [
-            'Cash Flow From Financing', 'Cash Flow From Continuing Financing Activities'
-        ],
-        'Debt Issuance': [
-            'Issuance Of Debt', 'Long Term Debt Issuance', 'Net Long Term Debt Issuance'
-        ],
-        'Debt Repayment': [
-            'Repayment Of Debt', 'Long Term Debt Payments', 'Net Issuance Payments Of Debt'
-        ],
-        'Equity Issuance': [
-            'Issuance Of Capital Stock', 'Common Stock Issuance', 'Net Common Stock Issuance'
-        ],
-        'Equity Repurchase': [
-            'Repurchase Of Capital Stock', 'Common Stock Payments'
-        ],
-        'Dividends Paid': [
-            'Cash Dividends Paid', 'Common Stock Dividend Paid'
-        ],
-        'Other Financing': [
-            'Net Other Financing Charges'
-        ],
-        'Net Cash Flow': [
-            'Changes In Cash', 'Net Change In Cash'
-        ],
-        'Beginning Cash': [
-            'Beginning Cash Position'
-        ],
-        'Ending Cash': [
-            'End Cash Position'
-        ]
-    }
-} 
+        "Equity Repurchase": ["Repurchase Of Capital Stock", "Common Stock Payments"],
+        "Dividends Paid": ["Cash Dividends Paid", "Common Stock Dividend Paid"],
+        "Other Financing": ["Net Other Financing Charges"],
+        "Net Cash Flow": ["Changes In Cash", "Net Change In Cash"],
+        "Beginning Cash": ["Beginning Cash Position"],
+        "Ending Cash": ["End Cash Position"],
+    },
+}

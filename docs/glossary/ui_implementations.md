@@ -260,4 +260,4 @@ Consider adding analytics to track:
 - Multi-language support
 - Dark mode toggle
 - Advanced filtering options
-- Metric comparison tool 
+- Metric comparison tool
