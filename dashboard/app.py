@@ -687,7 +687,7 @@ def main():
 
                     # Log for debugging
                     logger.info(
-                        f"Risk Analysis for {ticker}: Score={risk_score:.2f}%, Level={risk_level}"
+                        f"Risk Analysis for {ticker}: Score={safe_format_number(risk_score)}%, Level={risk_level}"
                     )
 
                     # Create columns for risk score and level

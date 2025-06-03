@@ -21,6 +21,37 @@ from utils.logger import setup_logger
 # Initialize logger
 logger = setup_logger(__name__, "logs/forecast_panel.log")
 
+
+def safe_format_currency(value: float | None, decimal_places: int = 2) -> str:
+    """Safely format a value as currency, handling None values."""
+    if value is None or pd.isna(value):
+        return "N/A"
+    try:
+        return f"${value:,.{decimal_places}f}"
+    except (ValueError, TypeError):
+        return "N/A"
+
+
+def safe_format_percentage(value: float | None, decimal_places: int = 1) -> str:
+    """Safely format a value as percentage, handling None values."""
+    if value is None or pd.isna(value):
+        return "N/A"
+    try:
+        return f"{value:.{decimal_places}%}"
+    except (ValueError, TypeError):
+        return "N/A"
+
+
+def safe_format_number(value: float | None, decimal_places: int = 2) -> str:
+    """Safely format a number, handling None values."""
+    if value is None or pd.isna(value):
+        return "N/A"
+    try:
+        return f"{value:.{decimal_places}f}"
+    except (ValueError, TypeError):
+        return "N/A"
+
+
 # Time window options for forecast filtering
 TIME_WINDOW_OPTIONS = {
     "All forecasts": None,
@@ -66,6 +97,16 @@ def render_forecast_panel(ticker: str) -> dict[str, float | int | str] | None:
             with st.spinner("📊 Fetching analyst forecasts..."):
                 forecast_data = get_analyst_forecast(ticker, window_days)
 
+            # Check if data is available
+            if not forecast_data.get("data_available", False):
+                # Show error message and stop processing
+                error_msg = forecast_data.get("error_message", "Unknown error occurred")
+                st.warning(f"⚠️ Analyst forecast data is not available: {error_msg}")
+                st.info(
+                    "📊 This may be due to limited coverage for this ticker or temporary data source issues."
+                )
+                return None
+
             # Display forecast summary section
             render_forecast_summary(forecast_data)
 
@@ -73,7 +114,7 @@ def render_forecast_panel(ticker: str) -> dict[str, float | int | str] | None:
             render_forecast_details(forecast_data)
 
             # Create visualization if we have sufficient data
-            if forecast_data["num_analysts"] > 1:
+            if forecast_data.get("num_analysts") and forecast_data["num_analysts"] > 1:
                 render_forecast_visualization(forecast_data, ticker)
 
             return forecast_data
@@ -115,36 +156,44 @@ def render_forecast_summary(forecast_data: dict[str, float | int | str]) -> None
         with col1:
             st.metric(
                 label="🎯 Mean Target",
-                value=f"${forecast_data['mean_target']:.2f}",
+                value=safe_format_currency(forecast_data["mean_target"]),
                 help="Average analyst price target across all analysts",
             )
 
         with col2:
             st.metric(
                 label="📊 Median Target",
-                value=f"${forecast_data['median_target']:.2f}",
+                value=safe_format_currency(forecast_data["median_target"]),
                 help="Median analyst price target (middle value)",
             )
 
         with col3:
             st.metric(
                 label="👥 Analysts",
-                value=str(forecast_data["num_analysts"]),
+                value=str(forecast_data["num_analysts"])
+                if forecast_data["num_analysts"] is not None
+                else "N/A",
                 help="Number of analysts providing price targets",
             )
 
         with col4:
             confidence_color = "normal"
-            if forecast_data["confidence"] >= 0.7:
+            if (
+                forecast_data["confidence"] is not None
+                and forecast_data["confidence"] >= 0.7
+            ):
                 confidence_color = "normal"
-            elif forecast_data["confidence"] >= 0.4:
+            elif (
+                forecast_data["confidence"] is not None
+                and forecast_data["confidence"] >= 0.4
+            ):
                 confidence_color = "off"
             else:
                 confidence_color = "inverse"
 
             st.metric(
                 label="🔒 Confidence Score",
-                value=f"{forecast_data['confidence']:.1%}",
+                value=safe_format_percentage(forecast_data["confidence"]),
                 delta=None,
                 help="Confidence score based on analyst consensus and target dispersion",
             )
@@ -172,22 +221,28 @@ def render_forecast_details(forecast_data: dict[str, float | int | str]) -> None
                 st.markdown("**📈 Price Targets**")
 
                 # Target range
-                target_range = (
-                    forecast_data["high_target"] - forecast_data["low_target"]
-                )
+                target_range = None
+                if (
+                    forecast_data["high_target"] is not None
+                    and forecast_data["low_target"] is not None
+                ):
+                    target_range = (
+                        forecast_data["high_target"] - forecast_data["low_target"]
+                    )
+
                 st.metric(
                     "🔺 High Target",
-                    f"${forecast_data['high_target']:.2f}",
+                    safe_format_currency(forecast_data["high_target"]),
                     help="Highest analyst price target",
                 )
                 st.metric(
                     "🔻 Low Target",
-                    f"${forecast_data['low_target']:.2f}",
+                    safe_format_currency(forecast_data["low_target"]),
                     help="Lowest analyst price target",
                 )
                 st.metric(
                     "📏 Target Range",
-                    f"${target_range:.2f}",
+                    safe_format_currency(target_range),
                     help="Difference between highest and lowest targets",
                 )
 
@@ -195,20 +250,22 @@ def render_forecast_details(forecast_data: dict[str, float | int | str]) -> None
                 st.markdown("**📊 Statistical Measures**")
 
                 # Standard deviation and coefficient of variation
-                cv = (
-                    (forecast_data["std_dev"] / forecast_data["mean_target"]) * 100
-                    if forecast_data["mean_target"] > 0
-                    else 0
-                )
+                cv = None
+                if (
+                    forecast_data["std_dev"] is not None
+                    and forecast_data["mean_target"] is not None
+                    and forecast_data["mean_target"] > 0
+                ):
+                    cv = (forecast_data["std_dev"] / forecast_data["mean_target"]) * 100
 
                 st.metric(
                     "📐 Standard Deviation",
-                    f"${forecast_data['std_dev']:.2f}",
+                    safe_format_currency(forecast_data["std_dev"]),
                     help="Standard deviation of price targets (measure of dispersion)",
                 )
                 st.metric(
                     "📊 Coefficient of Variation",
-                    f"{cv:.1f}%",
+                    safe_format_number(cv, 1) + "%" if cv is not None else "N/A",
                     help="Standard deviation as percentage of mean (relative dispersion)",
                 )
 
@@ -267,11 +324,28 @@ def _create_target_distribution_chart(
         go.Figure: Plotly figure object
     """
     try:
-        # Create bins for target distribution
+        # Check if we have the required data
         low = forecast_data["low_target"]
         high = forecast_data["high_target"]
         mean_val = forecast_data["mean_target"]
         median_val = forecast_data["median_target"]
+        std_dev = forecast_data["std_dev"]
+        num_analysts = forecast_data["num_analysts"]
+
+        # Return empty chart if essential data is missing
+        if any(
+            val is None
+            for val in [low, high, mean_val, median_val, std_dev, num_analysts]
+        ):
+            return go.Figure().add_annotation(
+                text="Insufficient data for target distribution chart",
+                showarrow=False,
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                font=dict(size=16),
+            )
 
         # Create bins around the key values
         bins = [low, median_val, mean_val, high]
@@ -283,8 +357,8 @@ def _create_target_distribution_chart(
         np.random.seed(hash(ticker) % 2**32)  # Consistent data per ticker
 
         # Generate synthetic data points around our known values
-        num_points = max(forecast_data["num_analysts"], 3)
-        data_points = np.random.normal(mean_val, forecast_data["std_dev"], num_points)
+        num_points = max(num_analysts, 3)
+        data_points = np.random.normal(mean_val, std_dev, num_points)
         data_points = np.clip(
             data_points, low * 0.9, high * 1.1
         )  # Keep within reasonable bounds
@@ -307,13 +381,13 @@ def _create_target_distribution_chart(
             x=mean_val,
             line_dash="dash",
             line_color="red",
-            annotation_text=f"Mean: ${mean_val:.2f}",
+            annotation_text=f"Mean: {safe_format_currency(mean_val)}",
         )
         fig.add_vline(
             x=median_val,
             line_dash="dot",
             line_color="green",
-            annotation_text=f"Median: ${median_val:.2f}",
+            annotation_text=f"Median: {safe_format_currency(median_val)}",
         )
 
         fig.update_layout(
@@ -349,6 +423,23 @@ def _create_forecast_trend_chart(
         go.Figure: Plotly figure object
     """
     try:
+        # Check if we have the required data
+        current_target = forecast_data["mean_target"]
+        std_dev = forecast_data["std_dev"]
+        confidence = forecast_data["confidence"]
+
+        # Return empty chart if essential data is missing
+        if current_target is None or std_dev is None:
+            return go.Figure().add_annotation(
+                text="Insufficient data for forecast trend chart",
+                showarrow=False,
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                font=dict(size=16),
+            )
+
         # Create mock historical forecast data for the last 6 months
         import numpy as np
 
@@ -361,10 +452,7 @@ def _create_forecast_trend_chart(
         ]  # 6 months of monthly data
 
         # Generate mock forecast evolution
-        current_target = forecast_data["mean_target"]
-        volatility = (
-            forecast_data["std_dev"] / current_target if current_target > 0 else 0.05
-        )
+        volatility = std_dev / current_target if current_target > 0 else 0.05
 
         targets = []
         confidence_scores = []
@@ -378,14 +466,14 @@ def _create_forecast_trend_chart(
             targets.append(target)
 
             # Mock confidence evolution
-            confidence = 0.4 + (i / len(dates)) * 0.3 + np.random.normal(0, 0.05)
-            confidence = max(0.2, min(0.8, confidence))
-            confidence_scores.append(confidence)
+            confidence_val = 0.4 + (i / len(dates)) * 0.3 + np.random.normal(0, 0.05)
+            confidence_val = max(0.2, min(0.8, confidence_val))
+            confidence_scores.append(confidence_val)
 
         # Add current data point
         dates.append(end_date)
         targets.append(current_target)
-        confidence_scores.append(forecast_data["confidence"])
+        confidence_scores.append(confidence if confidence is not None else 0.5)
 
         # Create the chart
         fig = go.Figure()
@@ -441,17 +529,19 @@ def _create_forecast_trend_chart(
         )
 
 
-def _get_confidence_interpretation(confidence: float) -> str:
+def _get_confidence_interpretation(confidence: float | None) -> str:
     """
     Get human-readable interpretation of confidence score.
 
     Args:
-        confidence: Confidence score (0-1)
+        confidence: Confidence score (0-1) or None
 
     Returns:
         str: Human-readable confidence interpretation
     """
-    if confidence >= 0.8:
+    if confidence is None:
+        return "❓ **Unknown** - Confidence data not available"
+    elif confidence >= 0.8:
         return "🟢 **Very High** - Strong analyst consensus"
     elif confidence >= 0.6:
         return "🟡 **High** - Good analyst agreement"
