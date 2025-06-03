@@ -28,12 +28,12 @@ repos:
       - id: isort
         args: ["--profile", "black"]
 
-  # Only run pyupgrade on Python files
+  # Only run pyupgrade on Python files - changed to py39-plus for compatibility
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.0
     hooks:
       - id: pyupgrade
-        args: [--py310-plus]
+        args: [--py39-plus]
 
 default_language_version:
   python: python3.12

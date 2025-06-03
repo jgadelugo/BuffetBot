@@ -10,11 +10,10 @@ This module provides the foundation for all dashboard views, implementing:
 
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import streamlit as st
 
@@ -43,7 +42,7 @@ class ViewMetadata:
     requires_data: bool
     requires_ticker: bool = True
     min_data_quality: float = 0.0
-    dependencies: list[str] | None = None
+    dependencies: Optional[list[str]] = None
 
 
 class BaseView(ABC):
@@ -56,8 +55,8 @@ class BaseView(ABC):
     @abstractmethod
     def render(
         self,
-        data: dict[str, Any] | None = None,
-        ticker: str | None = None,
+        data: Optional[dict[str, Any]] = None,
+        ticker: Optional[str] = None,
         **kwargs,
     ) -> None:
         """Render the view content.
@@ -69,7 +68,9 @@ class BaseView(ABC):
         """
         pass
 
-    def validate_inputs(self, data: dict[str, Any] | None, ticker: str | None) -> bool:
+    def validate_inputs(
+        self, data: Optional[dict[str, Any]], ticker: Optional[str]
+    ) -> bool:
         """Validate inputs before rendering.
 
         Args:
@@ -91,8 +92,8 @@ class BaseView(ABC):
 
     def render_with_error_handling(
         self,
-        data: dict[str, Any] | None = None,
-        ticker: str | None = None,
+        data: Optional[dict[str, Any]] = None,
+        ticker: Optional[str] = None,
         **kwargs,
     ) -> None:
         """Render view with comprehensive error handling and monitoring.
@@ -166,7 +167,7 @@ class ViewRegistry:
         self._legacy_functions[name] = {"function": func, "metadata": metadata}
         logger.info(f"Registered legacy function as view: {name}")
 
-    def get_view(self, name: str) -> BaseView | None:
+    def get_view(self, name: str) -> Optional[BaseView]:
         """Get a view by name.
 
         Args:
@@ -177,7 +178,7 @@ class ViewRegistry:
         """
         return self._views.get(name)
 
-    def get_legacy_function(self, name: str) -> Callable | None:
+    def get_legacy_function(self, name: str) -> Optional[Callable]:
         """Get a legacy function by name.
 
         Args:
@@ -209,8 +210,8 @@ class ViewRegistry:
     def render_view(
         self,
         name: str,
-        data: dict[str, Any] | None = None,
-        ticker: str | None = None,
+        data: Optional[dict[str, Any]] = None,
+        ticker: Optional[str] = None,
         **kwargs,
     ) -> bool:
         """Render a view by name with error handling.

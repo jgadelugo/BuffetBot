@@ -123,7 +123,7 @@ def get_all_views() -> dict[str, dict[str, Any]]:
     }
 
 
-def get_view_function(view_name: str) -> callable | None:
+def get_view_function(view_name: str) -> Optional[callable]:
     """Get a view function by name.
 
     Args:
