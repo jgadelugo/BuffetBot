@@ -20,7 +20,7 @@ import yfinance as yf
 
 from analysis.ecosystem import EcosystemAnalyzer
 from data.forecast_fetcher import ForecastFetchError, get_analyst_forecast
-from data.options_fetcher import OptionsDataError, fetch_long_dated_calls
+from data.options_fetcher import OptionsDataError, OptionsResult, fetch_long_dated_calls
 from data.peer_fetcher import PeerFetchError, get_peers
 from utils.errors import DataError, DataFetcherError, ErrorSeverity, handle_data_error
 from utils.logger import setup_logger
@@ -437,12 +437,31 @@ def recommend_long_calls(
     try:
         # Step 1: Fetch options data
         logger.info("Step 1: Fetching long-dated call options")
-        options_df = fetch_long_dated_calls(ticker, min_days_to_expiry=min_days)
+        options_result = fetch_long_dated_calls(ticker, min_days_to_expiry=min_days)
+
+        # Check if data was fetched successfully
+        if not options_result["data_available"]:
+            error_msg = options_result.get(
+                "error_message", "Unknown error fetching options data"
+            )
+            error = DataError(
+                code="NO_OPTIONS_DATA",
+                message=f"No long-dated call options found for {ticker} with min {min_days} days: {error_msg}",
+                severity=ErrorSeverity.HIGH,
+                details={"ticker": ticker, "min_days": min_days},
+            )
+            handle_data_error(error, logger)
+            raise InsufficientDataError(
+                f"No long-dated call options found for {ticker} with minimum {min_days} days to expiry: {error_msg}"
+            )
+
+        # Extract the DataFrame from the result
+        options_df = options_result["data"]
 
         if options_df.empty:
             error = DataError(
-                code="NO_OPTIONS_DATA",
-                message=f"No long-dated call options found for {ticker} with min {min_days} days",
+                code="EMPTY_OPTIONS_DATA",
+                message=f"Empty options DataFrame for {ticker} with min {min_days} days",
                 severity=ErrorSeverity.HIGH,
                 details={"ticker": ticker, "min_days": min_days},
             )
