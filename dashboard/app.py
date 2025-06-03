@@ -298,8 +298,18 @@ def display_metrics_grid(metrics_dict: dict, cols: int = 3):
 def get_stock_info(ticker: str, years: int = 5):
     """Fetch and process stock data with caching."""
     try:
+        # Validate ticker input first
+        if not ticker or not isinstance(ticker, str):
+            logger.error(f"Invalid ticker provided: {ticker}")
+            st.error(f"Invalid ticker: {ticker}")
+            return None
+
+        # Normalize ticker for consistent caching
+        normalized_ticker = ticker.upper().strip()
+        logger.info(f"Fetching data for ticker: {normalized_ticker}")
+
         # Fetch raw data
-        raw_data = fetch_stock_data(ticker, years)
+        raw_data = fetch_stock_data(normalized_ticker, years)
 
         # Clean and process data
         cleaned_data = clean_financial_data(
@@ -315,9 +325,12 @@ def get_stock_info(ticker: str, years: int = 5):
         cleaned_data["fundamentals"] = raw_data["fundamentals"]
         cleaned_data["metrics"] = raw_data["metrics"]
 
+        # Log successful data fetch for debugging
+        logger.info(f"Successfully fetched and processed data for {normalized_ticker}")
         return cleaned_data
+
     except Exception as e:
-        logger.error(f"Error fetching stock data: {str(e)}")
+        logger.error(f"Error fetching stock data for {ticker}: {str(e)}", exc_info=True)
         st.error(f"Error fetching data for {ticker}: {str(e)}")
         return None
 
@@ -481,6 +494,21 @@ def main():
     ticker = st.sidebar.text_input("Stock Ticker", "AAPL").upper()
     years = st.sidebar.slider("Years of Historical Data", 1, 10, 5)
 
+    # Initialize session state for tracking ticker changes
+    if "last_ticker" not in st.session_state:
+        st.session_state.last_ticker = None
+
+    # Check if ticker has changed and clear cache if needed
+    if st.session_state.last_ticker != ticker:
+        logger.info(f"Ticker changed from {st.session_state.last_ticker} to {ticker}")
+        # Clear cache for the old ticker to ensure fresh data fetch
+        get_stock_info.clear()
+        # Show a brief message about data refresh (but not on first load)
+        if st.session_state.last_ticker is not None:
+            st.sidebar.success(f"Loading data for {ticker}...")
+        # Update the last ticker
+        st.session_state.last_ticker = ticker
+
     # Add cache management section
     st.sidebar.markdown("---")
     st.sidebar.header("Cache Management")
@@ -504,11 +532,19 @@ def main():
         help="Toggle to show/hide metric descriptions and formulas throughout the dashboard",
     )
 
+    # Validate ticker before proceeding
+    if not ticker or len(ticker.strip()) == 0:
+        st.error("Please enter a valid ticker symbol")
+        return
+
     # Fetch and process data
-    data = get_stock_info(ticker, years)
+    with st.spinner(f"Fetching data for {ticker}..."):
+        data = get_stock_info(ticker, years)
 
     if data is None:
-        st.error(f"Could not fetch data for {ticker}")
+        st.error(
+            f"Could not fetch data for {ticker}. Please check the ticker symbol and try again."
+        )
         return
 
     # Create tabs for different sections
@@ -563,44 +599,70 @@ def main():
         # Add link to data collection report
         st.markdown("---")
         st.subheader("Data Quality")
-        report = DataCollectionReport(data)
-        report_data = report.get_report()
-        quality_score = report_data.get("data_quality_score", 0)
-        score_color = (
-            "green"
-            if quality_score >= 80
-            else "orange"
-            if quality_score >= 50
-            else "red"
-        )
 
-        col1, col2 = st.columns([1, 2])
-        with col1:
+        # Create a fresh DataCollectionReport for the current ticker data
+        try:
+            report = DataCollectionReport(data)
+            report_data = report.get_report()
+            quality_score = report_data.get("data_quality_score", 0)
+
+            # Log the data quality score for debugging
+            logger.info(f"Data quality score for {ticker}: {quality_score:.1f}%")
+
+            score_color = (
+                "green"
+                if quality_score >= 80
+                else "orange"
+                if quality_score >= 50
+                else "red"
+            )
+
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(
+                    f"""
+                    <div style='text-align: center; padding: 20px; background-color: {score_color}20; border-radius: 10px;'>
+                        <h2 style='color: {score_color}; margin: 0;'>Data Quality Score</h2>
+                        <h1 style='color: {score_color}; margin: 10px 0;'>{quality_score:.1f}%</h1>
+                        <p style='color: {score_color}; margin: 5px 0; font-size: 0.9em;'>Ticker: {ticker}</p>
+                    </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
+            with col2:
+                st.markdown(
+                    f"""
+                    ### Data Collection Report for {ticker}
+                    View detailed information about the collected data, including:
+                    - Data availability status
+                    - Missing columns and metrics
+                    - Data quality indicators
+                    - Impact on analysis
+                    - Recommendations for improvement
+                """
+                )
+                if st.button("View Data Collection Report", key="view_data_report"):
+                    st.session_state["show_data_report"] = True
+                    st.rerun()
+
+        except Exception as e:
+            logger.error(
+                f"Error generating data quality report for {ticker}: {str(e)}",
+                exc_info=True,
+            )
+            st.error(f"Error generating data quality report: {str(e)}")
+            # Show a fallback quality score
             st.markdown(
-                f"""
-                <div style='text-align: center; padding: 20px; background-color: {score_color}20; border-radius: 10px;'>
-                    <h2 style='color: {score_color}; margin: 0;'>Data Quality Score</h2>
-                    <h1 style='color: {score_color}; margin: 10px 0;'>{quality_score:.1f}%</h1>
+                """
+                <div style='text-align: center; padding: 20px; background-color: orange20; border-radius: 10px;'>
+                    <h2 style='color: orange; margin: 0;'>Data Quality Score</h2>
+                    <h1 style='color: orange; margin: 10px 0;'>N/A</h1>
+                    <p style='color: orange; margin: 5px 0; font-size: 0.9em;'>Error calculating score</p>
                 </div>
             """,
                 unsafe_allow_html=True,
             )
-
-        with col2:
-            st.markdown(
-                """
-                ### Data Collection Report
-                View detailed information about the collected data, including:
-                - Data availability status
-                - Missing columns and metrics
-                - Data quality indicators
-                - Impact on analysis
-                - Recommendations for improvement
-            """
-            )
-            if st.button("View Data Collection Report"):
-                st.session_state["show_data_report"] = True
-                st.rerun()
 
     with tab2:
         # Use the new enhanced Price Analysis page
@@ -1621,108 +1683,131 @@ def main():
 
     # Check if we should show the data collection report
     if st.session_state.get("show_data_report", False):
-        st.title("Data Collection Report")
+        st.title(f"Data Collection Report - {ticker}")
 
         # Add back button
         if st.button("← Back to Dashboard"):
             st.session_state.show_data_report = False
             st.rerun()
 
-        # Display data quality score
-        quality_score = report_data.get("data_quality_score", 0)
-        st.markdown(
-            f"""
-            <div style='text-align: center; padding: 20px; background-color: {
-                '#4CAF50' if quality_score >= 80 else
-                '#FFA500' if quality_score >= 50 else
-                '#FF5252'
-            }; color: white; border-radius: 10px;'>
-                <h2>Data Quality Score: {quality_score:.1f}%</h2>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        # Create a fresh report for the current ticker and data
+        try:
+            current_report = DataCollectionReport(data)
+            current_report_data = current_report.get_report()
 
-        # Display validation results
-        st.subheader("Data Validation")
-        validation = report_data.get("data_validation", {})
+            # Display data quality score
+            quality_score = current_report_data.get("data_quality_score", 0)
+            logger.info(
+                f"Data quality score for {ticker} in modal: {quality_score:.1f}%"
+            )
 
-        for statement, status in validation.items():
-            with st.expander(f"{statement.replace('_', ' ').title()} Validation"):
-                if status["is_valid"]:
-                    st.success("✓ Data structure is valid")
-                else:
-                    st.error("✗ Data structure has issues")
+            st.markdown(
+                f"""
+                <div style='text-align: center; padding: 20px; background-color: {
+                    '#4CAF50' if quality_score >= 80 else
+                    '#FFA500' if quality_score >= 50 else
+                    '#FF5252'
+                }; color: white; border-radius: 10px;'>
+                    <h2>Data Quality Score for {ticker}: {quality_score:.1f}%</h2>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
 
-                if status["errors"]:
-                    st.error("Errors:")
-                    for error in status["errors"]:
-                        st.write(f"- {error}")
+            # Display validation results
+            st.subheader("Data Validation")
+            validation = current_report_data.get("data_validation", {})
 
-                if status["warnings"]:
-                    st.warning("Warnings:")
-                    for warning in status["warnings"]:
-                        st.write(f"- {warning}")
+            for statement, status in validation.items():
+                with st.expander(f"{statement.replace('_', ' ').title()} Validation"):
+                    if status["is_valid"]:
+                        st.success("✓ Data structure is valid")
+                    else:
+                        st.error("✗ Data structure has issues")
 
-        # Display data availability
-        st.subheader("Data Availability")
-        availability = report_data.get("data_availability", {})
+                    if status["errors"]:
+                        st.error("Errors:")
+                        for error in status["errors"]:
+                            st.write(f"- {error}")
 
-        for statement, status in availability.items():
-            with st.expander(f"{statement.replace('_', ' ').title()} Availability"):
-                if status["available"]:
-                    st.success("✓ Data is available")
-                    st.write(f"Completeness: {status['completeness']:.1f}%")
-                    st.write(f"Last available date: {status['last_available_date']}")
+                    if status["warnings"]:
+                        st.warning("Warnings:")
+                        for warning in status["warnings"]:
+                            st.write(f"- {warning}")
 
-                    if status["missing_columns"]:
-                        st.warning("Missing columns:")
-                        for col in status["missing_columns"]:
-                            st.write(f"- {col}")
+            # Display data availability
+            st.subheader("Data Availability")
+            availability = current_report_data.get("data_availability", {})
 
-                    if status["data_quality_issues"]:
-                        st.warning("Data quality issues:")
-                        for issue in status["data_quality_issues"]:
-                            st.write(f"- {issue}")
-                else:
-                    st.error("✗ Data is not available")
-                    if "collection_status" in status:
-                        st.error(f"Error: {status['collection_status']['error']}")
-                        st.error(f"Reason: {status['collection_status']['reason']}")
-                        if "details" in status["collection_status"]:
-                            st.error(
-                                f"Details: {status['collection_status']['details']}"
-                            )
+            for statement, status in availability.items():
+                with st.expander(f"{statement.replace('_', ' ').title()} Availability"):
+                    if status["available"]:
+                        st.success("✓ Data is available")
+                        st.write(f"Completeness: {status['completeness']:.1f}%")
+                        st.write(
+                            f"Last available date: {status['last_available_date']}"
+                        )
 
-        # Display impact analysis
-        st.subheader("Impact Analysis")
-        impact = report_data.get("impact_analysis", {})
+                        if status["missing_columns"]:
+                            st.warning("Missing columns:")
+                            for col in status["missing_columns"]:
+                                st.write(f"- {col}")
 
-        for category, metrics in impact.items():
-            with st.expander(f"{category.replace('_', ' ').title()} Impact"):
-                if metrics:
-                    st.warning(f"The following {category} metrics are affected:")
-                    for metric in metrics:
-                        st.write(f"- {metric}")
-                else:
-                    st.success(f"No {category} metrics are affected")
+                        if status["data_quality_issues"]:
+                            st.warning("Data quality issues:")
+                            for issue in status["data_quality_issues"]:
+                                st.write(f"- {issue}")
+                    else:
+                        st.error("✗ Data is not available")
+                        if "collection_status" in status:
+                            st.error(f"Error: {status['collection_status']['error']}")
+                            st.error(f"Reason: {status['collection_status']['reason']}")
+                            if "details" in status["collection_status"]:
+                                st.error(
+                                    f"Details: {status['collection_status']['details']}"
+                                )
 
-        # Display recommendations
-        st.subheader("Recommendations")
-        recommendations = report_data.get("recommendations", [])
+            # Display impact analysis
+            st.subheader("Impact Analysis")
+            impact = current_report_data.get("impact_analysis", {})
 
-        if recommendations:
-            for i, rec in enumerate(recommendations, 1):
-                st.markdown(
-                    f"""
-                    <div style='padding: 10px; margin: 5px 0; background-color: #f0f2f6; border-radius: 5px;'>
-                        <strong>Recommendation {i}:</strong> {rec}
-                    </div>
-                """,
-                    unsafe_allow_html=True,
+            for category, metrics in impact.items():
+                with st.expander(f"{category.replace('_', ' ').title()} Impact"):
+                    if metrics:
+                        st.warning(f"The following {category} metrics are affected:")
+                        for metric in metrics:
+                            st.write(f"- {metric}")
+                    else:
+                        st.success(f"No {category} metrics are affected")
+
+            # Display recommendations
+            st.subheader("Recommendations")
+            recommendations = current_report_data.get("recommendations", [])
+
+            if recommendations:
+                for i, rec in enumerate(recommendations, 1):
+                    st.markdown(
+                        f"""
+                        <div style='padding: 10px; margin: 5px 0; background-color: #f0f2f6; border-radius: 5px;'>
+                            <strong>Recommendation {i}:</strong> {rec}
+                        </div>
+                    """,
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.success(
+                    "No recommendations - all required data is available and valid"
                 )
-        else:
-            st.success("No recommendations - all required data is available and valid")
+
+        except Exception as e:
+            logger.error(
+                f"Error generating detailed data report for {ticker}: {str(e)}",
+                exc_info=True,
+            )
+            st.error(f"Error generating detailed data report: {str(e)}")
+            st.info(
+                "Please try refreshing the data using the 'Clear Cache' button in the sidebar."
+            )
 
     # Add comprehensive compliance footer
     render_compliance_footer()
