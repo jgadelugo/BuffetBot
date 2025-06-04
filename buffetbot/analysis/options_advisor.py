@@ -803,6 +803,29 @@ def get_scoring_weights() -> dict[str, float]:
     return SCORING_WEIGHTS.copy()
 
 
+def get_total_scoring_indicators() -> int:
+    """
+    Get the total number of scoring indicators defined in SCORING_WEIGHTS.
+
+    This function provides a centralized way to get the total count, avoiding
+    hardcoded values throughout the codebase.
+
+    Returns:
+        int: Total number of scoring indicators
+    """
+    return len(SCORING_WEIGHTS)
+
+
+def get_scoring_indicator_names() -> list[str]:
+    """
+    Get the list of all scoring indicator names.
+
+    Returns:
+        list[str]: List of scoring indicator keys
+    """
+    return list(SCORING_WEIGHTS.keys())
+
+
 def update_scoring_weights(new_weights: dict[str, float]) -> None:
     """
     Update the scoring weights configuration.
@@ -2314,5 +2337,106 @@ def _calculate_csp_composite_scores(
         },
         axis=1,
     )
+
+    return scored_df
+
+
+def _calculate_spread_composite_scores(
+    spreads_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+) -> pd.DataFrame:
+    """Calculate base composite scores for bull call spreads (emphasize profit potential and efficiency)."""
+    scored_df = spreads_df.copy()
+
+    # Handle empty DataFrame case
+    if scored_df.empty:
+        return scored_df
+
+    # Normalize weights - for spreads, we want good profit potential with reasonable risk
+    available_sources = [k for k, v in data_availability.items() if v]
+    normalized_weights = normalize_scoring_weights(SCORING_WEIGHTS, available_sources)
+
+    # Calculate individual scores (adjusted for spread strategy)
+    score_components = {}
+
+    if data_availability["rsi"]:
+        # For spreads, moderate to oversold RSI is preferred (good entry timing)
+        rsi_score = _normalize_score(rsi, 25, 65, invert=True)
+        score_components["rsi"] = rsi_score
+
+    if data_availability["beta"]:
+        # Moderate to higher beta preferred for spreads (more movement potential)
+        beta_score = _normalize_score(beta, 0.8, 1.5, invert=False)
+        score_components["beta"] = beta_score
+
+    if data_availability["momentum"]:
+        # Positive momentum is good for bull call spreads
+        momentum_score = _normalize_score(momentum, -0.05, 0.1, invert=False)
+        score_components["momentum"] = momentum_score
+
+    if data_availability["forecast"]:
+        # Good forecast confidence is important for directional spreads
+        score_components["forecast"] = forecast_confidence
+
+    # Calculate IV score - for spreads, we want reasonable IV (not too high due to net debit)
+    if data_availability["iv"] and "impliedVolatility" in scored_df.columns:
+        # Moderate IV is preferred for spreads (lower cost, reasonable premium)
+        scored_df["iv_score"] = scored_df["impliedVolatility"].apply(
+            lambda iv: _normalize_score(iv, avg_iv * 0.7, avg_iv * 1.2, invert=True)
+        )
+    else:
+        scored_df["iv_score"] = 0.5
+
+    # Calculate composite score
+    scored_df["CompositeScore"] = 0.0
+
+    for source, weight in normalized_weights.items():
+        if source == "iv":
+            scored_df["CompositeScore"] += weight * scored_df["iv_score"]
+        elif source in score_components:
+            scored_df["CompositeScore"] += weight * score_components[source]
+
+    # Boost score based on profit ratio and efficiency
+    if "profit_ratio" in scored_df.columns:
+        profit_boost = scored_df["profit_ratio"].apply(
+            lambda x: min((x - 1.0) * 0.25, 0.3)
+            if x > 1.0
+            else 0  # Boost for profit ratio > 1.0
+        )
+        scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + profit_boost)
+
+    # Slight boost for reasonable break-even points
+    if "breakeven_price" in scored_df.columns and "current_price" in scored_df.columns:
+        breakeven_boost = scored_df.apply(
+            lambda row: min(
+                (row["current_price"] / row["breakeven_price"] - 1) * 0.1, 0.15
+            )
+            if row["breakeven_price"] > 0
+            else 0,
+            axis=1,
+        )
+        scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+            1 + breakeven_boost
+        )
+
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    # Add score details
+    if not scored_df.empty:
+        scored_df["score_details"] = scored_df.apply(
+            lambda row: {
+                k: v for k, v in normalized_weights.items() if k in available_sources
+            },
+            axis=1,
+        )
+
+    # Drop the temporary iv_score column if it exists
+    if "iv_score" in scored_df.columns:
+        scored_df = scored_df.drop("iv_score", axis=1)
 
     return scored_df

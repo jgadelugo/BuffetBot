@@ -25,6 +25,7 @@ class TestGetDataScoreBadge:
             "iv": 0.2,
             "forecast": 0.2,
         }
+        # Now dynamically gets total from SCORING_WEIGHTS (5 indicators)
         assert get_data_score_badge(score_details) == "🟢 5/5"
 
     def test_good_score_badge(self):
@@ -53,6 +54,33 @@ class TestGetDataScoreBadge:
         assert get_data_score_badge("invalid") == "❓ 0/5"
         assert get_data_score_badge([1, 2, 3]) == "❓ 0/5"
         assert get_data_score_badge(123) == "❓ 0/5"
+
+    def test_score_details_with_metadata(self):
+        """Test badge when score_details contains metadata fields like risk_tolerance."""
+        # This scenario matches the user's issue where score_details has 6 items but only 5 are actual indicators
+        score_details_with_metadata = {
+            "rsi": 0.2,
+            "beta": 0.2,
+            "momentum": 0.2,
+            "iv": 0.2,
+            "forecast": 0.2,
+            "risk_tolerance": "Conservative",  # This should be excluded from count
+        }
+        # Should still show 5/5 because risk_tolerance is metadata, not a scoring indicator
+        assert get_data_score_badge(score_details_with_metadata) == "🟢 5/5"
+
+    def test_partial_score_with_metadata(self):
+        """Test badge with partial indicators plus metadata."""
+        score_details_partial_with_metadata = {
+            "rsi": 0.25,
+            "beta": 0.25,
+            "momentum": 0.25,
+            "iv": 0.25,
+            "risk_tolerance": "Aggressive",  # Metadata field
+            "analysis_date": "2024-01-01",  # Another metadata field
+        }
+        # Should show 4/5 (only counting actual scoring indicators)
+        assert get_data_score_badge(score_details_partial_with_metadata) == "🟡 4/5"
 
 
 class TestCheckForPartialData:

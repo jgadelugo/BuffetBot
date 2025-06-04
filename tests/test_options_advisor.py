@@ -19,8 +19,10 @@ try:
         CalculationError,
         InsufficientDataError,
         OptionsAdvisorError,
+        _calculate_spread_composite_scores,
         get_scoring_weights,
         normalize_scoring_weights,
+        recommend_bull_call_spread,
         recommend_long_calls,
         update_scoring_weights,
     )
@@ -194,6 +196,52 @@ def test_input_validation():
     print("✅ Input validation tests passed")
 
 
+def test_missing_function_fix():
+    """Test that the missing _calculate_spread_composite_scores function is now working."""
+    print("\n🧪 Testing missing function fix...")
+
+    # Test that the previously missing function can be imported
+    assert callable(_calculate_spread_composite_scores)
+    print("✅ _calculate_spread_composite_scores can be imported")
+
+    # Test that it can be called with valid parameters
+    test_df = pd.DataFrame(
+        {
+            "ticker": ["TEST"],
+            "profit_ratio": [1.5],
+            "impliedVolatility": [0.25],
+            "current_price": [100],
+            "breakeven_price": [105],
+        }
+    )
+
+    data_availability = {
+        "rsi": True,
+        "beta": True,
+        "momentum": True,
+        "iv": True,
+        "forecast": True,
+    }
+
+    result = _calculate_spread_composite_scores(
+        test_df, 45.0, 1.2, 0.05, 0.28, 0.75, data_availability
+    )
+
+    # Verify the result structure
+    assert isinstance(result, pd.DataFrame)
+    assert "CompositeScore" in result.columns
+    assert "score_details" in result.columns
+    assert len(result) == 1
+    assert 0 <= result["CompositeScore"].iloc[0] <= 1
+    print("✅ _calculate_spread_composite_scores function works correctly")
+
+    # Test that recommend_bull_call_spread can be imported (this was failing before)
+    assert callable(recommend_bull_call_spread)
+    print("✅ recommend_bull_call_spread can be imported (was failing before the fix)")
+
+    print("✅ Missing function fix tests passed")
+
+
 def main():
     """Run all tests."""
     print("🚀 Starting options_advisor module tests...", flush=True)
@@ -211,6 +259,9 @@ def main():
 
         # Test 4: Main functionality (may fail if no market data available)
         success = test_recommend_long_calls()
+
+        # Test 5: Missing function fix
+        test_missing_function_fix()
 
         print(f"\n🎉 Tests completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 

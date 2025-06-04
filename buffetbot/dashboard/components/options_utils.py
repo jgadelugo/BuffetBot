@@ -13,7 +13,7 @@ from buffetbot.dashboard.dashboard_utils.formatters import (
 
 def render_score_details_popover(score_details: dict[str, Any], row_index: int) -> None:
     """
-    Render an expandable section showing scoring breakdown details.
+    Render an expandable section showing comprehensive scoring breakdown details.
 
     Args:
         score_details: Dictionary containing scoring weights for each indicator
@@ -23,72 +23,182 @@ def render_score_details_popover(score_details: dict[str, Any], row_index: int) 
         st.write("No scoring details available")
         return
 
-    total_indicators = 5  # RSI, Beta, Momentum, IV, Forecast
-    available_indicators = len(score_details)
+    # Import here to avoid circular imports
+    try:
+        from buffetbot.analysis.options_advisor import (
+            get_scoring_indicator_names,
+            get_total_scoring_indicators,
+        )
 
-    # Create color-coded indicator count
+        total_indicators = get_total_scoring_indicators()
+        all_indicator_names = set(get_scoring_indicator_names())
+    except ImportError:
+        # Fallback to hardcoded values if import fails
+        total_indicators = 5
+        all_indicator_names = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+    # Separate actual scoring indicators from metadata
+    actual_indicators = {
+        k: v for k, v in score_details.items() if k in all_indicator_names
+    }
+    metadata_fields = {
+        k: v for k, v in score_details.items() if k not in all_indicator_names
+    }
+
+    available_indicators = len(actual_indicators)
+
+    # Create color-coded indicator count with correct total
     if available_indicators == total_indicators:
         indicator_badge = f"🟢 {available_indicators}/{total_indicators} indicators"
-    elif available_indicators >= 3:
+    elif available_indicators >= (total_indicators * 0.6):  # 60% or more
         indicator_badge = f"🟡 {available_indicators}/{total_indicators} indicators"
     else:
         indicator_badge = f"🔴 {available_indicators}/{total_indicators} indicators"
 
-    st.markdown(f"**Data Score:** {indicator_badge}")
+    st.markdown(f"**Data Availability:** {indicator_badge}")
 
-    # Display weight breakdown
-    st.markdown("**Scoring Weights:**")
-    for indicator, weight in score_details.items():
-        indicator_display = {
-            "rsi": "📈 RSI",
-            "beta": "📊 Beta",
-            "momentum": "🚀 Momentum",
-            "iv": "💨 Implied Volatility",
-            "forecast": "🔮 Analyst Forecast",
-        }.get(indicator, indicator.upper())
+    # Display weight breakdown for actual indicators
+    if actual_indicators:
+        st.markdown("**📊 Scoring Component Weights:**")
 
-        st.markdown(f"- {indicator_display}: {weight:.1%}")
+        # Enhanced indicator display with descriptions and values
+        indicator_info = {
+            "rsi": {
+                "icon": "📈",
+                "name": "RSI (Relative Strength Index)",
+                "description": "Measures overbought/oversold conditions",
+            },
+            "beta": {
+                "icon": "📊",
+                "name": "Beta",
+                "description": "Stock volatility relative to market",
+            },
+            "momentum": {
+                "icon": "🚀",
+                "name": "Momentum",
+                "description": "Recent price movement trend",
+            },
+            "iv": {
+                "icon": "💨",
+                "name": "Implied Volatility",
+                "description": "Market's expectation of future volatility",
+            },
+            "forecast": {
+                "icon": "🔮",
+                "name": "Analyst Forecast",
+                "description": "Wall Street consensus confidence",
+            },
+        }
+
+        for indicator, weight in actual_indicators.items():
+            info = indicator_info.get(
+                indicator,
+                {
+                    "icon": "📋",
+                    "name": indicator.upper(),
+                    "description": "Technical indicator",
+                },
+            )
+
+            st.markdown(
+                f"- {info['icon']} **{info['name']}**: {weight:.1%} "
+                f"<small>({info['description']})</small>",
+                unsafe_allow_html=True,
+            )
 
     # Show missing indicators if any
-    all_indicators = {"rsi", "beta", "momentum", "iv", "forecast"}
-    missing_indicators = all_indicators - set(score_details.keys())
-
+    missing_indicators = all_indicator_names - set(actual_indicators.keys())
     if missing_indicators:
-        st.markdown("**Missing Data:**")
-        for indicator in missing_indicators:
-            indicator_display = {
-                "rsi": "📈 RSI",
-                "beta": "📊 Beta",
-                "momentum": "🚀 Momentum",
-                "iv": "💨 Implied Volatility",
-                "forecast": "🔮 Analyst Forecast",
-            }.get(indicator, indicator.upper())
-            st.markdown(f"- {indicator_display}")
+        st.markdown("**❌ Missing Data Sources:**")
+        for indicator in sorted(missing_indicators):
+            info = {
+                "rsi": {"icon": "📈", "name": "RSI (Relative Strength Index)"},
+                "beta": {"icon": "📊", "name": "Beta"},
+                "momentum": {"icon": "🚀", "name": "Momentum"},
+                "iv": {"icon": "💨", "name": "Implied Volatility"},
+                "forecast": {"icon": "🔮", "name": "Analyst Forecast"},
+            }.get(indicator, {"icon": "📋", "name": indicator.upper()})
+
+            st.markdown(f"- {info['icon']} {info['name']}")
+
+    # Display metadata fields if present
+    if metadata_fields:
+        st.markdown("**⚙️ Analysis Configuration:**")
+        for field, value in metadata_fields.items():
+            if field == "risk_tolerance":
+                st.markdown(f"- 🎯 **Risk Tolerance**: {value}")
+            else:
+                # Format field name nicely
+                field_name = field.replace("_", " ").title()
+                st.markdown(f"- 📋 **{field_name}**: {value}")
+
+    # Add data quality assessment
+    data_quality = (
+        "Excellent"
+        if available_indicators == total_indicators
+        else "Good"
+        if available_indicators >= (total_indicators * 0.8)
+        else "Moderate"
+        if available_indicators >= (total_indicators * 0.6)
+        else "Limited"
+    )
+
+    quality_color = {"Excellent": "🟢", "Good": "🟡", "Moderate": "🟠", "Limited": "🔴"}
+    st.markdown(
+        f"**📋 Data Quality**: {quality_color.get(data_quality, '⚪')} {data_quality}"
+    )
 
 
 def get_data_score_badge(score_details: dict[str, Any]) -> str:
     """
     Generate a data score badge showing how many indicators were used.
 
+    Now dynamically calculates the total based on SCORING_WEIGHTS instead of hardcoding.
+
     Args:
         score_details: Dictionary containing scoring weights
 
     Returns:
-        str: Formatted badge string
+        str: Formatted badge string (e.g., "🟢 5/5" or "🟡 4/5")
     """
     # Handle invalid input types
     if not isinstance(score_details, dict) or not score_details:
-        return "❓ 0/5"
+        # Import here to avoid circular imports
+        try:
+            from buffetbot.analysis.options_advisor import get_total_scoring_indicators
 
-    total_indicators = 5
-    available_indicators = len(score_details)
+            total_indicators = get_total_scoring_indicators()
+        except ImportError:
+            total_indicators = 5  # Fallback
+        return f"❓ 0/{total_indicators}"
 
+    # Import here to avoid circular imports
+    try:
+        from buffetbot.analysis.options_advisor import (
+            get_scoring_indicator_names,
+            get_total_scoring_indicators,
+        )
+
+        total_indicators = get_total_scoring_indicators()
+        all_indicator_names = set(get_scoring_indicator_names())
+    except ImportError:
+        # Fallback to hardcoded values if import fails
+        total_indicators = 5
+        all_indicator_names = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+    # Count only actual scoring indicators (exclude metadata like risk_tolerance)
+    actual_indicators = {
+        k: v for k, v in score_details.items() if k in all_indicator_names
+    }
+    available_indicators = len(actual_indicators)
+
+    # Generate badge with dynamic total
     if available_indicators == total_indicators:
-        return f"🟢 {available_indicators}/5"
-    elif available_indicators >= 3:
-        return f"🟡 {available_indicators}/5"
+        return f"🟢 {available_indicators}/{total_indicators}"
+    elif available_indicators >= (total_indicators * 0.6):  # 60% or more
+        return f"🟡 {available_indicators}/{total_indicators}"
     else:
-        return f"🔴 {available_indicators}/5"
+        return f"🔴 {available_indicators}/{total_indicators}"
 
 
 def check_for_partial_data(recommendations: pd.DataFrame) -> bool:

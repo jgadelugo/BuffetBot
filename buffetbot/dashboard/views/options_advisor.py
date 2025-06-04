@@ -381,10 +381,6 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                         success_msg += " (cached)"
                     st.success(success_msg)
 
-                    logger.info(
-                        f"Options analysis completed for {ticker} - returned {len(recommendations)} recommendations"
-                    )
-
                     # Display results section
                     st.subheader(f"📈 Top {strategy_type} Recommendations")
 
@@ -428,7 +424,9 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
 
                     # Enhanced Options Analysis Display
                     if include_greeks:
-                        render_greeks_analysis(recommendations, ticker)
+                        render_score_components_analysis(
+                            recommendations, ticker, strategy_type
+                        )
 
                     if volatility_analysis:
                         render_volatility_analysis(data, ticker)
@@ -473,6 +471,11 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                     # Render strategy-specific table
                     render_strategy_specific_table(recommendations, strategy_type)
 
+                    # Add comprehensive score components analysis section
+                    render_score_components_analysis(
+                        recommendations, ticker, strategy_type
+                    )
+
                     # Strategy-specific insights
                     render_strategy_insights(
                         strategy_type, recommendations, ticker, risk_tolerance
@@ -505,6 +508,311 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                     f"Unexpected error in options advisor for {ticker}: {str(e)}",
                     exc_info=True,
                 )
+
+
+def render_score_components_analysis(
+    recommendations: pd.DataFrame, ticker: str, strategy_type: str
+) -> None:
+    """
+    Render comprehensive score components analysis with enhanced details.
+
+    This function provides detailed breakdown of scoring components, data quality
+    assessment, and interactive exploration of how scores are calculated.
+
+    Args:
+        recommendations: DataFrame containing options recommendations
+        ticker: Stock ticker symbol
+        strategy_type: Type of options strategy being analyzed
+    """
+    if recommendations.empty or "score_details" not in recommendations.columns:
+        return
+
+    st.subheader("📊 Scoring Components Analysis")
+
+    # Import here to avoid circular imports
+    try:
+        from buffetbot.analysis.options_advisor import (
+            get_scoring_indicator_names,
+            get_total_scoring_indicators,
+        )
+
+        total_indicators = get_total_scoring_indicators()
+        all_indicator_names = set(get_scoring_indicator_names())
+    except ImportError:
+        total_indicators = 5
+        all_indicator_names = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+    # Get first recommendation's score details for overall analysis
+    first_score_details = recommendations.iloc[0]["score_details"]
+
+    if isinstance(first_score_details, dict):
+        # Separate actual indicators from metadata
+        actual_indicators = {
+            k: v for k, v in first_score_details.items() if k in all_indicator_names
+        }
+        metadata_fields = {
+            k: v for k, v in first_score_details.items() if k not in all_indicator_names
+        }
+
+        # Data Quality Overview
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            available_count = len(actual_indicators)
+            data_quality = (
+                "Excellent"
+                if available_count == total_indicators
+                else "Good"
+                if available_count >= (total_indicators * 0.8)
+                else "Moderate"
+                if available_count >= (total_indicators * 0.6)
+                else "Limited"
+            )
+
+            quality_colors = {
+                "Excellent": "🟢",
+                "Good": "🟡",
+                "Moderate": "🟠",
+                "Limited": "🔴",
+            }
+            st.metric(
+                "Data Availability",
+                f"{available_count}/{total_indicators}",
+                delta=f"{quality_colors.get(data_quality, '⚪')} {data_quality}",
+                help="Number of technical indicators with available data",
+            )
+
+        with col2:
+            # Show the number of recommendations
+            st.metric(
+                "Recommendations",
+                len(recommendations),
+                help="Number of options recommendations generated",
+            )
+
+        with col3:
+            # Show strategy type
+            st.metric("Strategy", strategy_type, help="Options strategy being analyzed")
+
+        # Detailed Components Breakdown
+        st.markdown("#### 🔍 Scoring Components Breakdown")
+
+        # Create tabs for different views
+        tab1, tab2, tab3 = st.tabs(
+            ["📈 Technical Indicators", "⚙️ Configuration", "📋 Data Quality"]
+        )
+
+        with tab1:
+            if actual_indicators:
+                st.markdown("**Technical Scoring Weights & Descriptions:**")
+
+                # Enhanced indicator information
+                indicator_details = {
+                    "rsi": {
+                        "name": "RSI (Relative Strength Index)",
+                        "description": "Measures overbought/oversold conditions (0-100)",
+                        "interpretation": "Lower RSI often better for call buying opportunities",
+                        "icon": "📈",
+                    },
+                    "beta": {
+                        "name": "Beta Coefficient",
+                        "description": "Stock volatility relative to market",
+                        "interpretation": "Moderate beta (0.8-1.5) often preferred for balanced risk",
+                        "icon": "📊",
+                    },
+                    "momentum": {
+                        "name": "Price Momentum",
+                        "description": "Recent price movement trend",
+                        "interpretation": "Positive momentum favors bullish strategies",
+                        "icon": "🚀",
+                    },
+                    "iv": {
+                        "name": "Implied Volatility",
+                        "description": "Market's expectation of future volatility",
+                        "interpretation": "Lower IV generally better for option buying",
+                        "icon": "💨",
+                    },
+                    "forecast": {
+                        "name": "Analyst Forecast Confidence",
+                        "description": "Wall Street consensus confidence level",
+                        "interpretation": "Higher confidence supports directional strategies",
+                        "icon": "🔮",
+                    },
+                }
+
+                for indicator, weight in actual_indicators.items():
+                    details = indicator_details.get(
+                        indicator,
+                        {
+                            "name": indicator.upper(),
+                            "description": "Technical indicator",
+                            "interpretation": "Contributes to composite score",
+                            "icon": "📋",
+                        },
+                    )
+
+                    with st.expander(
+                        f"{details['icon']} {details['name']} - Weight: {weight:.1%}"
+                    ):
+                        st.markdown(f"**Description:** {details['description']}")
+                        st.markdown(
+                            f"**Strategy Interpretation:** {details['interpretation']}"
+                        )
+
+                        # Show actual values if available in recommendations
+                        if indicator == "rsi" and "RSI" in recommendations.columns:
+                            avg_value = recommendations["RSI"].mean()
+                            st.markdown(f"**Current Average Value:** {avg_value:.1f}")
+                        elif indicator == "beta" and "Beta" in recommendations.columns:
+                            avg_value = recommendations["Beta"].mean()
+                            st.markdown(f"**Current Average Value:** {avg_value:.2f}")
+                        elif (
+                            indicator == "momentum"
+                            and "Momentum" in recommendations.columns
+                        ):
+                            avg_value = recommendations["Momentum"].mean()
+                            st.markdown(f"**Current Average Value:** {avg_value:.3f}")
+                        elif indicator == "iv" and "IV" in recommendations.columns:
+                            avg_value = (
+                                recommendations["IV"].mean()
+                                if recommendations["IV"].dtype != "object"
+                                else 0
+                            )
+                            st.markdown(
+                                f"**Current Average Value:** {avg_value:.1%}"
+                                if avg_value > 0
+                                else "**Current Average Value:** See individual recommendations"
+                            )
+                        elif (
+                            indicator == "forecast"
+                            and "ForecastConfidence" in recommendations.columns
+                        ):
+                            avg_value = recommendations["ForecastConfidence"].mean()
+                            st.markdown(f"**Current Average Value:** {avg_value:.1%}")
+            else:
+                st.warning("No technical indicators available for analysis")
+
+        with tab2:
+            st.markdown("**Analysis Configuration:**")
+
+            # Show metadata fields
+            if metadata_fields:
+                for field, value in metadata_fields.items():
+                    if field == "risk_tolerance":
+                        st.markdown(f"🎯 **Risk Tolerance:** {value}")
+
+                        # Explain risk tolerance impact
+                        if value == "Conservative":
+                            st.info(
+                                "Conservative settings prefer lower risk, higher probability strategies"
+                            )
+                        elif value == "Aggressive":
+                            st.info(
+                                "Aggressive settings favor higher reward potential with increased risk"
+                            )
+                        else:
+                            st.info(
+                                "Moderate settings balance risk and reward considerations"
+                            )
+                    else:
+                        # Format field name nicely
+                        field_name = field.replace("_", " ").title()
+                        st.markdown(f"📋 **{field_name}:** {value}")
+
+            # Show strategy-specific configuration impact
+            st.markdown("**Strategy-Specific Adjustments:**")
+            if strategy_type == "Long Calls":
+                st.markdown("- Emphasizes upside potential and momentum")
+                st.markdown("- Prefers lower implied volatility for cost efficiency")
+            elif strategy_type == "Bull Call Spread":
+                st.markdown("- Balances profit potential with risk limitation")
+                st.markdown("- Considers spread efficiency and breakeven points")
+            elif strategy_type == "Covered Call":
+                st.markdown("- Prioritizes income generation and stability")
+                st.markdown(
+                    "- Favors moderate volatility and assignment considerations"
+                )
+            elif strategy_type == "Cash-Secured Put":
+                st.markdown("- Focuses on entry opportunity and income")
+                st.markdown(
+                    "- Considers assignment probability and effective cost basis"
+                )
+
+        with tab3:
+            st.markdown("**Data Quality Assessment:**")
+
+            # Missing indicators analysis
+            missing_indicators = all_indicator_names - set(actual_indicators.keys())
+            if missing_indicators:
+                st.markdown("**❌ Missing Data Sources:**")
+                for indicator in sorted(missing_indicators):
+                    indicator_name = {
+                        "rsi": "RSI (Relative Strength Index)",
+                        "beta": "Beta Coefficient",
+                        "momentum": "Price Momentum",
+                        "iv": "Implied Volatility",
+                        "forecast": "Analyst Forecast",
+                    }.get(indicator, indicator.upper())
+                    st.markdown(f"- ❌ {indicator_name}")
+
+                st.warning(
+                    f"⚠️ Analysis using {len(actual_indicators)}/{total_indicators} data sources. "
+                    "Missing data sources may affect recommendation accuracy."
+                )
+            else:
+                st.success(
+                    "✅ All technical indicators available - optimal data quality!"
+                )
+
+            # Data quality impact explanation
+            st.markdown("**Impact on Recommendations:**")
+            if len(actual_indicators) == total_indicators:
+                st.success(
+                    "🟢 **Excellent**: All indicators available for comprehensive analysis"
+                )
+            elif len(actual_indicators) >= (total_indicators * 0.8):
+                st.info(
+                    "🟡 **Good**: Most indicators available, minor impact on accuracy"
+                )
+            elif len(actual_indicators) >= (total_indicators * 0.6):
+                st.warning(
+                    "🟠 **Moderate**: Some indicators missing, moderate impact on accuracy"
+                )
+            else:
+                st.error(
+                    "🔴 **Limited**: Many indicators missing, significant impact on accuracy"
+                )
+
+        # Interactive score exploration for individual recommendations
+        st.markdown("#### 🔍 Individual Recommendation Analysis")
+
+        if len(recommendations) > 1:
+            # Let user select a specific recommendation to explore
+            rec_options = []
+            for idx, row in recommendations.head(
+                5
+            ).iterrows():  # Show top 5 for selection
+                if strategy_type == "Bull Call Spread":
+                    label = f"#{idx+1}: ${row.get('long_strike', 'N/A')} - ${row.get('short_strike', 'N/A')} (Score: {row.get('CompositeScore', 0):.3f})"
+                else:
+                    label = f"#{idx+1}: ${row.get('strike', row.get('Strike', 'N/A'))} (Score: {row.get('CompositeScore', 0):.3f})"
+                rec_options.append((label, idx))
+
+            selected_option = st.selectbox(
+                "Select recommendation to analyze:",
+                rec_options,
+                format_func=lambda x: x[0],
+                help="Choose a specific recommendation to see detailed scoring breakdown",
+            )
+            selected_idx = selected_option[1]
+
+            # Show details for selected recommendation
+            selected_details = recommendations.iloc[selected_idx]["score_details"]
+            if isinstance(selected_details, dict):
+                render_score_details_popover(selected_details, selected_idx)
+        else:
+            # Show details for the single recommendation
+            render_score_details_popover(first_score_details, 0)
 
 
 def render_greeks_analysis(recommendations: pd.DataFrame, ticker: str) -> None:
@@ -1185,7 +1493,3 @@ def render_strategy_specific_table(
         st.info(
             "💡 **Cash-Secured Put**: Generate income while potentially acquiring stock at a discount. Consider assignment scenarios."
         )
-
-
-# Add the rest of the existing code structure that follows the pattern from the original file
-# This includes the remaining display logic, error handling, and styling functions
