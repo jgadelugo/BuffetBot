@@ -43,7 +43,7 @@ class TestStrategyDispatcher(unittest.TestCase):
         self.test_ticker = "AAPL"
         self.min_days = 90
         self.top_n = 3
-        self.risk_tolerance = "Moderate"
+        self.risk_tolerance = "Conservative"
         self.time_horizon = "Medium-term (3-6 months)"
 
         # Sample options data for mocking
@@ -132,7 +132,7 @@ class TestStrategyDispatcher(unittest.TestCase):
 
         # Verify the correct function was called
         mock_recommend_long_calls.assert_called_once_with(
-            self.test_ticker, self.min_days, self.top_n, "Moderate"
+            self.test_ticker, self.min_days, self.top_n, "Conservative"
         )
 
         # Verify metadata was added
@@ -202,7 +202,7 @@ class TestStrategyDispatcher(unittest.TestCase):
         self.assertEqual(called_args[0][0], self.test_ticker)  # ticker
         self.assertLessEqual(called_args[0][1], 90)  # min_days should be <= 90
         self.assertEqual(called_args[0][2], self.top_n)  # top_n
-        self.assertEqual(called_args[0][3], "Moderate")  # risk_tolerance
+        self.assertEqual(called_args[0][3], "Conservative")  # risk_tolerance
 
         # Verify spread-specific columns exist
         self.assertIn("long_strike", result.columns)
@@ -259,7 +259,7 @@ class TestStrategyDispatcher(unittest.TestCase):
         self.assertEqual(called_args[0][0], self.test_ticker)  # ticker
         self.assertLessEqual(called_args[0][1], 90)  # min_days should be <= 90
         self.assertEqual(called_args[0][2], self.top_n)  # top_n
-        self.assertEqual(called_args[0][3], "Moderate")  # risk_tolerance
+        self.assertEqual(called_args[0][3], "Conservative")  # risk_tolerance
 
         # Verify covered call-specific columns exist
         self.assertIn("premium_yield", result.columns)
@@ -314,7 +314,7 @@ class TestStrategyDispatcher(unittest.TestCase):
         self.assertEqual(called_args[0][0], self.test_ticker)  # ticker
         self.assertLessEqual(called_args[0][1], 90)  # min_days should be <= 90
         self.assertEqual(called_args[0][2], self.top_n)  # top_n
-        self.assertEqual(called_args[0][3], "Moderate")  # risk_tolerance
+        self.assertEqual(called_args[0][3], "Conservative")  # risk_tolerance
 
         # Verify CSP-specific columns exist
         self.assertIn("premium_yield", result.columns)
@@ -394,7 +394,7 @@ class TestStrategyDispatcher(unittest.TestCase):
             mock_long_calls.return_value = test_data
 
             custom_risk_tolerance = "Aggressive"
-            custom_time_horizon = "Short-term (1-3 months)"
+            custom_time_horizon = "One Year (12 months)"
 
             result = analyze_options_strategy(
                 strategy_type="Long Calls",

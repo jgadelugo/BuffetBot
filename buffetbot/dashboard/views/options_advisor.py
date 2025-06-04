@@ -133,7 +133,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
         risk_tolerance = st.selectbox(
             "⚡ Risk Tolerance",
             options=["Conservative", "Moderate", "Aggressive"],
-            index=1,
+            index=0,
             help="Your risk tolerance affects strategy recommendations",
         )
 
@@ -141,11 +141,12 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
         time_horizon = st.selectbox(
             "📅 Time Horizon",
             options=[
-                "Short-term (1-3 months)",
                 "Medium-term (3-6 months)",
                 "Long-term (6+ months)",
+                "One Year (12 months)",
+                "18 Months (1.5 years)",
             ],
-            index=1,
+            index=2,
             help="Expected holding period for the options position",
         )
 
