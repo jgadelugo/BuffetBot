@@ -54,6 +54,8 @@ class TimeHorizon(Enum):
     SHORT_TERM = "Short-term (1-3 months)"
     MEDIUM_TERM = "Medium-term (3-6 months)"
     LONG_TERM = "Long-term (6+ months)"
+    ONE_YEAR = "One Year (12 months)"
+    EIGHTEEN_MONTHS = "18 Months (1.5 years)"
 
 
 @dataclass

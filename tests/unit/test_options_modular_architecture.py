@@ -442,6 +442,10 @@ class TestEnumerations:
         assert TimeHorizon.SHORT_TERM.value == "Short-term (1-3 months)"
         assert TimeHorizon.MEDIUM_TERM.value == "Medium-term (3-6 months)"
         assert TimeHorizon.LONG_TERM.value == "Long-term (6+ months)"
+        assert TimeHorizon.ONE_YEAR.value == "One Year (12 months)"
+        assert TimeHorizon.EIGHTEEN_MONTHS.value == "18 Months (1.5 years)"
 
         # Test string conversion
         assert TimeHorizon("Short-term (1-3 months)") == TimeHorizon.SHORT_TERM
+        assert TimeHorizon("One Year (12 months)") == TimeHorizon.ONE_YEAR
+        assert TimeHorizon("18 Months (1.5 years)") == TimeHorizon.EIGHTEEN_MONTHS
