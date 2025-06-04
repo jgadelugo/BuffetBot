@@ -25,7 +25,7 @@ def render_score_details_popover(score_details: dict[str, Any], row_index: int) 
 
     # Import here to avoid circular imports
     try:
-        from buffetbot.analysis.options_advisor import (
+        from buffetbot.dashboard.utils.enhanced_options_analysis import (
             get_scoring_indicator_names,
             get_total_scoring_indicators,
         )
@@ -165,7 +165,9 @@ def get_data_score_badge(score_details: dict[str, Any]) -> str:
     if not isinstance(score_details, dict) or not score_details:
         # Import here to avoid circular imports
         try:
-            from buffetbot.analysis.options_advisor import get_total_scoring_indicators
+            from buffetbot.dashboard.utils.enhanced_options_analysis import (
+                get_total_scoring_indicators,
+            )
 
             total_indicators = get_total_scoring_indicators()
         except ImportError:
@@ -174,7 +176,7 @@ def get_data_score_badge(score_details: dict[str, Any]) -> str:
 
     # Import here to avoid circular imports
     try:
-        from buffetbot.analysis.options_advisor import (
+        from buffetbot.dashboard.utils.enhanced_options_analysis import (
             get_scoring_indicator_names,
             get_total_scoring_indicators,
         )

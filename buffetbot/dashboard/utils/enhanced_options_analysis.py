@@ -10,12 +10,10 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
+from buffetbot.analysis.options import analyze_options_strategy
 from buffetbot.analysis.options.config.scoring_weights import get_scoring_weights
 from buffetbot.analysis.options.core.domain_models import StrategyType
-from buffetbot.analysis.options_advisor import OptionsAdvisorError
-from buffetbot.analysis.options_advisor import analyze_options_strategy as base_analyze
-from buffetbot.analysis.options_advisor import get_scoring_weights as get_base_weights
-from buffetbot.analysis.options_advisor import update_scoring_weights
+from buffetbot.analysis.options.core.exceptions import OptionsAdvisorError
 from buffetbot.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -51,19 +49,16 @@ def analyze_options_with_custom_settings(
     custom_weights = analysis_settings.get("custom_scoring_weights", {})
 
     try:
-        # Apply custom scoring weights if enabled
-        original_weights = None
+        # The new modular system handles strategy-specific weights internally
+        # Custom weights functionality will need to be implemented in the new system
         if use_custom_weights and custom_weights:
-            logger.info(f"Applying custom scoring weights: {custom_weights}")
-
-            # Store original weights for restoration
-            original_weights = get_base_weights()
-
-            # Update global scoring weights
-            update_scoring_weights(custom_weights)
+            logger.info(f"Custom scoring weights requested: {custom_weights}")
+            logger.warning(
+                "Custom weights not yet supported in new modular system - using strategy defaults"
+            )
 
         # Perform the analysis with current settings
-        recommendations = base_analyze(
+        recommendations = analyze_options_strategy(
             strategy_type=strategy_type,
             ticker=ticker,
             min_days=min_days,
@@ -88,12 +83,6 @@ def analyze_options_with_custom_settings(
     except Exception as e:
         logger.error(f"Enhanced options analysis failed for {ticker}: {str(e)}")
         raise OptionsAdvisorError(f"Enhanced analysis failed: {str(e)}")
-
-    finally:
-        # Restore original weights if they were modified
-        if original_weights is not None:
-            logger.info("Restoring original scoring weights")
-            update_scoring_weights(original_weights)
 
 
 def apply_custom_filtering(
@@ -209,15 +198,17 @@ def get_strategy_specific_weights(strategy_type: str) -> dict[str, float]:
         strategy_type: Strategy type string
 
     Returns:
-        Dict[str, float]: Strategy-specific weights
+        dict[str, float]: Default weights for the strategy
     """
     try:
         strategy_enum = StrategyType(strategy_type)
-        weights_obj = get_scoring_weights(strategy_enum)
-        return weights_obj.to_dict()
-    except Exception as e:
-        logger.error(f"Error getting strategy weights for {strategy_type}: {e}")
-        # Return balanced weights as fallback
+        weights = get_scoring_weights(strategy_enum)
+        return weights.to_dict()
+    except (ValueError, AttributeError) as e:
+        logger.warning(
+            f"Could not get strategy-specific weights for {strategy_type}: {e}"
+        )
+        # Return equal weights as fallback
         return {
             "rsi": 0.20,
             "beta": 0.20,
@@ -229,10 +220,10 @@ def get_strategy_specific_weights(strategy_type: str) -> dict[str, float]:
 
 def validate_custom_weights(weights: dict[str, float]) -> tuple[bool, str]:
     """
-    Validate custom scoring weights.
+    Validate that custom weights are properly formatted and sum to 1.0.
 
     Args:
-        weights: Dictionary of weights to validate
+        weights: Dictionary of scoring weights
 
     Returns:
         tuple[bool, str]: (is_valid, error_message)
@@ -240,23 +231,47 @@ def validate_custom_weights(weights: dict[str, float]) -> tuple[bool, str]:
     required_keys = {"rsi", "beta", "momentum", "iv", "forecast"}
 
     # Check if all required keys are present
-    if not required_keys.issubset(weights.keys()):
-        missing = required_keys - weights.keys()
-        return False, f"Missing required weights: {missing}"
+    if set(weights.keys()) != required_keys:
+        missing = required_keys - set(weights.keys())
+        extra = set(weights.keys()) - required_keys
+        error_parts = []
+        if missing:
+            error_parts.append(f"Missing keys: {missing}")
+        if extra:
+            error_parts.append(f"Extra keys: {extra}")
+        return False, "; ".join(error_parts)
 
-    # Check if values are valid
+    # Check if all values are numeric and non-negative
     for key, value in weights.items():
-        if not isinstance(value, (int, float)):
-            return False, f"Weight for {key} must be a number"
-        if not 0 <= value <= 1:
-            return False, f"Weight for {key} must be between 0 and 1"
+        if not isinstance(value, (int, float)) or value < 0:
+            return False, f"Weight for {key} must be a non-negative number, got {value}"
 
     # Check if weights sum to approximately 1.0
     total = sum(weights.values())
-    if abs(total - 1.0) > 0.01:
-        return False, f"Weights must sum to 1.0 (current sum: {total:.3f})"
+    if abs(total - 1.0) > 0.001:  # Allow small floating point tolerance
+        return False, f"Weights must sum to 1.0, got {total:.6f}"
 
     return True, ""
+
+
+def get_total_scoring_indicators() -> int:
+    """
+    Get the total number of scoring indicators.
+
+    Returns:
+        int: Total number of scoring indicators (always 5 for current system)
+    """
+    return 5  # rsi, beta, momentum, iv, forecast
+
+
+def get_scoring_indicator_names() -> list[str]:
+    """
+    Get the names of all scoring indicators.
+
+    Returns:
+        list[str]: List of indicator names
+    """
+    return ["rsi", "beta", "momentum", "iv", "forecast"]
 
 
 def normalize_weights(weights: dict[str, float]) -> dict[str, float]:
@@ -267,12 +282,12 @@ def normalize_weights(weights: dict[str, float]) -> dict[str, float]:
         weights: Dictionary of weights
 
     Returns:
-        Dict[str, float]: Normalized weights
+        dict[str, float]: Normalized weights
     """
     total = sum(weights.values())
     if total == 0:
-        # Return equal weights if total is 0
+        # Equal distribution if all weights are zero
         num_weights = len(weights)
-        return {k: 1.0 / num_weights for k in weights.keys()}
+        return {key: 1.0 / num_weights for key in weights.keys()}
 
-    return {k: v / total for k, v in weights.items()}
+    return {key: value / total for key, value in weights.items()}

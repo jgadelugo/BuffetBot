@@ -7,12 +7,12 @@ from typing import Any, Dict
 import pandas as pd
 import streamlit as st
 
-from buffetbot.analysis.options_advisor import (
+from buffetbot.analysis.options import analyze_options_strategy
+from buffetbot.analysis.options.config.scoring_weights import get_scoring_weights
+from buffetbot.analysis.options.core.domain_models import StrategyType
+from buffetbot.analysis.options.core.exceptions import (
     InsufficientDataError,
     OptionsAdvisorError,
-    analyze_options_strategy,
-    get_scoring_weights,
-    recommend_long_calls,
 )
 from buffetbot.dashboard.components.disclaimers import render_investment_disclaimer
 from buffetbot.dashboard.components.metrics import display_metric_with_info
@@ -43,6 +43,9 @@ from buffetbot.dashboard.dashboard_utils.formatters import (
 )
 from buffetbot.dashboard.utils.enhanced_options_analysis import (
     analyze_options_with_custom_settings,
+    get_scoring_indicator_names,
+    get_strategy_specific_weights,
+    get_total_scoring_indicators,
 )
 from buffetbot.glossary import get_metric_info
 from buffetbot.utils.logger import get_logger
@@ -473,10 +476,6 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                         first_score_details = recommendations.iloc[0]["score_details"]
                         if isinstance(first_score_details, dict):
                             try:
-                                from buffetbot.analysis.options_advisor import (
-                                    get_scoring_indicator_names,
-                                )
-
                                 all_indicator_names = set(get_scoring_indicator_names())
                                 # Extract only the actual scoring indicators (not metadata)
                                 actual_weights_for_methodology = {
@@ -570,11 +569,6 @@ def render_score_components_analysis(
 
     # Import here to avoid circular imports
     try:
-        from buffetbot.analysis.options_advisor import (
-            get_scoring_indicator_names,
-            get_total_scoring_indicators,
-        )
-
         total_indicators = get_total_scoring_indicators()
         all_indicator_names = set(get_scoring_indicator_names())
     except ImportError:
@@ -875,12 +869,6 @@ def render_comprehensive_scoring_breakdown(
 
     # Import scoring functions to avoid circular imports
     try:
-        from buffetbot.analysis.options_advisor import (
-            get_scoring_indicator_names,
-            get_scoring_weights,
-            get_total_scoring_indicators,
-        )
-
         total_indicators = get_total_scoring_indicators()
         all_indicator_names = set(get_scoring_indicator_names())
         scoring_weights = get_scoring_weights()
@@ -1691,9 +1679,9 @@ def render_enhanced_methodology(current_weights: dict = None) -> None:
     # Get default weights if none provided
     if current_weights is None:
         try:
-            from buffetbot.analysis.options_advisor import get_scoring_weights
-
-            current_weights = get_scoring_weights()
+            # Use strategy-specific default weights
+            strategy_type = st.session_state.get("strategy_type", "Long Calls")
+            current_weights = get_strategy_specific_weights(strategy_type)
         except ImportError:
             current_weights = {
                 "rsi": 0.20,
