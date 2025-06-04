@@ -27,6 +27,7 @@ Bug fixes, error resolutions, and corrective implementations.
 New feature implementations, enhancements, and capability additions.
 
 - [`DATA_STATUS_MODULE.md`](features/DATA_STATUS_MODULE.md) - Data source status module implementation and usage guide
+- [`ENHANCED_RISK_TOLERANCE_SUMMARY.md`](features/ENHANCED_RISK_TOLERANCE_SUMMARY.md) - Enhanced risk tolerance functionality for personalized options analysis
 - [`GOOGLE_ANALYTICS_INTEGRATION.md`](features/GOOGLE_ANALYTICS_INTEGRATION.md) - Google Analytics integration with professional architecture and privacy compliance
 
 ### `/glossary/`
@@ -56,9 +57,9 @@ Metric definitions, terminology, and reference materials.
 
 - **Architecture Documents**: 6 files covering major structural changes and design decisions
 - **Fix Documents**: 5 files documenting bug fixes and error resolutions
-- **Feature Documents**: 2 files describing new feature implementations
+- **Feature Documents**: 3 files describing new feature implementations
 - **Reference Documents**: 3 files providing terminology and verification procedures
-- **Total Organized**: 16 documentation files properly categorized
+- **Total Organized**: 17 documentation files properly categorized
 
 ## 📝 Documentation Guidelines
 

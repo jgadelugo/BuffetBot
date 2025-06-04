@@ -10,6 +10,7 @@ import streamlit as st
 from buffetbot.analysis.options_advisor import (
     InsufficientDataError,
     OptionsAdvisorError,
+    analyze_options_strategy,
     get_scoring_weights,
     recommend_long_calls,
 )
@@ -229,8 +230,13 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 status_text.text("Computing technical indicators...")
                 progress_bar.progress(50)
 
-                recommendations = recommend_long_calls(
-                    ticker=ticker, min_days=min_days, top_n=top_n
+                recommendations = analyze_options_strategy(
+                    strategy_type=strategy_type,
+                    ticker=ticker,
+                    min_days=min_days,
+                    top_n=top_n,
+                    risk_tolerance=risk_tolerance,
+                    time_horizon=time_horizon,
                 )
 
                 status_text.text("Calculating composite scores...")
@@ -313,250 +319,11 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                     # Get scoring weights for display
                     scoring_weights = get_scoring_weights()
 
-                    # Create columns for key metrics display
-                    (
-                        met_col1,
-                        met_col2,
-                        met_col3,
-                        met_col4,
-                        met_col5,
-                    ) = st.columns(5)
-
-                    # Get the current values for display (from first recommendation)
-                    if not recommendations.empty:
-                        first_row = recommendations.iloc[0]
-
-                        with met_col1:
-                            display_metric_with_info(
-                                "RSI",
-                                safe_format_number(first_row["RSI"]),
-                                delta=None,
-                                metric_key="rsi",
-                            )
-
-                        with met_col2:
-                            display_metric_with_info(
-                                "Beta",
-                                safe_format_number(first_row["Beta"]),
-                                delta=None,
-                                metric_key="beta",
-                            )
-
-                        with met_col3:
-                            display_metric_with_info(
-                                "Momentum",
-                                safe_format_number(first_row["Momentum"]),
-                                delta=None,
-                                metric_key="momentum",
-                            )
-
-                        with met_col4:
-                            display_metric_with_info(
-                                "Implied Vol",
-                                safe_format_percentage(first_row["IV"]),
-                                delta=None,
-                                metric_key="implied_volatility",
-                            )
-
-                        with met_col5:
-                            if "ForecastConfidence" in first_row:
-                                display_metric_with_info(
-                                    "Forecast",
-                                    safe_format_percentage(
-                                        first_row["ForecastConfidence"]
-                                    ),
-                                    delta=None,
-                                    help_text="Analyst forecast confidence score",
-                                )
-                            else:
-                                st.metric(
-                                    "Forecast",
-                                    "N/A",
-                                    help="Forecast data not available",
-                                )
-
-                    st.markdown("---")
-
                     # Create a table with metric-aware headers
                     st.markdown("#### Options Recommendations")
 
-                    # Create column headers with tooltips using metric info
-                    show_definitions = st.session_state.get(
-                        "show_metric_definitions", True
-                    )
-
-                    if show_definitions:
-                        col_headers = []
-                        col_headers.append("Strike Price")
-                        col_headers.append("Expiration")
-                        col_headers.append("Option Price")
-                        col_headers.append("RSI")
-                        col_headers.append("IV")
-                        col_headers.append("Momentum")
-                        col_headers.append("Forecast")
-                        col_headers.append("Composite Score")
-                        col_headers.append("Data Score")  # New column
-                        col_headers.append("Scoring Inputs")  # New column
-
-                        # Create tooltips for headers
-                        header_help = {
-                            "Strike Price": "option_strike",
-                            "Expiration": "option_expiry",
-                            "Option Price": "option_price",
-                            "RSI": "rsi",
-                            "IV": "implied_volatility",
-                            "Momentum": "momentum",
-                            "Forecast": "forecast_confidence",
-                            "Composite Score": "composite_score",
-                            "Data Score": "data_score_badge",
-                            "Scoring Inputs": "scoring_breakdown",
-                        }
-
-                        # Display headers with help text in a table-like format
-                        st.markdown("**Column Definitions:**")
-                        help_cols = st.columns(len(col_headers))
-                        for i, (header, metric_key) in enumerate(
-                            zip(col_headers, header_help.values())
-                        ):
-                            with help_cols[i]:
-                                try:
-                                    if metric_key in [
-                                        "data_score_badge",
-                                        "scoring_breakdown",
-                                    ]:
-                                        # Custom help text for new columns
-                                        if metric_key == "data_score_badge":
-                                            help_text = "Shows how many of the 5 indicators were used in scoring"
-                                        else:
-                                            help_text = "Expandable breakdown of scoring weights and missing data"
-                                        st.markdown(f"**{header}** ℹ️", help=help_text)
-                                    else:
-                                        metric_info = get_metric_info(metric_key)
-                                        help_text = f"{metric_info['description']}"
-                                        st.markdown(f"**{header}** ℹ️", help=help_text)
-                                except KeyError:
-                                    st.markdown(f"**{header}**")
-
-                    # Format the data for display
-                    display_df = recommendations.copy()
-
-                    # Format numerical columns
-                    display_df["Strike"] = display_df["strike"].apply(
-                        lambda x: safe_format_currency(x)
-                    )
-                    display_df["Price"] = display_df["lastPrice"].apply(
-                        lambda x: safe_format_currency(x)
-                    )
-                    display_df["RSI"] = display_df["RSI"].apply(
-                        lambda x: safe_format_number(x)
-                    )
-                    display_df["Beta"] = display_df["Beta"].apply(
-                        lambda x: safe_format_number(x)
-                    )
-                    display_df["Momentum"] = display_df["Momentum"].apply(
-                        lambda x: safe_format_number(x)
-                    )
-                    display_df["IV"] = display_df["IV"].apply(
-                        lambda x: safe_format_percentage(x)
-                    )
-                    display_df["Forecast"] = display_df["ForecastConfidence"].apply(
-                        lambda x: safe_format_percentage(x)
-                    )
-                    display_df["Score"] = display_df["CompositeScore"].apply(
-                        lambda x: safe_format_number(x)
-                    )
-
-                    # Add Data Score badges
-                    display_df["Data Score"] = display_df["score_details"].apply(
-                        lambda x: get_data_score_badge(x)
-                    )
-
-                    # Select and rename columns for display (including forecast column)
-                    table_display_df = display_df[
-                        [
-                            "Strike",
-                            "expiry",
-                            "Price",
-                            "RSI",
-                            "IV",
-                            "Momentum",
-                            "Forecast",
-                            "Score",
-                            "Data Score",
-                        ]
-                    ].copy()
-
-                    table_display_df.columns = [
-                        "Strike",
-                        "Expiry",
-                        "Price",
-                        "RSI",
-                        "IV",
-                        "Momentum",
-                        "Forecast",
-                        "Composite Score",
-                        "Data Score",
-                    ]
-
-                    # Get styling functions
-                    (
-                        highlight_rsi,
-                        highlight_score,
-                        highlight_iv,
-                        highlight_forecast,
-                    ) = create_styling_functions()
-
-                    # Apply styling (including forecast styling)
-                    styled_df = (
-                        table_display_df.style.map(highlight_rsi, subset=["RSI"])
-                        .map(highlight_score, subset=["Composite Score"])
-                        .map(highlight_iv, subset=["IV"])
-                        .map(highlight_forecast, subset=["Forecast"])
-                        .format(
-                            {
-                                "Expiry": lambda x: pd.to_datetime(x).strftime(
-                                    "%Y-%m-%d"
-                                )
-                                if pd.notna(x)
-                                else ""
-                            }
-                        )
-                    )
-
-                    # Display the formatted dataframe using Streamlit's dataframe widget with enhanced configuration
-                    st.dataframe(
-                        styled_df,
-                        use_container_width=True,
-                        height=400,
-                        column_config={
-                            "Contract": st.column_config.TextColumn(
-                                "Option Contract",
-                                help="Option contract symbol",
-                                width="large",
-                            ),
-                            "Strike": st.column_config.NumberColumn(
-                                "Strike Price",
-                                help="Option strike price",
-                                format="$%.2f",
-                            ),
-                            "DaysToExpiry": st.column_config.NumberColumn(
-                                "Days to Expiry",
-                                help="Number of days until option expiration",
-                            ),
-                            "CompositeScore": st.column_config.ProgressColumn(
-                                "Score",
-                                help="Composite technical score (0-1)",
-                                min_value=0,
-                                max_value=1,
-                                format="%.3f",
-                            ),
-                            "LastPrice": st.column_config.NumberColumn(
-                                "Option Price",
-                                help="Last traded option price",
-                                format="$%.2f",
-                            ),
-                        },
-                    )
+                    # Render strategy-specific table
+                    render_strategy_specific_table(recommendations, strategy_type)
 
                     # Strategy-specific insights
                     render_strategy_insights(
@@ -725,10 +492,170 @@ def render_strategy_insights(
         - **Max Risk:** Net premium paid (long call premium - short call premium)
         - **Max Reward:** Difference between strikes - net premium paid
         - **Break-even:** Lower strike + net premium paid
+
+        **Key Metrics to Watch:**
+        - **Profit Ratio:** Max profit ÷ max loss (higher is better)
+        - **Time Decay:** Benefits the spread as expiration approaches
+        - **Volatility Impact:** Lower volatility generally helps profitability
         """
         )
 
-    # Add more strategy-specific insights as needed
+        if not recommendations.empty and "profit_ratio" in recommendations.columns:
+            avg_profit_ratio = recommendations["profit_ratio"].mean()
+            if avg_profit_ratio > 2.0:
+                st.success(
+                    f"✅ Excellent profit ratios averaging {avg_profit_ratio:.2f}:1"
+                )
+            elif avg_profit_ratio > 1.0:
+                st.info(f"📊 Good profit ratios averaging {avg_profit_ratio:.2f}:1")
+            else:
+                st.warning(
+                    f"⚠️ Lower profit ratios averaging {avg_profit_ratio:.2f}:1 - consider wider spreads"
+                )
+
+        if risk_tolerance == "Conservative":
+            st.info(
+                "💡 Conservative: Look for spreads with profit ratios > 2:1 and longer time to expiration"
+            )
+        elif risk_tolerance == "Aggressive":
+            st.info(
+                "💡 Aggressive: Consider narrower spreads for higher probability of success"
+            )
+
+    elif strategy_type == "Covered Call":
+        st.markdown(
+            """
+        **Covered Call Strategy Analysis:**
+        - **Best for:** Income generation on existing stock positions
+        - **Max Risk:** Stock ownership risk minus premium received
+        - **Max Reward:** Premium + upside to strike price
+        - **Assignment Risk:** May be called away if stock rises above strike
+
+        **Key Metrics to Watch:**
+        - **Annualized Yield:** Premium income on annualized basis
+        - **Upside Capture:** Additional return if stock appreciates to strike
+        - **Total Return Potential:** Premium yield + upside capture
+        """
+        )
+
+        if not recommendations.empty:
+            if "annualized_yield" in recommendations.columns:
+                avg_yield = recommendations["annualized_yield"].mean()
+                if avg_yield > 20:
+                    st.success(
+                        f"✅ High income potential: {avg_yield:.1f}% annualized yield"
+                    )
+                elif avg_yield > 10:
+                    st.info(
+                        f"📊 Good income potential: {avg_yield:.1f}% annualized yield"
+                    )
+                else:
+                    st.warning(f"⚠️ Modest income: {avg_yield:.1f}% annualized yield")
+
+            if "upside_capture" in recommendations.columns:
+                avg_upside = recommendations["upside_capture"].mean()
+                if avg_upside > 10:
+                    st.info(
+                        f"📈 Additional upside potential: {avg_upside:.1f}% if assigned"
+                    )
+
+        if risk_tolerance == "Conservative":
+            st.info(
+                "💡 Conservative: Focus on out-of-the-money strikes to reduce assignment risk"
+            )
+        elif risk_tolerance == "Aggressive":
+            st.info("💡 Aggressive: Consider at-the-money strikes for higher premiums")
+
+    elif strategy_type == "Cash-Secured Put":
+        st.markdown(
+            """
+        **Cash-Secured Put Strategy Analysis:**
+        - **Best for:** Income generation + potential stock acquisition at discount
+        - **Max Risk:** Strike price - premium received (if stock goes to zero)
+        - **Max Reward:** Premium received (if stock stays above strike)
+        - **Assignment Risk:** May acquire stock at strike price if below at expiration
+
+        **Key Metrics to Watch:**
+        - **Annualized Yield:** Premium income on annualized basis
+        - **Assignment Discount:** Your entry price vs. current stock price
+        - **Effective Cost:** Your net cost basis if assigned (strike - premium)
+        """
+        )
+
+        if not recommendations.empty:
+            if "annualized_yield" in recommendations.columns:
+                avg_yield = recommendations["annualized_yield"].mean()
+                if avg_yield > 15:
+                    st.success(
+                        f"✅ High income potential: {avg_yield:.1f}% annualized yield"
+                    )
+                elif avg_yield > 8:
+                    st.info(
+                        f"📊 Good income potential: {avg_yield:.1f}% annualized yield"
+                    )
+                else:
+                    st.warning(f"⚠️ Modest income: {avg_yield:.1f}% annualized yield")
+
+            if "discount_to_current" in recommendations.columns:
+                avg_discount = recommendations["discount_to_current"].mean()
+                if avg_discount > 15:
+                    st.success(
+                        f"✅ Excellent entry discount: {avg_discount:.1f}% below current price"
+                    )
+                elif avg_discount > 8:
+                    st.info(
+                        f"📊 Good entry discount: {avg_discount:.1f}% below current price"
+                    )
+
+        if risk_tolerance == "Conservative":
+            st.info(
+                "💡 Conservative: Choose strikes well below current price for lower assignment risk"
+            )
+        elif risk_tolerance == "Aggressive":
+            st.info("💡 Aggressive: Consider higher strikes for more premium income")
+
+    # Add general risk warnings based on strategy
+    with st.expander("⚠️ Risk Considerations", expanded=False):
+        if strategy_type == "Long Calls":
+            st.warning(
+                """
+                **Long Call Risks:**
+                - Time decay accelerates as expiration approaches
+                - Can lose 100% of premium paid
+                - Implied volatility changes affect option prices
+                - Requires significant stock movement to profit
+                """
+            )
+        elif strategy_type == "Bull Call Spread":
+            st.warning(
+                """
+                **Bull Call Spread Risks:**
+                - Limited profit potential compared to long calls
+                - Both legs subject to time decay
+                - Early assignment risk on short call
+                - Requires stock to move above long strike by expiration
+                """
+            )
+        elif strategy_type == "Covered Call":
+            st.warning(
+                """
+                **Covered Call Risks:**
+                - Stock may be called away in bull market
+                - Full downside exposure to stock ownership
+                - Opportunity cost if stock rallies strongly
+                - Dividend risk around ex-dates
+                """
+            )
+        elif strategy_type == "Cash-Secured Put":
+            st.warning(
+                """
+                **Cash-Secured Put Risks:**
+                - May be assigned stock in declining market
+                - Full cash requirement tied up as collateral
+                - Subject to stock's downside risk
+                - Assignment typically occurs when stock is below strike
+                """
+            )
 
 
 def render_enhanced_methodology() -> None:
@@ -793,6 +720,323 @@ def render_csv_download(
         )
 
         st.success("✅ CSV export ready for download!")
+
+
+def render_strategy_specific_table(
+    recommendations: pd.DataFrame, strategy_type: str
+) -> None:
+    """
+    Render strategy-specific recommendations table with appropriate columns.
+
+    Args:
+        recommendations: Strategy recommendations DataFrame
+        strategy_type: Type of options strategy being displayed
+    """
+    if recommendations.empty:
+        st.warning("No recommendations to display")
+        return
+
+    # Create column headers with tooltips using metric info
+    show_definitions = st.session_state.get("show_metric_definitions", True)
+
+    # Format the data for display
+    display_df = recommendations.copy()
+
+    # Common formatting for all strategies
+    if "strike" in display_df.columns:
+        display_df["Strike"] = display_df["strike"].apply(
+            lambda x: safe_format_currency(x)
+        )
+    if "lastPrice" in display_df.columns:
+        display_df["Price"] = display_df["lastPrice"].apply(
+            lambda x: safe_format_currency(x)
+        )
+    if "RSI" in display_df.columns:
+        display_df["RSI"] = display_df["RSI"].apply(lambda x: safe_format_number(x))
+    if "Beta" in display_df.columns:
+        display_df["Beta"] = display_df["Beta"].apply(lambda x: safe_format_number(x))
+    if "Momentum" in display_df.columns:
+        display_df["Momentum"] = display_df["Momentum"].apply(
+            lambda x: safe_format_number(x)
+        )
+    if "IV" in display_df.columns:
+        display_df["IV"] = display_df["IV"].apply(lambda x: safe_format_percentage(x))
+    if "ForecastConfidence" in display_df.columns:
+        display_df["Forecast"] = display_df["ForecastConfidence"].apply(
+            lambda x: safe_format_percentage(x)
+        )
+    if "CompositeScore" in display_df.columns:
+        display_df["Score"] = display_df["CompositeScore"].apply(
+            lambda x: safe_format_number(x)
+        )
+
+    # Add Data Score badges if score_details exists
+    if "score_details" in display_df.columns:
+        display_df["Data Score"] = display_df["score_details"].apply(
+            lambda x: get_data_score_badge(x)
+        )
+
+    # Strategy-specific column selection and formatting
+    if strategy_type == "Long Calls":
+        # Standard long calls display
+        table_columns = [
+            "Strike",
+            "expiry",
+            "Price",
+            "RSI",
+            "IV",
+            "Momentum",
+            "Forecast",
+            "Score",
+        ]
+        if "Data Score" in display_df.columns:
+            table_columns.append("Data Score")
+
+        table_display_df = display_df[table_columns].copy()
+        table_display_df.columns = [
+            "Strike",
+            "Expiry",
+            "Price",
+            "RSI",
+            "IV",
+            "Momentum",
+            "Forecast",
+            "Composite Score",
+        ] + (["Data Score"] if "Data Score" in table_columns else [])
+
+    elif strategy_type == "Bull Call Spread":
+        # Bull call spread specific columns
+        display_df["Long Strike"] = display_df["long_strike"].apply(
+            lambda x: safe_format_currency(x)
+        )
+        display_df["Short Strike"] = display_df["short_strike"].apply(
+            lambda x: safe_format_currency(x)
+        )
+        display_df["Net Premium"] = display_df["net_premium"].apply(
+            lambda x: safe_format_currency(x)
+        )
+        display_df["Max Profit"] = display_df["max_profit"].apply(
+            lambda x: safe_format_currency(x)
+        )
+        display_df["Max Loss"] = display_df["max_loss"].apply(
+            lambda x: safe_format_currency(x)
+        )
+        display_df["Profit Ratio"] = display_df["profit_ratio"].apply(
+            lambda x: safe_format_number(x)
+        )
+
+        table_columns = [
+            "Long Strike",
+            "Short Strike",
+            "expiry",
+            "Net Premium",
+            "Max Profit",
+            "Max Loss",
+            "Profit Ratio",
+            "Score",
+        ]
+        table_display_df = display_df[table_columns].copy()
+        table_display_df.columns = [
+            "Long Strike",
+            "Short Strike",
+            "Expiry",
+            "Net Premium",
+            "Max Profit",
+            "Max Loss",
+            "Profit Ratio",
+            "Composite Score",
+        ]
+
+    elif strategy_type == "Covered Call":
+        # Covered call specific columns
+        if "premium_yield" in display_df.columns:
+            display_df["Premium Yield"] = display_df["premium_yield"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "annualized_yield" in display_df.columns:
+            display_df["Annualized Yield"] = display_df["annualized_yield"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "upside_capture" in display_df.columns:
+            display_df["Upside Capture"] = display_df["upside_capture"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "total_return" in display_df.columns:
+            display_df["Total Return"] = display_df["total_return"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+
+        table_columns = [
+            "Strike",
+            "expiry",
+            "Price",
+            "Premium Yield",
+            "Annualized Yield",
+            "Upside Capture",
+            "Score",
+        ]
+        table_display_df = display_df[table_columns].copy()
+        table_display_df.columns = [
+            "Strike",
+            "Expiry",
+            "Premium",
+            "Premium Yield",
+            "Annualized Yield",
+            "Upside Capture",
+            "Composite Score",
+        ]
+
+    elif strategy_type == "Cash-Secured Put":
+        # Cash-secured put specific columns
+        if "premium_yield" in display_df.columns:
+            display_df["Premium Yield"] = display_df["premium_yield"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "annualized_yield" in display_df.columns:
+            display_df["Annualized Yield"] = display_df["annualized_yield"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "assignment_discount" in display_df.columns:
+            display_df["Assignment Discount"] = display_df["assignment_discount"].apply(
+                lambda x: safe_format_percentage(x)
+            )
+        if "effective_cost" in display_df.columns:
+            display_df["Effective Cost"] = display_df["effective_cost"].apply(
+                lambda x: safe_format_currency(x)
+            )
+
+        table_columns = [
+            "Strike",
+            "expiry",
+            "Price",
+            "Premium Yield",
+            "Annualized Yield",
+            "Assignment Discount",
+            "Effective Cost",
+            "Score",
+        ]
+        table_display_df = display_df[table_columns].copy()
+        table_display_df.columns = [
+            "Strike",
+            "Expiry",
+            "Premium",
+            "Premium Yield",
+            "Annualized Yield",
+            "Assignment Discount",
+            "Effective Cost",
+            "Composite Score",
+        ]
+
+    else:
+        # Fallback for unknown strategies
+        table_display_df = display_df.head(10)  # Show first 10 columns
+
+    # Get styling functions
+    try:
+        (
+            highlight_rsi,
+            highlight_score,
+            highlight_iv,
+            highlight_forecast,
+        ) = create_styling_functions()
+
+        # Apply styling based on available columns
+        styled_df = table_display_df.style
+
+        if "RSI" in table_display_df.columns:
+            styled_df = styled_df.map(highlight_rsi, subset=["RSI"])
+        if "Composite Score" in table_display_df.columns:
+            styled_df = styled_df.map(highlight_score, subset=["Composite Score"])
+        if "IV" in table_display_df.columns:
+            styled_df = styled_df.map(highlight_iv, subset=["IV"])
+        if "Forecast" in table_display_df.columns:
+            styled_df = styled_df.map(highlight_forecast, subset=["Forecast"])
+
+        # Format expiry dates
+        if "Expiry" in table_display_df.columns:
+            styled_df = styled_df.format(
+                {
+                    "Expiry": lambda x: pd.to_datetime(x).strftime("%Y-%m-%d")
+                    if pd.notna(x)
+                    else ""
+                }
+            )
+    except Exception as e:
+        logger.warning(f"Error applying styling: {str(e)}")
+        styled_df = table_display_df
+
+    # Display the formatted dataframe
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        height=400,
+        column_config={
+            "Strike": st.column_config.TextColumn(
+                "Strike Price", help="Option strike price"
+            ),
+            "Long Strike": st.column_config.TextColumn(
+                "Long Strike", help="Lower strike price (buy)"
+            ),
+            "Short Strike": st.column_config.TextColumn(
+                "Short Strike", help="Higher strike price (sell)"
+            ),
+            "Expiry": st.column_config.DateColumn(
+                "Expiration", help="Option expiration date"
+            ),
+            "Premium": st.column_config.TextColumn(
+                "Premium", help="Option premium price"
+            ),
+            "Price": st.column_config.TextColumn("Price", help="Option price"),
+            "Net Premium": st.column_config.TextColumn(
+                "Net Premium", help="Net cost of the spread"
+            ),
+            "Max Profit": st.column_config.TextColumn(
+                "Max Profit", help="Maximum potential profit"
+            ),
+            "Max Loss": st.column_config.TextColumn(
+                "Max Loss", help="Maximum potential loss"
+            ),
+            "Profit Ratio": st.column_config.TextColumn(
+                "Profit Ratio", help="Max profit to max loss ratio"
+            ),
+            "Premium Yield": st.column_config.TextColumn(
+                "Premium Yield", help="Premium as % of stock/strike price"
+            ),
+            "Annualized Yield": st.column_config.TextColumn(
+                "Annualized Yield", help="Annualized premium yield"
+            ),
+            "Upside Capture": st.column_config.TextColumn(
+                "Upside Capture", help="Additional return if assigned"
+            ),
+            "Assignment Discount": st.column_config.TextColumn(
+                "Assignment Discount", help="Discount to current price if assigned"
+            ),
+            "Effective Cost": st.column_config.TextColumn(
+                "Effective Cost", help="Net cost basis if assigned"
+            ),
+            "Composite Score": st.column_config.ProgressColumn(
+                "Score",
+                help="Composite technical score (0-1)",
+                min_value=0,
+                max_value=1,
+                format="%.3f",
+            ),
+        },
+    )
+
+    # Display strategy-specific insights
+    if strategy_type == "Bull Call Spread":
+        st.info(
+            "💡 **Bull Call Spread**: Limited risk, limited reward. Look for high profit ratios and moderate volatility."
+        )
+    elif strategy_type == "Covered Call":
+        st.info(
+            "💡 **Covered Call**: Generate income on existing stock positions. Higher yields are better, but watch upside capture."
+        )
+    elif strategy_type == "Cash-Secured Put":
+        st.info(
+            "💡 **Cash-Secured Put**: Generate income while potentially acquiring stock at a discount. Consider assignment scenarios."
+        )
 
 
 # Add the rest of the existing code structure that follows the pattern from the original file

@@ -1,11 +1,17 @@
 """
 Options Advisor Module
 
-This module analyzes long-dated call options for a given stock and recommends
+This module analyzes different options strategies for a given stock and recommends
 the best ones using a comprehensive technical scoring framework. It combines
 multiple technical indicators (RSI, Beta, Momentum, Implied Volatility) with
 forward-looking analyst forecast data to provide a composite score for each
 option contract.
+
+The module supports multiple strategies:
+- Long Calls: Bullish strategy with unlimited upside potential
+- Bull Call Spread: Limited risk/reward bullish strategy
+- Covered Call: Income generation strategy for existing positions
+- Cash-Secured Put: Income generation with potential stock acquisition
 
 The module is designed to be extensible and integrates seamlessly with
 existing data fetching and mathematical utilities.
@@ -15,6 +21,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -516,7 +523,7 @@ def _calculate_composite_scores(
 
 
 def recommend_long_calls(
-    ticker: str, min_days: int = 180, top_n: int = 5
+    ticker: str, min_days: int = 180, top_n: int = 5, risk_tolerance: str = "Moderate"
 ) -> pd.DataFrame:
     """
     Analyze long-dated call options and recommend the best ones using comprehensive scoring.
@@ -530,40 +537,19 @@ def recommend_long_calls(
         ticker: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
         min_days: Minimum days to expiry for options to consider (default: 180)
         top_n: Number of top recommendations to return (default: 5)
+        risk_tolerance: Risk tolerance level ('Conservative', 'Moderate', 'Aggressive')
 
     Returns:
-        pd.DataFrame: Top-ranked option recommendations with columns:
-            - ticker: Stock ticker symbol
-            - strike: Option strike price
-            - expiry: Option expiry date
-            - lastPrice: Last traded option price
-            - IV: Implied volatility (renamed from impliedVolatility)
-            - RSI: RSI value for the underlying stock
-            - Beta: Beta coefficient vs SPY
-            - Momentum: Price momentum indicator
-            - ForecastConfidence: Analyst forecast confidence (0-1)
-            - CompositeScore: Weighted composite score
-            - ecosystem_score: Ecosystem analysis score (0-1)
-            - signal: Ecosystem signal (confirm/neutral/veto)
-            - confidence: Ecosystem confidence level (0-1)
+        pd.DataFrame: Top-ranked option recommendations with risk-adjusted filtering
 
     Raises:
         OptionsAdvisorError: If input validation fails or analysis cannot be completed
         InsufficientDataError: If there's insufficient data for meaningful analysis
         CalculationError: If technical indicator calculations fail
-
-    Examples:
-        >>> # Get top 5 long-term call recommendations for Apple
-        >>> recommendations = recommend_long_calls('AAPL')
-        >>> print(f"Top recommendation: Strike ${recommendations.iloc[0]['strike']:.2f}")
-
-        >>> # Get top 3 recommendations with minimum 1 year to expiry
-        >>> long_term_calls = recommend_long_calls('MSFT', min_days=365, top_n=3)
-        >>> print(f"Found {len(long_term_calls)} recommendations")
     """
     start_time = datetime.now()
     logger.info(
-        f"Starting options analysis for {ticker} (min_days={min_days}, top_n={top_n})"
+        f"Starting options analysis for {ticker} (min_days={min_days}, top_n={top_n}, risk_tolerance={risk_tolerance})"
     )
 
     # Input validation
@@ -608,13 +594,28 @@ def recommend_long_calls(
 
         logger.info(f"Found {len(options_df)} long-dated call options for {ticker}")
 
-        # Step 2: Fetch historical price data
-        logger.info("Step 2: Fetching historical price data")
+        # Step 2: Apply risk tolerance filtering
+        logger.info(f"Step 2: Applying {risk_tolerance} risk tolerance filtering")
+        options_df = _apply_long_calls_risk_filtering(
+            options_df, ticker, risk_tolerance
+        )
+
+        if options_df.empty:
+            logger.warning(
+                f"No options remain after {risk_tolerance} risk filtering for {ticker}"
+            )
+            # Return empty dataframe with proper structure
+            return pd.DataFrame()
+
+        logger.info(f"Retained {len(options_df)} options after risk filtering")
+
+        # Step 3: Fetch historical price data
+        logger.info("Step 3: Fetching historical price data")
         stock_prices = fetch_price_history(ticker, period="1y")
         spy_prices = fetch_price_history("SPY", period="1y")
 
-        # Step 3: Compute technical indicators
-        logger.info("Step 3: Computing technical indicators")
+        # Step 4: Compute technical indicators
+        logger.info("Step 4: Computing technical indicators")
         (
             rsi,
             beta,
@@ -624,8 +625,8 @@ def recommend_long_calls(
             data_availability,
         ) = compute_scores(ticker, stock_prices, spy_prices, options_df)
 
-        # Step 4: Fetch peers and perform ecosystem analysis
-        logger.info("Step 4: Performing ecosystem analysis")
+        # Step 5: Fetch peers and perform ecosystem analysis
+        logger.info("Step 5: Performing ecosystem analysis")
         ecosystem_score = 0.5  # Default neutral score
         ecosystem_signal = "neutral"
         ecosystem_confidence = 0.5
@@ -672,9 +673,9 @@ def recommend_long_calls(
             )
             logger.info("Proceeding with technical analysis only")
 
-        # Step 5: Calculate composite scores
-        logger.info("Step 5: Calculating composite scores")
-        scored_df = _calculate_composite_scores(
+        # Step 6: Calculate composite scores with risk tolerance adjustments
+        logger.info("Step 6: Calculating risk-adjusted composite scores")
+        scored_df = _calculate_composite_scores_with_risk_tolerance(
             options_df,
             rsi,
             beta,
@@ -682,10 +683,11 @@ def recommend_long_calls(
             avg_iv,
             forecast_confidence,
             data_availability,
+            risk_tolerance,
         )
 
-        # Step 6: Apply ecosystem adjustment to composite scores
-        logger.info("Step 6: Applying ecosystem signal adjustments")
+        # Step 7: Apply ecosystem adjustment to composite scores
+        logger.info("Step 7: Applying ecosystem signal adjustments")
         ecosystem_multiplier = ECOSYSTEM_SCORING_WEIGHTS.get(ecosystem_signal, 1.0)
         scored_df["AdjustedCompositeScore"] = (
             scored_df["CompositeScore"] * ecosystem_multiplier
@@ -701,19 +703,16 @@ def recommend_long_calls(
             f"(multiplier: {ecosystem_multiplier:.1f})"
         )
 
-        # Step 7: Rank and select top recommendations
-        logger.info("Step 7: Ranking and selecting top recommendations")
+        # Step 8: Rank and select top recommendations with risk tolerance considerations
+        logger.info("Step 8: Ranking and selecting top recommendations")
 
-        # Sort by adjusted composite score (descending) and then by days to expiry (ascending for ties)
-        ranked_df = scored_df.sort_values(
-            ["AdjustedCompositeScore", "daysToExpiry"], ascending=[False, True]
+        # Apply risk tolerance to final selection
+        final_df = _apply_final_risk_tolerance_selection(
+            scored_df, risk_tolerance, top_n
         )
 
-        # Select top N recommendations
-        top_recommendations = ranked_df.head(top_n)
-
         # Prepare final output DataFrame with required columns
-        result_df = top_recommendations[
+        result_df = final_df[
             [
                 "strike",
                 "expiry",
@@ -738,6 +737,9 @@ def recommend_long_calls(
             columns={"impliedVolatility": "IV", "AdjustedCompositeScore": "FinalScore"}
         )
 
+        # Add risk tolerance metadata
+        result_df["risk_tolerance_applied"] = risk_tolerance
+
         # Reset index for clean output
         result_df = result_df.reset_index(drop=True)
 
@@ -751,7 +753,7 @@ def recommend_long_calls(
 
         execution_time = (datetime.now() - start_time).total_seconds()
         logger.info(
-            f"Options analysis completed for {ticker}. "
+            f"Options analysis completed for {ticker} with {risk_tolerance} risk tolerance. "
             f"Returned {len(result_df)} recommendations in {execution_time:.2f} seconds. "
             f"Ecosystem signal: {ecosystem_signal} ({'✅' if ecosystem_signal == 'confirm' else '⚠️' if ecosystem_signal == 'neutral' else '❌'})"
         )
@@ -866,3 +868,1439 @@ def update_ecosystem_scoring_weights(new_weights: dict[str, float]) -> None:
 
     ECOSYSTEM_SCORING_WEIGHTS.update(new_weights)
     logger.info(f"Updated ecosystem scoring weights: {ECOSYSTEM_SCORING_WEIGHTS}")
+
+
+def fetch_put_options(ticker: str, min_days_to_expiry: int = 180) -> OptionsResult:
+    """
+    Fetch long-dated put options for cash-secured put strategies.
+
+    Args:
+        ticker: Stock ticker symbol
+        min_days_to_expiry: Minimum days to expiry for options filtering
+
+    Returns:
+        OptionsResult: Similar to fetch_long_dated_calls but for put options
+    """
+    # Initialize default response structure
+    result: OptionsResult = {
+        "data": pd.DataFrame(),
+        "data_available": False,
+        "error_message": None,
+        "ticker": ticker,
+        "min_days_to_expiry": min_days_to_expiry,
+        "total_expiry_dates": None,
+        "valid_chains_processed": None,
+        "source_used": None,
+    }
+
+    try:
+        # Input validation
+        if not ticker or not isinstance(ticker, str):
+            error_msg = "Ticker must be a non-empty string"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            result["source_used"] = "none"
+            return result
+
+        ticker = ticker.upper().strip()
+        result["ticker"] = ticker
+
+        logger.info(
+            f"Fetching put options for {ticker} with min {min_days_to_expiry} days to expiry"
+        )
+
+        # Create yfinance Ticker object
+        stock = yf.Ticker(ticker)
+
+        # Get available expiry dates
+        try:
+            expiry_dates = stock.options
+        except Exception as e:
+            error_msg = (
+                f"Failed to retrieve options expiry dates for {ticker}: {str(e)}"
+            )
+            logger.error(error_msg)
+            result["error_message"] = error_msg
+            result["source_used"] = "none"
+            return result
+
+        if not expiry_dates:
+            error_msg = f"No options data available for ticker {ticker}"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            result["source_used"] = "none"
+            return result
+
+        result["total_expiry_dates"] = len(expiry_dates)
+
+        # Process each expiry date for puts
+        all_puts_data = []
+        valid_chains_count = 0
+
+        for expiry_date in expiry_dates:
+            try:
+                # Calculate days to expiry
+                expiry_dt = datetime.strptime(expiry_date, "%Y-%m-%d")
+                days_to_expiry = (expiry_dt - datetime.now()).days
+
+                # Filter by minimum days to expiry
+                if days_to_expiry < min_days_to_expiry:
+                    continue
+
+                # Get options chain for this expiry
+                options_chain = stock.option_chain(expiry_date)
+
+                # Process puts instead of calls
+                if not hasattr(options_chain, "puts") or options_chain.puts.empty:
+                    logger.warning(
+                        f"No put options data available for expiry {expiry_date}"
+                    )
+                    continue
+
+                puts_df = options_chain.puts.copy()
+                puts_df["expiry"] = expiry_date
+                puts_df["daysToExpiry"] = days_to_expiry
+
+                # Ensure required columns exist
+                if "delta" not in puts_df.columns:
+                    puts_df["delta"] = np.nan
+                if "ask" not in puts_df.columns:
+                    puts_df["ask"] = np.nan
+                if "bid" not in puts_df.columns:
+                    puts_df["bid"] = np.nan
+
+                # Select columns
+                columns_to_keep = [
+                    "expiry",
+                    "strike",
+                    "lastPrice",
+                    "impliedVolatility",
+                    "volume",
+                    "openInterest",
+                    "delta",
+                    "ask",
+                    "bid",
+                    "daysToExpiry",
+                ]
+                available_columns = [
+                    col for col in columns_to_keep if col in puts_df.columns
+                ]
+                puts_df = puts_df[available_columns]
+
+                if not puts_df.empty:
+                    all_puts_data.append(puts_df)
+                    valid_chains_count += 1
+
+            except Exception as e:
+                logger.warning(
+                    f"Error processing put expiry {expiry_date} for {ticker}: {str(e)}"
+                )
+                continue
+
+        result["valid_chains_processed"] = valid_chains_count
+
+        # Combine all put data
+        if not all_puts_data:
+            error_msg = f"No put options found for {ticker} with min {min_days_to_expiry} days to expiry"
+            logger.warning(error_msg)
+            result["error_message"] = error_msg
+            result["source_used"] = "none"
+            return result
+
+        combined_df = pd.concat(all_puts_data, ignore_index=True)
+
+        # Sort by expiry and strike
+        combined_df = combined_df.sort_values(["expiry", "strike"]).reset_index(
+            drop=True
+        )
+
+        # Clean up data types
+        numeric_columns = [
+            "strike",
+            "lastPrice",
+            "impliedVolatility",
+            "volume",
+            "openInterest",
+            "delta",
+            "ask",
+            "bid",
+        ]
+        for col in numeric_columns:
+            if col in combined_df.columns:
+                combined_df[col] = pd.to_numeric(combined_df[col], errors="coerce")
+
+        # Set successful result
+        result["data"] = combined_df
+        result["data_available"] = True
+        result["error_message"] = None
+        result["source_used"] = "yahoo"
+
+        logger.info(
+            f"✅ Successfully fetched {len(combined_df)} put options for {ticker}"
+        )
+        return result
+
+    except Exception as e:
+        error_msg = f"Unexpected error fetching put options for {ticker}: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        result["error_message"] = error_msg
+        result["source_used"] = "none"
+        return result
+
+
+def _apply_long_calls_risk_filtering(
+    options_df: pd.DataFrame, ticker: str, risk_tolerance: str
+) -> pd.DataFrame:
+    """
+    Apply risk tolerance filtering to long call options.
+
+    Args:
+        options_df: DataFrame containing options data
+        ticker: Stock ticker symbol
+        risk_tolerance: Risk tolerance level
+
+    Returns:
+        pd.DataFrame: Filtered options based on risk tolerance
+    """
+    filtered_df = options_df.copy()
+
+    try:
+        # Get current stock price for moneyness calculations
+        stock = yf.Ticker(ticker)
+        current_price = stock.info.get(
+            "currentPrice", stock.info.get("regularMarketPrice", 100)
+        )
+
+        # Calculate moneyness (how close strike is to current price)
+        filtered_df["moneyness"] = filtered_df["strike"] / current_price
+
+        if risk_tolerance == "Conservative":
+            # Conservative: Prefer ITM to ATM calls (higher probability of success)
+            # Moneyness 0.85 to 1.05 (slightly ITM to slightly OTM)
+            filtered_df = filtered_df[
+                (filtered_df["moneyness"] >= 0.85) & (filtered_df["moneyness"] <= 1.05)
+            ]
+
+            # Filter out extremely high IV options (too expensive)
+            if "impliedVolatility" in filtered_df.columns:
+                iv_95th = filtered_df["impliedVolatility"].quantile(0.95)
+                filtered_df = filtered_df[filtered_df["impliedVolatility"] <= iv_95th]
+
+            # Prefer longer time to expiry for conservative approach
+            if "daysToExpiry" in filtered_df.columns:
+                min_days_conservative = max(filtered_df["daysToExpiry"].min(), 120)
+                filtered_df = filtered_df[
+                    filtered_df["daysToExpiry"] >= min_days_conservative
+                ]
+
+            logger.info(
+                f"Conservative filtering: ITM/ATM options, lower IV, longer expiry"
+            )
+
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Prefer OTM calls (higher leverage, higher risk/reward)
+            # Moneyness 1.0 to 1.25 (ATM to significantly OTM)
+            filtered_df = filtered_df[
+                (filtered_df["moneyness"] >= 1.0) & (filtered_df["moneyness"] <= 1.25)
+            ]
+
+            # Allow shorter time to expiry for more aggressive plays
+            if "daysToExpiry" in filtered_df.columns:
+                min_days_aggressive = max(filtered_df["daysToExpiry"].min(), 30)
+                filtered_df = filtered_df[
+                    filtered_df["daysToExpiry"] >= min_days_aggressive
+                ]
+
+            logger.info(f"Aggressive filtering: OTM options, higher leverage potential")
+
+        else:  # Moderate
+            # Moderate: Prefer ATM to moderately OTM
+            # Moneyness 0.95 to 1.15 (slightly ITM to moderately OTM)
+            filtered_df = filtered_df[
+                (filtered_df["moneyness"] >= 0.95) & (filtered_df["moneyness"] <= 1.15)
+            ]
+
+            logger.info(f"Moderate filtering: ATM to moderately OTM options")
+
+        # Remove the temporary moneyness column
+        filtered_df = filtered_df.drop("moneyness", axis=1)
+
+        logger.info(
+            f"Risk filtering ({risk_tolerance}): {len(options_df)} -> {len(filtered_df)} options"
+        )
+
+        return filtered_df
+
+    except Exception as e:
+        logger.warning(
+            f"Risk filtering failed for {ticker}: {str(e)}. Using unfiltered data."
+        )
+        return options_df
+
+
+def _calculate_composite_scores_with_risk_tolerance(
+    options_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+    risk_tolerance: str,
+) -> pd.DataFrame:
+    """
+    Calculate composite scores with risk tolerance adjustments.
+
+    This function applies the base composite score calculation and then
+    adjusts scoring based on risk tolerance preferences.
+    """
+    # First calculate base composite scores
+    scored_df = _calculate_composite_scores(
+        options_df, rsi, beta, momentum, avg_iv, forecast_confidence, data_availability
+    )
+
+    # Apply risk tolerance adjustments
+    if risk_tolerance == "Conservative":
+        # Conservative: Boost lower volatility, penalize high volatility
+        if "impliedVolatility" in scored_df.columns:
+            iv_penalty = scored_df["impliedVolatility"].apply(
+                lambda iv: max(0, (iv - avg_iv) / avg_iv * 0.2)  # Penalty for high IV
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 - iv_penalty)
+
+        # Boost scores for longer time to expiry
+        if "daysToExpiry" in scored_df.columns:
+            time_boost = scored_df["daysToExpiry"].apply(
+                lambda days: min(0.15, days / 365 * 0.1)  # Boost for longer time
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + time_boost)
+
+        logger.info("Applied conservative scoring adjustments: -high IV, +longer time")
+
+    elif risk_tolerance == "Aggressive":
+        # Aggressive: Boost momentum and growth indicators
+        if momentum > 0:
+            momentum_boost = min(0.2, momentum * 10)  # Boost for positive momentum
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + momentum_boost
+            )
+
+        # Boost scores for higher beta (more volatile stocks)
+        if beta > 1.0:
+            beta_boost = min(0.15, (beta - 1.0) * 0.2)  # Boost for higher beta
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + beta_boost)
+
+        logger.info("Applied aggressive scoring adjustments: +momentum, +high beta")
+
+    # Moderate tolerance uses base scores without adjustments
+
+    # Ensure scores remain in valid range
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    # Add risk tolerance metadata to score details
+    scored_df["score_details"] = scored_df["score_details"].apply(
+        lambda details: {**details, "risk_tolerance": risk_tolerance}
+    )
+
+    return scored_df
+
+
+def _apply_final_risk_tolerance_selection(
+    scored_df: pd.DataFrame, risk_tolerance: str, top_n: int
+) -> pd.DataFrame:
+    """
+    Apply final risk tolerance considerations to option selection and ranking.
+
+    Args:
+        scored_df: DataFrame with calculated composite scores
+        risk_tolerance: Risk tolerance level
+        top_n: Number of recommendations to return
+
+    Returns:
+        pd.DataFrame: Final ranked and filtered recommendations
+    """
+    if risk_tolerance == "Conservative":
+        # Conservative: Prefer higher probability of success
+        # Sort by: Composite Score (primary), then lower IV (secondary), then longer time (tertiary)
+        sort_columns = ["AdjustedCompositeScore"]
+        sort_ascending = [False]
+
+        if "impliedVolatility" in scored_df.columns:
+            sort_columns.append("impliedVolatility")
+            sort_ascending.append(True)  # Lower IV first
+
+        if "daysToExpiry" in scored_df.columns:
+            sort_columns.append("daysToExpiry")
+            sort_ascending.append(False)  # Longer time first
+
+        ranked_df = scored_df.sort_values(sort_columns, ascending=sort_ascending)
+
+        # Conservative gets fewer but higher quality recommendations
+        conservative_top_n = max(3, min(top_n, 5))
+        final_recommendations = ranked_df.head(conservative_top_n)
+
+        logger.info(
+            f"Conservative selection: {conservative_top_n} high-probability recommendations"
+        )
+
+    elif risk_tolerance == "Aggressive":
+        # Aggressive: Prefer higher potential returns (accepting higher risk)
+        # Sort by: Composite Score (primary), then higher potential leverage
+        sort_columns = ["AdjustedCompositeScore"]
+        sort_ascending = [False]
+
+        # For aggressive, we might want to include more OTM options with higher potential
+        ranked_df = scored_df.sort_values(sort_columns, ascending=sort_ascending)
+
+        # Aggressive gets more recommendations to choose from
+        aggressive_top_n = min(top_n * 2, 15)  # More options
+        final_recommendations = ranked_df.head(aggressive_top_n)
+
+        logger.info(
+            f"Aggressive selection: {aggressive_top_n} high-leverage recommendations"
+        )
+
+    else:  # Moderate
+        # Moderate: Balanced approach
+        ranked_df = scored_df.sort_values(
+            ["AdjustedCompositeScore", "daysToExpiry"], ascending=[False, True]
+        )
+        final_recommendations = ranked_df.head(top_n)
+
+        logger.info(f"Moderate selection: {top_n} balanced recommendations")
+
+    return final_recommendations
+
+
+def recommend_bull_call_spread(
+    ticker: str, min_days: int = 180, top_n: int = 5, risk_tolerance: str = "Moderate"
+) -> pd.DataFrame:
+    """
+    Analyze bull call spread opportunities using comprehensive scoring.
+
+    Bull call spreads involve buying a lower strike call and selling a higher strike call
+    with the same expiration date. This strategy has limited risk and limited reward.
+
+    Args:
+        ticker: Stock ticker symbol
+        min_days: Minimum days to expiry
+        top_n: Number of top recommendations
+        risk_tolerance: Risk tolerance level ('Conservative', 'Moderate', 'Aggressive')
+
+    Returns:
+        pd.DataFrame: Top bull call spread recommendations with spread analysis
+    """
+    start_time = datetime.now()
+    logger.info(
+        f"Starting bull call spread analysis for {ticker} with {risk_tolerance} risk tolerance"
+    )
+
+    try:
+        # Get call options data
+        options_result = fetch_long_dated_calls(ticker, min_days_to_expiry=min_days)
+
+        if not options_result["data_available"]:
+            raise InsufficientDataError(f"No call options data available for {ticker}")
+
+        options_df = options_result["data"]
+        if options_df.empty:
+            raise InsufficientDataError(f"No call options found for {ticker}")
+
+        # Get current stock price for spread analysis
+        stock = yf.Ticker(ticker)
+        current_price = stock.info.get(
+            "currentPrice", stock.info.get("regularMarketPrice", 100)
+        )
+
+        # Generate bull call spreads with risk tolerance considerations
+        spreads_data = []
+
+        # Risk tolerance affects spread width and selection
+        if risk_tolerance == "Conservative":
+            max_spread_width = current_price * 0.10  # Narrower spreads
+            min_profit_ratio = 1.5  # Higher profit ratio required
+        elif risk_tolerance == "Aggressive":
+            max_spread_width = current_price * 0.20  # Wider spreads
+            min_profit_ratio = 1.0  # Lower profit ratio acceptable
+        else:  # Moderate
+            max_spread_width = current_price * 0.15  # Moderate spreads
+            min_profit_ratio = 1.2  # Moderate profit ratio
+
+        # Group by expiry date
+        for expiry_date in options_df["expiry"].unique():
+            expiry_options = options_df[
+                options_df["expiry"] == expiry_date
+            ].sort_values("strike")
+
+            # Create spreads (buy lower strike, sell higher strike)
+            for i in range(len(expiry_options) - 1):
+                long_call = expiry_options.iloc[i]  # Lower strike (buy)
+                for j in range(
+                    i + 1, min(i + 8, len(expiry_options))
+                ):  # Extended search
+                    short_call = expiry_options.iloc[j]  # Higher strike (sell)
+
+                    # Check spread width against risk tolerance
+                    spread_width = short_call["strike"] - long_call["strike"]
+                    if spread_width > max_spread_width:
+                        continue
+
+                    # Calculate spread metrics
+                    net_premium = long_call["lastPrice"] - short_call["lastPrice"]
+                    max_profit = spread_width - net_premium
+                    max_loss = net_premium
+                    break_even = long_call["strike"] + net_premium
+
+                    # Skip if net premium is negative (would be a credit spread)
+                    if net_premium <= 0:
+                        continue
+
+                    # Skip if max profit is negative
+                    if max_profit <= 0:
+                        continue
+
+                    # Calculate profit ratio and filter by risk tolerance
+                    profit_ratio = max_profit / net_premium if net_premium > 0 else 0
+                    if profit_ratio < min_profit_ratio:
+                        continue
+
+                    spreads_data.append(
+                        {
+                            "ticker": ticker,
+                            "expiry": expiry_date,
+                            "long_strike": long_call["strike"],
+                            "short_strike": short_call["strike"],
+                            "long_price": long_call["lastPrice"],
+                            "short_price": short_call["lastPrice"],
+                            "net_premium": net_premium,
+                            "max_profit": max_profit,
+                            "max_loss": max_loss,
+                            "break_even": break_even,
+                            "profit_ratio": profit_ratio,
+                            "spread_width": spread_width,
+                            "daysToExpiry": long_call["daysToExpiry"],
+                            "long_iv": long_call["impliedVolatility"],
+                            "short_iv": short_call["impliedVolatility"],
+                            "risk_tolerance_applied": risk_tolerance,
+                        }
+                    )
+
+        if not spreads_data:
+            raise InsufficientDataError(
+                f"No viable bull call spreads found for {ticker} with {risk_tolerance} criteria"
+            )
+
+        spreads_df = pd.DataFrame(spreads_data)
+
+        # Get technical scores (same as long calls)
+        stock_prices = fetch_price_history(ticker, period="1y")
+        spy_prices = fetch_price_history("SPY", period="1y")
+        (
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+        ) = compute_scores(ticker, stock_prices, spy_prices, options_df)
+
+        # Add technical indicators to spreads
+        spreads_df["RSI"] = rsi
+        spreads_df["Beta"] = beta
+        spreads_df["Momentum"] = momentum
+        spreads_df["IV"] = (spreads_df["long_iv"] + spreads_df["short_iv"]) / 2
+        spreads_df["ForecastConfidence"] = forecast_confidence
+
+        # Calculate composite score with spread-specific weighting and risk tolerance
+        spreads_df = _calculate_spread_composite_scores_with_risk_tolerance(
+            spreads_df,
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+            risk_tolerance,
+        )
+
+        # Apply risk tolerance to final selection
+        if risk_tolerance == "Conservative":
+            # Conservative: Prefer higher profit ratios and longer time
+            sort_cols = ["CompositeScore", "profit_ratio", "daysToExpiry"]
+            sort_asc = [False, False, False]
+            final_top_n = min(top_n, 5)
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Prefer higher potential returns
+            sort_cols = ["CompositeScore", "max_profit", "profit_ratio"]
+            sort_asc = [False, False, False]
+            final_top_n = min(top_n * 2, 10)
+        else:  # Moderate
+            sort_cols = ["CompositeScore", "profit_ratio"]
+            sort_asc = [False, False]
+            final_top_n = top_n
+
+        spreads_df = spreads_df.sort_values(sort_cols, ascending=sort_asc)
+
+        # Return top recommendations
+        result_df = spreads_df.head(final_top_n).reset_index(drop=True)
+
+        execution_time = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Bull call spread analysis completed for {ticker} with {risk_tolerance} risk tolerance in {execution_time:.2f}s"
+        )
+
+        return result_df
+
+    except Exception as e:
+        logger.error(f"Error in bull call spread analysis for {ticker}: {str(e)}")
+        raise OptionsAdvisorError(
+            f"Bull call spread analysis failed for {ticker}: {str(e)}"
+        )
+
+
+def _calculate_spread_composite_scores_with_risk_tolerance(
+    spreads_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+    risk_tolerance: str,
+) -> pd.DataFrame:
+    """Calculate composite scores for bull call spreads with risk tolerance adjustments."""
+    # Start with base spread scoring
+    scored_df = _calculate_spread_composite_scores(
+        spreads_df, rsi, beta, momentum, avg_iv, forecast_confidence, data_availability
+    )
+
+    # Apply risk tolerance specific adjustments
+    if risk_tolerance == "Conservative":
+        # Conservative: Favor higher profit ratios and lower risk
+        profit_ratio_boost = (
+            scored_df["profit_ratio"]
+            .apply(lambda x: min((x - 1.0) * 0.2, 0.3))  # Boost for profit ratio > 1.0
+            .clip(0, 0.3)
+        )
+
+        # Penalize very wide spreads (higher risk)
+        if "spread_width" in scored_df.columns:
+            width_penalty = scored_df["spread_width"].apply(
+                lambda x: min(x / (scored_df["spread_width"].mean() * 2) * 0.1, 0.2)
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + profit_ratio_boost - width_penalty
+            )
+        else:
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + profit_ratio_boost
+            )
+
+    elif risk_tolerance == "Aggressive":
+        # Aggressive: Favor higher absolute profit potential
+        max_profit_boost = (
+            scored_df["max_profit"]
+            .apply(lambda x: min(x / scored_df["max_profit"].mean() * 0.15, 0.25))
+            .clip(0, 0.25)
+        )
+        scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+            1 + max_profit_boost
+        )
+
+    # Ensure scores remain valid
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    return scored_df
+
+
+def recommend_covered_call(
+    ticker: str, min_days: int = 30, top_n: int = 5, risk_tolerance: str = "Moderate"
+) -> pd.DataFrame:
+    """
+    Analyze covered call opportunities for income generation.
+
+    Covered calls involve owning 100 shares of stock and selling call options against them.
+    This strategy generates income but caps upside potential.
+
+    Args:
+        ticker: Stock ticker symbol
+        min_days: Minimum days to expiry (shorter for covered calls)
+        top_n: Number of top recommendations
+        risk_tolerance: Risk tolerance level ('Conservative', 'Moderate', 'Aggressive')
+
+    Returns:
+        pd.DataFrame: Top covered call recommendations
+    """
+    start_time = datetime.now()
+    logger.info(
+        f"Starting covered call analysis for {ticker} with {risk_tolerance} risk tolerance"
+    )
+
+    try:
+        # Get call options data
+        options_result = fetch_long_dated_calls(ticker, min_days_to_expiry=min_days)
+
+        if not options_result["data_available"]:
+            raise InsufficientDataError(f"No call options data available for {ticker}")
+
+        options_df = options_result["data"]
+        if options_df.empty:
+            raise InsufficientDataError(f"No call options found for {ticker}")
+
+        # Get current stock price
+        stock = yf.Ticker(ticker)
+        current_price = stock.info.get(
+            "currentPrice", stock.info.get("regularMarketPrice", 100)
+        )
+
+        # Apply risk tolerance filtering for covered calls
+        if risk_tolerance == "Conservative":
+            # Conservative: Further out-of-the-money to reduce assignment risk
+            min_otm_pct = 0.05  # At least 5% OTM
+            max_otm_pct = 0.15  # No more than 15% OTM
+            min_yield_threshold = 0.005  # At least 0.5% premium yield
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Closer to the money for higher premiums
+            min_otm_pct = 0.0  # Can be ATM
+            max_otm_pct = 0.08  # No more than 8% OTM
+            min_yield_threshold = 0.015  # At least 1.5% premium yield
+        else:  # Moderate
+            min_otm_pct = 0.02  # At least 2% OTM
+            max_otm_pct = 0.12  # No more than 12% OTM
+            min_yield_threshold = 0.01  # At least 1% premium yield
+
+        # Filter for appropriate covered call candidates based on risk tolerance
+        covered_calls = options_df[
+            (options_df["strike"] >= current_price * (1 + min_otm_pct))
+            & (options_df["strike"] <= current_price * (1 + max_otm_pct))
+        ].copy()
+
+        if covered_calls.empty:
+            raise InsufficientDataError(
+                f"No suitable covered call options found for {ticker} with {risk_tolerance} criteria"
+            )
+
+        # Calculate covered call metrics
+        covered_calls["current_price"] = current_price
+        covered_calls["premium_yield"] = (
+            covered_calls["lastPrice"] / current_price
+        ) * 100
+        covered_calls["annualized_yield"] = (
+            covered_calls["premium_yield"] * 365
+        ) / covered_calls["daysToExpiry"]
+        covered_calls["upside_capture"] = (
+            (covered_calls["strike"] - current_price) / current_price
+        ) * 100
+        covered_calls["total_return"] = (
+            covered_calls["premium_yield"] + covered_calls["upside_capture"]
+        )
+        covered_calls["assignment_probability"] = covered_calls["strike"].apply(
+            lambda x: max(
+                0, min(1, (current_price - x) / current_price + 0.5)
+            )  # Rough estimate
+        )
+
+        # Filter by minimum yield threshold
+        covered_calls = covered_calls[
+            covered_calls["premium_yield"] >= min_yield_threshold * 100
+        ]
+
+        if covered_calls.empty:
+            raise InsufficientDataError(
+                f"No covered call options meet minimum yield requirements for {risk_tolerance}"
+            )
+
+        # Get technical scores
+        stock_prices = fetch_price_history(ticker, period="1y")
+        spy_prices = fetch_price_history("SPY", period="1y")
+        (
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+        ) = compute_scores(ticker, stock_prices, spy_prices, options_df)
+
+        # Add technical indicators
+        covered_calls["RSI"] = rsi
+        covered_calls["Beta"] = beta
+        covered_calls["Momentum"] = momentum
+        covered_calls["IV"] = covered_calls["impliedVolatility"]
+        covered_calls["ForecastConfidence"] = forecast_confidence
+        covered_calls["risk_tolerance_applied"] = risk_tolerance
+
+        # Calculate composite score for covered calls (emphasize income and lower volatility)
+        covered_calls = _calculate_covered_call_composite_scores_with_risk_tolerance(
+            covered_calls,
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+            risk_tolerance,
+        )
+
+        # Apply risk tolerance to final selection
+        if risk_tolerance == "Conservative":
+            # Conservative: Prefer lower assignment risk and consistent income
+            sort_cols = ["CompositeScore", "assignment_probability", "annualized_yield"]
+            sort_asc = [False, True, False]  # Lower assignment probability first
+            final_top_n = min(top_n, 5)
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Prefer higher income potential
+            sort_cols = ["CompositeScore", "annualized_yield", "total_return"]
+            sort_asc = [False, False, False]
+            final_top_n = min(top_n * 2, 8)
+        else:  # Moderate
+            sort_cols = ["CompositeScore", "annualized_yield"]
+            sort_asc = [False, False]
+            final_top_n = top_n
+
+        covered_calls = covered_calls.sort_values(sort_cols, ascending=sort_asc)
+
+        # Select relevant columns for display
+        result_columns = [
+            "ticker",
+            "strike",
+            "expiry",
+            "lastPrice",
+            "IV",
+            "RSI",
+            "Beta",
+            "Momentum",
+            "ForecastConfidence",
+            "CompositeScore",
+            "premium_yield",
+            "annualized_yield",
+            "upside_capture",
+            "total_return",
+            "assignment_probability",
+            "daysToExpiry",
+            "risk_tolerance_applied",
+        ]
+
+        available_columns = [
+            col for col in result_columns if col in covered_calls.columns
+        ]
+        result_df = (
+            covered_calls[available_columns].head(final_top_n).reset_index(drop=True)
+        )
+
+        execution_time = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Covered call analysis completed for {ticker} with {risk_tolerance} risk tolerance in {execution_time:.2f}s"
+        )
+
+        return result_df
+
+    except Exception as e:
+        logger.error(f"Error in covered call analysis for {ticker}: {str(e)}")
+        raise OptionsAdvisorError(
+            f"Covered call analysis failed for {ticker}: {str(e)}"
+        )
+
+
+def recommend_cash_secured_put(
+    ticker: str, min_days: int = 30, top_n: int = 5, risk_tolerance: str = "Moderate"
+) -> pd.DataFrame:
+    """
+    Analyze cash-secured put opportunities for income generation and potential stock acquisition.
+
+    Cash-secured puts involve selling put options while holding enough cash to buy
+    100 shares if assigned. This generates income and can result in stock acquisition at
+    a discount.
+
+    Args:
+        ticker: Stock ticker symbol
+        min_days: Minimum days to expiry
+        top_n: Number of top recommendations
+        risk_tolerance: Risk tolerance level ('Conservative', 'Moderate', 'Aggressive')
+
+    Returns:
+        pd.DataFrame: Top cash-secured put recommendations
+    """
+    start_time = datetime.now()
+    logger.info(
+        f"Starting cash-secured put analysis for {ticker} with {risk_tolerance} risk tolerance"
+    )
+
+    try:
+        # Get put options data
+        puts_result = fetch_put_options(ticker, min_days_to_expiry=min_days)
+
+        if not puts_result["data_available"]:
+            raise InsufficientDataError(f"No put options data available for {ticker}")
+
+        puts_df = puts_result["data"]
+        if puts_df.empty:
+            raise InsufficientDataError(f"No put options found for {ticker}")
+
+        # Get current stock price
+        stock = yf.Ticker(ticker)
+        current_price = stock.info.get(
+            "currentPrice", stock.info.get("regularMarketPrice", 100)
+        )
+
+        # Apply risk tolerance filtering for cash-secured puts
+        if risk_tolerance == "Conservative":
+            # Conservative: Further out-of-the-money to reduce assignment risk
+            min_otm_pct = 0.08  # At least 8% below current price
+            max_otm_pct = 0.25  # No more than 25% below
+            min_yield_threshold = 0.005  # At least 0.5% premium yield
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Closer to the money for higher premiums and potential stock acquisition
+            min_otm_pct = 0.02  # At least 2% below current price
+            max_otm_pct = 0.15  # No more than 15% below
+            min_yield_threshold = 0.015  # At least 1.5% premium yield
+        else:  # Moderate
+            min_otm_pct = 0.05  # At least 5% below current price
+            max_otm_pct = 0.20  # No more than 20% below
+            min_yield_threshold = 0.01  # At least 1% premium yield
+
+        # Filter for out-of-the-money puts (cash-secured put candidates)
+        cash_secured_puts = puts_df[
+            (puts_df["strike"] <= current_price * (1 - min_otm_pct))
+            & (puts_df["strike"] >= current_price * (1 - max_otm_pct))
+        ].copy()
+
+        if cash_secured_puts.empty:
+            raise InsufficientDataError(
+                f"No suitable cash-secured put options found for {ticker} with {risk_tolerance} criteria"
+            )
+
+        # Calculate cash-secured put metrics
+        cash_secured_puts["current_price"] = current_price
+        cash_secured_puts["premium_yield"] = (
+            cash_secured_puts["lastPrice"] / cash_secured_puts["strike"]
+        ) * 100
+        cash_secured_puts["annualized_yield"] = (
+            cash_secured_puts["premium_yield"] * 365
+        ) / cash_secured_puts["daysToExpiry"]
+        cash_secured_puts["assignment_discount"] = (
+            (current_price - cash_secured_puts["strike"]) / current_price
+        ) * 100
+        cash_secured_puts["effective_cost"] = (
+            cash_secured_puts["strike"] - cash_secured_puts["lastPrice"]
+        )
+        cash_secured_puts["discount_to_current"] = (
+            (current_price - cash_secured_puts["effective_cost"]) / current_price
+        ) * 100
+        cash_secured_puts["assignment_probability"] = cash_secured_puts["strike"].apply(
+            lambda x: max(
+                0, min(1, (x - current_price) / current_price + 0.5)
+            )  # Rough estimate
+        )
+
+        # Filter by minimum yield threshold
+        cash_secured_puts = cash_secured_puts[
+            cash_secured_puts["premium_yield"] >= min_yield_threshold * 100
+        ]
+
+        if cash_secured_puts.empty:
+            raise InsufficientDataError(
+                f"No cash-secured put options meet minimum yield requirements for {risk_tolerance}"
+            )
+
+        # Get technical scores (using call options for technical analysis)
+        calls_result = fetch_long_dated_calls(ticker, min_days_to_expiry=min_days)
+        if calls_result["data_available"]:
+            calls_df = calls_result["data"]
+        else:
+            calls_df = pd.DataFrame()  # Fallback for technical analysis
+
+        stock_prices = fetch_price_history(ticker, period="1y")
+        spy_prices = fetch_price_history("SPY", period="1y")
+        (
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+        ) = compute_scores(ticker, stock_prices, spy_prices, calls_df)
+
+        # Add technical indicators
+        cash_secured_puts["RSI"] = rsi
+        cash_secured_puts["Beta"] = beta
+        cash_secured_puts["Momentum"] = momentum
+        cash_secured_puts["IV"] = cash_secured_puts["impliedVolatility"]
+        cash_secured_puts["ForecastConfidence"] = forecast_confidence
+        cash_secured_puts["risk_tolerance_applied"] = risk_tolerance
+
+        # Calculate composite score for cash-secured puts
+        cash_secured_puts = _calculate_csp_composite_scores_with_risk_tolerance(
+            cash_secured_puts,
+            rsi,
+            beta,
+            momentum,
+            avg_iv,
+            forecast_confidence,
+            data_availability,
+            risk_tolerance,
+        )
+
+        # Apply risk tolerance to final selection
+        if risk_tolerance == "Conservative":
+            # Conservative: Prefer lower assignment risk and good entry points
+            sort_cols = [
+                "CompositeScore",
+                "assignment_probability",
+                "discount_to_current",
+            ]
+            sort_asc = [
+                False,
+                True,
+                False,
+            ]  # Lower assignment probability, higher discount
+            final_top_n = min(top_n, 5)
+        elif risk_tolerance == "Aggressive":
+            # Aggressive: Prefer higher income and willing to accept assignment
+            sort_cols = ["CompositeScore", "annualized_yield", "assignment_probability"]
+            sort_asc = [
+                False,
+                False,
+                False,
+            ]  # Higher yield, higher assignment probability OK
+            final_top_n = min(top_n * 2, 8)
+        else:  # Moderate
+            sort_cols = ["CompositeScore", "annualized_yield"]
+            sort_asc = [False, False]
+            final_top_n = top_n
+
+        cash_secured_puts = cash_secured_puts.sort_values(sort_cols, ascending=sort_asc)
+
+        # Select relevant columns for display
+        result_columns = [
+            "ticker",
+            "strike",
+            "expiry",
+            "lastPrice",
+            "IV",
+            "RSI",
+            "Beta",
+            "Momentum",
+            "ForecastConfidence",
+            "CompositeScore",
+            "premium_yield",
+            "annualized_yield",
+            "assignment_discount",
+            "effective_cost",
+            "discount_to_current",
+            "assignment_probability",
+            "daysToExpiry",
+            "risk_tolerance_applied",
+        ]
+
+        available_columns = [
+            col for col in result_columns if col in cash_secured_puts.columns
+        ]
+        result_df = (
+            cash_secured_puts[available_columns]
+            .head(final_top_n)
+            .reset_index(drop=True)
+        )
+
+        execution_time = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Cash-secured put analysis completed for {ticker} with {risk_tolerance} risk tolerance in {execution_time:.2f}s"
+        )
+
+        return result_df
+
+    except Exception as e:
+        logger.error(f"Error in cash-secured put analysis for {ticker}: {str(e)}")
+        raise OptionsAdvisorError(
+            f"Cash-secured put analysis failed for {ticker}: {str(e)}"
+        )
+
+
+def _calculate_covered_call_composite_scores_with_risk_tolerance(
+    covered_calls_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+    risk_tolerance: str,
+) -> pd.DataFrame:
+    """Calculate composite scores for covered calls with risk tolerance adjustments."""
+    # Start with base covered call scoring
+    scored_df = _calculate_covered_call_composite_scores(
+        covered_calls_df,
+        rsi,
+        beta,
+        momentum,
+        avg_iv,
+        forecast_confidence,
+        data_availability,
+    )
+
+    # Apply risk tolerance specific adjustments
+    if risk_tolerance == "Conservative":
+        # Conservative: Heavily weight assignment probability (lower is better)
+        if "assignment_probability" in scored_df.columns:
+            assignment_penalty = scored_df["assignment_probability"].apply(
+                lambda x: x * 0.3  # High penalty for high assignment probability
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 - assignment_penalty
+            )
+
+        # Boost for longer time to expiry
+        if "daysToExpiry" in scored_df.columns:
+            time_boost = scored_df["daysToExpiry"].apply(
+                lambda days: min(0.2, days / 90 * 0.1)  # Boost for longer time
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + time_boost)
+
+    elif risk_tolerance == "Aggressive":
+        # Aggressive: Boost higher yields even with higher assignment risk
+        if "annualized_yield" in scored_df.columns:
+            yield_boost = scored_df["annualized_yield"].apply(
+                lambda x: min(x / 50.0, 0.3)  # Boost for higher yields
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + yield_boost
+            )
+
+        # Less penalty for assignment probability
+        if "assignment_probability" in scored_df.columns:
+            assignment_bonus = scored_df["assignment_probability"].apply(
+                lambda x: x
+                * 0.1  # Small bonus for higher assignment probability (willing to sell)
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + assignment_bonus
+            )
+
+    # Ensure scores remain valid
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    return scored_df
+
+
+def _calculate_csp_composite_scores_with_risk_tolerance(
+    csp_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+    risk_tolerance: str,
+) -> pd.DataFrame:
+    """Calculate composite scores for cash-secured puts with risk tolerance adjustments."""
+    # Start with base CSP scoring
+    scored_df = _calculate_csp_composite_scores(
+        csp_df, rsi, beta, momentum, avg_iv, forecast_confidence, data_availability
+    )
+
+    # Apply risk tolerance specific adjustments
+    if risk_tolerance == "Conservative":
+        # Conservative: Favor lower assignment probability and better entry discounts
+        if "assignment_probability" in scored_df.columns:
+            assignment_penalty = scored_df["assignment_probability"].apply(
+                lambda x: x * 0.25  # Penalty for high assignment probability
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 - assignment_penalty
+            )
+
+        # Boost for better entry discounts
+        if "discount_to_current" in scored_df.columns:
+            discount_boost = scored_df["discount_to_current"].apply(
+                lambda x: min(x / 20.0, 0.2)  # Boost for higher discount
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + discount_boost
+            )
+
+    elif risk_tolerance == "Aggressive":
+        # Aggressive: Favor higher yields and willing to accept assignment
+        if "annualized_yield" in scored_df.columns:
+            yield_boost = scored_df["annualized_yield"].apply(
+                lambda x: min(x / 40.0, 0.3)  # Strong boost for higher yields
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + yield_boost
+            )
+
+        # Assignment probability is less of a concern (willing to own stock)
+        if "assignment_probability" in scored_df.columns:
+            assignment_bonus = scored_df["assignment_probability"].apply(
+                lambda x: x * 0.05  # Small bonus for assignment (want to own stock)
+            )
+            scored_df["CompositeScore"] = scored_df["CompositeScore"] * (
+                1 + assignment_bonus
+            )
+
+    # Ensure scores remain valid
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    return scored_df
+
+
+def analyze_options_strategy(
+    strategy_type: str,
+    ticker: str,
+    min_days: int = 180,
+    top_n: int = 5,
+    risk_tolerance: str = "Moderate",
+    time_horizon: str = "Medium-term (3-6 months)",
+) -> pd.DataFrame:
+    """
+    Main strategy dispatcher that routes to the appropriate options analysis function.
+
+    Args:
+        strategy_type: Options strategy to analyze
+        ticker: Stock ticker symbol
+        min_days: Minimum days to expiry
+        top_n: Number of recommendations
+        risk_tolerance: Risk tolerance level
+        time_horizon: Investment time horizon
+
+    Returns:
+        pd.DataFrame: Strategy-specific recommendations
+
+    Raises:
+        OptionsAdvisorError: If strategy is not supported or analysis fails
+    """
+    start_time = datetime.now()
+    logger.info(f"Analyzing {strategy_type} strategy for {ticker}")
+
+    # Validate strategy type
+    supported_strategies = [
+        "Long Calls",
+        "Bull Call Spread",
+        "Covered Call",
+        "Cash-Secured Put",
+    ]
+
+    if strategy_type not in supported_strategies:
+        raise OptionsAdvisorError(
+            f"Unsupported strategy: {strategy_type}. Supported: {supported_strategies}"
+        )
+
+    # Adjust parameters based on strategy and risk tolerance
+    if strategy_type in ["Covered Call", "Cash-Secured Put"]:
+        # Shorter timeframes for income strategies
+        if min_days > 90:
+            min_days = min(90, min_days)
+            logger.info(f"Adjusted min_days to {min_days} for {strategy_type} strategy")
+
+    # Risk tolerance adjustments
+    if risk_tolerance == "Conservative":
+        min_days = max(min_days, 60)  # Longer timeframes for conservative
+    elif risk_tolerance == "Aggressive":
+        top_n = min(top_n * 2, 10)  # More options for aggressive traders
+
+    try:
+        # Route to appropriate strategy function
+        if strategy_type == "Long Calls":
+            recommendations = recommend_long_calls(
+                ticker, min_days, top_n, risk_tolerance
+            )
+        elif strategy_type == "Bull Call Spread":
+            recommendations = recommend_bull_call_spread(
+                ticker, min_days, top_n, risk_tolerance
+            )
+        elif strategy_type == "Covered Call":
+            recommendations = recommend_covered_call(
+                ticker, min_days, top_n, risk_tolerance
+            )
+        elif strategy_type == "Cash-Secured Put":
+            recommendations = recommend_cash_secured_put(
+                ticker, min_days, top_n, risk_tolerance
+            )
+        else:
+            raise OptionsAdvisorError(f"Strategy dispatcher error: {strategy_type}")
+
+        # Add strategy metadata
+        if not recommendations.empty:
+            recommendations["strategy_type"] = strategy_type
+            recommendations["risk_tolerance"] = risk_tolerance
+            recommendations["time_horizon"] = time_horizon
+            recommendations["analysis_date"] = datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        execution_time = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Strategy analysis completed for {strategy_type} on {ticker} in {execution_time:.2f}s"
+        )
+
+        return recommendations
+
+    except (OptionsAdvisorError, InsufficientDataError):
+        # Re-raise our custom exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in strategy analysis: {str(e)}", exc_info=True)
+        raise OptionsAdvisorError(
+            f"Strategy analysis failed for {strategy_type} on {ticker}: {str(e)}"
+        )
+
+
+def _calculate_covered_call_composite_scores(
+    covered_calls_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+) -> pd.DataFrame:
+    """Calculate base composite scores for covered calls (emphasize income and stability)."""
+    scored_df = covered_calls_df.copy()
+
+    # Normalize weights - for covered calls, we want lower volatility and higher income
+    available_sources = [k for k, v in data_availability.items() if v]
+    normalized_weights = normalize_scoring_weights(SCORING_WEIGHTS, available_sources)
+
+    # Calculate individual scores (adjusted for covered call strategy)
+    score_components = {}
+
+    if data_availability["rsi"]:
+        # For covered calls, moderate RSI is preferred (not oversold)
+        rsi_score = _normalize_score(rsi, 30, 70, invert=False) if rsi < 70 else 0.3
+        score_components["rsi"] = rsi_score
+
+    if data_availability["beta"]:
+        # Lower beta preferred for covered calls (less volatility)
+        beta_score = _normalize_score(beta, 0.5, 1.2, invert=True)
+        score_components["beta"] = beta_score
+
+    if data_availability["momentum"]:
+        # Slight positive momentum is good, but not too aggressive
+        momentum_score = _normalize_score(momentum, -0.05, 0.05, invert=False)
+        score_components["momentum"] = momentum_score
+
+    if data_availability["forecast"]:
+        # Moderate forecast confidence (don't want too bullish for covered calls)
+        forecast_score = min(forecast_confidence, 0.7)  # Cap at 0.7
+        score_components["forecast"] = forecast_score
+
+    # Calculate IV score
+    if data_availability["iv"]:
+        # Higher IV is better for covered calls (more premium income)
+        scored_df["iv_score"] = scored_df["IV"].apply(
+            lambda iv: _normalize_score(iv, avg_iv * 0.8, avg_iv * 1.5, invert=False)
+        )
+    else:
+        scored_df["iv_score"] = 0.5
+
+    # Calculate composite score
+    scored_df["CompositeScore"] = 0.0
+
+    for source, weight in normalized_weights.items():
+        if source == "iv":
+            scored_df["CompositeScore"] += weight * scored_df["iv_score"]
+        elif source in score_components:
+            scored_df["CompositeScore"] += weight * score_components[source]
+
+    # Boost score based on annualized yield
+    if "annualized_yield" in scored_df.columns:
+        yield_boost = scored_df["annualized_yield"].apply(
+            lambda x: min(x / 50.0, 0.3)
+        )  # Cap boost at 0.3
+        scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + yield_boost)
+
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    # Add score details
+    scored_df["score_details"] = scored_df.apply(
+        lambda row: {
+            k: v for k, v in normalized_weights.items() if k in available_sources
+        },
+        axis=1,
+    )
+
+    return scored_df
+
+
+def _calculate_csp_composite_scores(
+    csp_df: pd.DataFrame,
+    rsi: float,
+    beta: float,
+    momentum: float,
+    avg_iv: float,
+    forecast_confidence: float,
+    data_availability: dict[str, bool],
+) -> pd.DataFrame:
+    """Calculate base composite scores for cash-secured puts."""
+    scored_df = csp_df.copy()
+
+    # Normalize weights
+    available_sources = [k for k, v in data_availability.items() if v]
+    normalized_weights = normalize_scoring_weights(SCORING_WEIGHTS, available_sources)
+
+    # Calculate individual scores (adjusted for CSP strategy)
+    score_components = {}
+
+    if data_availability["rsi"]:
+        # For CSPs, slightly oversold is good (better entry point)
+        rsi_score = _normalize_score(rsi, 20, 60, invert=True)
+        score_components["rsi"] = rsi_score
+
+    if data_availability["beta"]:
+        # Moderate beta for CSPs
+        beta_score = _normalize_score(beta, 0.7, 1.3, invert=False)
+        score_components["beta"] = beta_score
+
+    if data_availability["momentum"]:
+        # Slight negative momentum can be good for CSPs (potential bounce)
+        momentum_score = _normalize_score(momentum, -0.1, 0.05, invert=True)
+        score_components["momentum"] = momentum_score
+
+    if data_availability["forecast"]:
+        # Good forecast confidence for eventual stock ownership
+        score_components["forecast"] = forecast_confidence
+
+    # Calculate IV score
+    if data_availability["iv"]:
+        # Higher IV is better for CSPs (more premium income)
+        scored_df["iv_score"] = scored_df["IV"].apply(
+            lambda iv: _normalize_score(iv, avg_iv * 0.8, avg_iv * 1.5, invert=False)
+        )
+    else:
+        scored_df["iv_score"] = 0.5
+
+    # Calculate composite score
+    scored_df["CompositeScore"] = 0.0
+
+    for source, weight in normalized_weights.items():
+        if source == "iv":
+            scored_df["CompositeScore"] += weight * scored_df["iv_score"]
+        elif source in score_components:
+            scored_df["CompositeScore"] += weight * score_components[source]
+
+    # Boost score based on annualized yield and discount
+    if "annualized_yield" in scored_df.columns:
+        yield_boost = scored_df["annualized_yield"].apply(lambda x: min(x / 40.0, 0.2))
+    else:
+        yield_boost = 0
+
+    if "discount_to_current" in scored_df.columns:
+        discount_boost = scored_df["discount_to_current"].apply(
+            lambda x: min(x / 20.0, 0.2)
+        )
+    else:
+        discount_boost = 0
+
+    total_boost = yield_boost + discount_boost
+
+    scored_df["CompositeScore"] = scored_df["CompositeScore"] * (1 + total_boost)
+    scored_df["CompositeScore"] = scored_df["CompositeScore"].clip(0, 1)
+
+    # Add score details
+    scored_df["score_details"] = scored_df.apply(
+        lambda row: {
+            k: v for k, v in normalized_weights.items() if k in available_sources
+        },
+        axis=1,
+    )
+
+    return scored_df
