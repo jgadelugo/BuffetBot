@@ -15,9 +15,25 @@ class MetricDefinition(TypedDict):
     """Type definition for a financial metric entry."""
 
     name: str
-    category: Literal["growth", "value", "health", "risk"]
+    category: Literal["growth", "value", "health", "risk", "options"]
     description: str
     formula: str
+
+
+class OptionsStrategyDefinition(TypedDict):
+    """Type definition for an options strategy entry."""
+
+    name: str
+    category: Literal["options"]
+    description: str
+    objective: str
+    market_outlook: str
+    risk_profile: str
+    default_weights: dict[str, float]
+    weights_rationale: str
+    max_profit: str
+    max_loss: str
+    breakeven: str
 
 
 GLOSSARY: dict[str, MetricDefinition] = {
@@ -225,10 +241,303 @@ GLOSSARY: dict[str, MetricDefinition] = {
     },
 }
 
+# Options Strategies Glossary
+OPTIONS_STRATEGIES: dict[str, OptionsStrategyDefinition] = {
+    # Single-leg strategies
+    "long_calls": {
+        "name": "Long Calls",
+        "category": "options",
+        "description": "Buying call options to profit from upward price movement. This is a bullish strategy that provides leveraged exposure to stock appreciation with limited downside risk.",
+        "objective": "Profit from significant upward price movement with limited risk",
+        "market_outlook": "Bullish - expecting stock price to rise significantly",
+        "risk_profile": "Limited risk (premium paid), unlimited profit potential",
+        "default_weights": {
+            "rsi": 0.25,
+            "beta": 0.15,
+            "momentum": 0.25,
+            "iv": 0.15,
+            "forecast": 0.20,
+        },
+        "weights_rationale": "Emphasizes RSI (25%) and momentum (25%) for timing entry on oversold conditions with strong upward momentum. Moderate forecast weight (20%) for directional conviction. Lower IV weight (15%) as high volatility increases cost.",
+        "max_profit": "Unlimited (Stock Price - Strike Price - Premium Paid)",
+        "max_loss": "Limited to premium paid",
+        "breakeven": "Strike Price + Premium Paid",
+    },
+    "long_puts": {
+        "name": "Long Puts",
+        "category": "options",
+        "description": "Buying put options to profit from downward price movement. This is a bearish strategy that provides leveraged exposure to stock decline with limited downside risk.",
+        "objective": "Profit from significant downward price movement with limited risk",
+        "market_outlook": "Bearish - expecting stock price to fall significantly",
+        "risk_profile": "Limited risk (premium paid), high profit potential",
+        "default_weights": {
+            "rsi": 0.30,
+            "beta": 0.20,
+            "momentum": 0.20,
+            "iv": 0.15,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Highest RSI weight (30%) to identify overbought conditions for optimal entry. Moderate beta (20%) and momentum (20%) for market correlation analysis. Lower forecast weight (15%) as puts benefit from unexpected declines.",
+        "max_profit": "Strike Price - Premium Paid (when stock goes to $0)",
+        "max_loss": "Limited to premium paid",
+        "breakeven": "Strike Price - Premium Paid",
+    },
+    "covered_call": {
+        "name": "Covered Call",
+        "category": "options",
+        "description": "Selling call options against owned stock to generate income. This income strategy reduces cost basis while limiting upside if stock rises above strike price.",
+        "objective": "Generate additional income from stock holdings while providing some downside protection",
+        "market_outlook": "Neutral to slightly bullish - expecting stock to stay below strike price",
+        "risk_profile": "Reduced stock risk due to premium income, but limited upside potential",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.25,
+            "momentum": 0.15,
+            "iv": 0.30,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Emphasizes IV (30%) for higher premium collection and beta (25%) for stable, less volatile stocks. Lower RSI (15%) and momentum (15%) as strategy works best in sideways markets.",
+        "max_profit": "Premium Received + (Strike Price - Stock Purchase Price) if called away",
+        "max_loss": "Stock Purchase Price - Premium Received (if stock goes to $0)",
+        "breakeven": "Stock Purchase Price - Premium Received",
+    },
+    "cash_secured_put": {
+        "name": "Cash-Secured Put",
+        "category": "options",
+        "description": "Selling put options while holding enough cash to buy the stock if assigned. This strategy generates income while potentially acquiring stock at a discount.",
+        "objective": "Generate income while potentially acquiring stock at a target price",
+        "market_outlook": "Neutral to bullish - willing to own stock at strike price",
+        "risk_profile": "Moderate risk - potential to own stock at strike price, premium provides some protection",
+        "default_weights": {
+            "rsi": 0.25,
+            "beta": 0.20,
+            "momentum": 0.15,
+            "iv": 0.25,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Higher RSI (25%) and IV (25%) for selling puts on oversold stocks with high premiums. Moderate beta (20%) for stock selection, lower momentum (15%) as strategy benefits from mean reversion.",
+        "max_profit": "Premium Received",
+        "max_loss": "Strike Price - Premium Received (if stock goes to $0)",
+        "breakeven": "Strike Price - Premium Received",
+    },
+    # Vertical spreads
+    "bull_call_spread": {
+        "name": "Bull Call Spread",
+        "category": "options",
+        "description": "Buying a lower strike call and selling a higher strike call with same expiration. This reduces cost and risk compared to long calls but caps profit potential.",
+        "objective": "Profit from moderate upward price movement with defined risk and reward",
+        "market_outlook": "Moderately bullish - expecting stock to rise to target level",
+        "risk_profile": "Limited risk and reward - both maximum profit and loss are defined",
+        "default_weights": {
+            "rsi": 0.20,
+            "beta": 0.20,
+            "momentum": 0.20,
+            "iv": 0.20,
+            "forecast": 0.20,
+        },
+        "weights_rationale": "Equal weights (20% each) provide balanced analysis suitable for moderate directional plays. No single factor dominates as strategy has defined risk/reward parameters.",
+        "max_profit": "Difference in Strike Prices - Net Premium Paid",
+        "max_loss": "Net Premium Paid",
+        "breakeven": "Lower Strike Price + Net Premium Paid",
+    },
+    "bear_put_spread": {
+        "name": "Bear Put Spread",
+        "category": "options",
+        "description": "Buying a higher strike put and selling a lower strike put with same expiration. This reduces cost compared to long puts but limits profit potential.",
+        "objective": "Profit from moderate downward price movement with defined risk and reward",
+        "market_outlook": "Moderately bearish - expecting stock to decline to target level",
+        "risk_profile": "Limited risk and reward - both maximum profit and loss are defined",
+        "default_weights": {
+            "rsi": 0.30,
+            "beta": 0.15,
+            "momentum": 0.20,
+            "iv": 0.20,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Higher RSI weight (30%) for identifying overbought entry points. Lower beta (15%) and forecast (15%) as bearish spreads work well during market stress periods.",
+        "max_profit": "Difference in Strike Prices - Net Premium Paid",
+        "max_loss": "Net Premium Paid",
+        "breakeven": "Higher Strike Price - Net Premium Paid",
+    },
+    "bull_put_spread": {
+        "name": "Bull Put Spread",
+        "category": "options",
+        "description": "Selling a higher strike put and buying a lower strike put with same expiration. This generates income while limiting downside risk.",
+        "objective": "Generate income while maintaining bullish exposure with limited risk",
+        "market_outlook": "Bullish - expecting stock to stay above higher strike price",
+        "risk_profile": "Limited risk, limited reward - net credit received upfront",
+        "default_weights": {
+            "rsi": 0.20,
+            "beta": 0.25,
+            "momentum": 0.15,
+            "iv": 0.25,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Emphasizes IV (25%) for higher credit collection and beta (25%) for stable stocks. Lower momentum (15%) as strategy benefits from stable price action.",
+        "max_profit": "Net Premium Received",
+        "max_loss": "Difference in Strike Prices - Net Premium Received",
+        "breakeven": "Higher Strike Price - Net Premium Received",
+    },
+    "bear_call_spread": {
+        "name": "Bear Call Spread",
+        "category": "options",
+        "description": "Selling a lower strike call and buying a higher strike call with same expiration. This generates income while maintaining bearish exposure.",
+        "objective": "Generate income from bearish outlook with limited risk",
+        "market_outlook": "Bearish - expecting stock to stay below lower strike price",
+        "risk_profile": "Limited risk, limited reward - net credit received upfront",
+        "default_weights": {
+            "rsi": 0.25,
+            "beta": 0.15,
+            "momentum": 0.20,
+            "iv": 0.25,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Higher RSI (25%) and IV (25%) for selling calls on overbought stocks with high premiums. Lower beta (15%) as strategy works well during high volatility periods.",
+        "max_profit": "Net Premium Received",
+        "max_loss": "Difference in Strike Prices - Net Premium Received",
+        "breakeven": "Lower Strike Price + Net Premium Received",
+    },
+    # Income strategies
+    "iron_condor": {
+        "name": "Iron Condor",
+        "category": "options",
+        "description": "Combination of bull put spread and bear call spread. This market-neutral strategy profits from low volatility and time decay when stock stays within a range.",
+        "objective": "Generate income from time decay in low volatility, range-bound markets",
+        "market_outlook": "Neutral - expecting stock to trade within defined range",
+        "risk_profile": "Limited risk and reward - profits from time decay and low volatility",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.30,
+            "momentum": 0.10,
+            "iv": 0.35,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "Highest IV weight (35%) as strategy benefits from selling high volatility and profiting from volatility decline. High beta weight (30%) for stable, predictable stocks. Low momentum (10%) as strategy requires range-bound action.",
+        "max_profit": "Net Premium Received",
+        "max_loss": "Width of Wider Spread - Net Premium Received",
+        "breakeven": "Two breakeven points: Put Strike - Net Credit and Call Strike + Net Credit",
+    },
+    "iron_butterfly": {
+        "name": "Iron Butterfly",
+        "category": "options",
+        "description": "Combination of bull put spread and bear call spread centered at same strike price. This strategy profits when stock stays very close to center strike.",
+        "objective": "Generate income from minimal price movement around center strike",
+        "market_outlook": "Neutral - expecting stock to stay very close to current price",
+        "risk_profile": "Limited risk and reward - requires precise price prediction",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.25,
+            "momentum": 0.15,
+            "iv": 0.35,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "Highest IV weight (35%) for volatility selling. Moderate beta (25%) for stable stocks. Lower momentum (15%) and forecast (10%) as strategy requires minimal price movement.",
+        "max_profit": "Net Premium Received",
+        "max_loss": "Strike Width - Net Premium Received",
+        "breakeven": "Two points: Center Strike ± Net Premium Received",
+    },
+    "calendar_spread": {
+        "name": "Calendar Spread",
+        "category": "options",
+        "description": "Selling near-term option and buying longer-term option at same strike. This strategy profits from time decay acceleration and volatility differences between expirations.",
+        "objective": "Profit from time decay differences and volatility changes between expirations",
+        "market_outlook": "Neutral - expecting stock to stay near strike price until near-term expiration",
+        "risk_profile": "Limited risk - maximum loss is net premium paid",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.20,
+            "momentum": 0.10,
+            "iv": 0.40,
+            "forecast": 0.15,
+        },
+        "weights_rationale": "Highest IV weight (40%) as strategy is most sensitive to volatility changes. Lower momentum (10%) as strategy benefits from stable prices. Moderate forecast (15%) for timing expiration cycles.",
+        "max_profit": "Varies based on volatility and time decay",
+        "max_loss": "Net Premium Paid",
+        "breakeven": "Complex - depends on volatility and time to expiration",
+    },
+    # Volatility strategies
+    "long_straddle": {
+        "name": "Long Straddle",
+        "category": "options",
+        "description": "Buying call and put options at same strike and expiration. This strategy profits from large price movements in either direction, requiring high volatility.",
+        "objective": "Profit from large price movements in either direction",
+        "market_outlook": "Neutral direction, expecting high volatility and significant price movement",
+        "risk_profile": "Limited risk (premium paid), unlimited profit potential in either direction",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.15,
+            "momentum": 0.20,
+            "iv": 0.40,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "Highest IV weight (40%) as strategy requires buying volatility cheaply. Moderate momentum (20%) for identifying potential breakout candidates. Lower directional weights as strategy is direction-neutral.",
+        "max_profit": "Unlimited in either direction",
+        "max_loss": "Total Premium Paid",
+        "breakeven": "Two points: Strike Price ± Total Premium Paid",
+    },
+    "long_strangle": {
+        "name": "Long Strangle",
+        "category": "options",
+        "description": "Buying out-of-the-money call and put options with same expiration. Lower cost than straddle but requires larger price movements for profitability.",
+        "objective": "Profit from large price movements in either direction at lower cost than straddle",
+        "market_outlook": "Neutral direction, expecting very high volatility and large price movement",
+        "risk_profile": "Limited risk (premium paid), unlimited profit potential with larger breakeven range",
+        "default_weights": {
+            "rsi": 0.15,
+            "beta": 0.15,
+            "momentum": 0.20,
+            "iv": 0.40,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "Similar to straddle - highest IV weight (40%) for volatility analysis. Momentum (20%) helps identify potential large moves. Direction-neutral weighting for RSI, beta, and forecast.",
+        "max_profit": "Unlimited in either direction",
+        "max_loss": "Total Premium Paid",
+        "breakeven": "Two points: Call Strike + Total Premium and Put Strike - Total Premium",
+    },
+    "short_straddle": {
+        "name": "Short Straddle",
+        "category": "options",
+        "description": "Selling call and put options at same strike and expiration. This strategy profits from low volatility and minimal price movement, collecting time decay.",
+        "objective": "Generate income from time decay and volatility decline",
+        "market_outlook": "Neutral - expecting low volatility and price stability",
+        "risk_profile": "Limited profit (premium received), unlimited risk in either direction",
+        "default_weights": {
+            "rsi": 0.20,
+            "beta": 0.25,
+            "momentum": 0.15,
+            "iv": 0.30,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "High IV weight (30%) for selling overpriced volatility. Higher beta (25%) for stable, predictable stocks. Lower momentum (15%) as strategy requires minimal price movement.",
+        "max_profit": "Total Premium Received",
+        "max_loss": "Unlimited in either direction",
+        "breakeven": "Two points: Strike Price ± Total Premium Received",
+    },
+    "short_strangle": {
+        "name": "Short Strangle",
+        "category": "options",
+        "description": "Selling out-of-the-money call and put options with same expiration. Safer than short straddle with defined range for profitability but lower premium collected.",
+        "objective": "Generate income with wider profit range than short straddle",
+        "market_outlook": "Neutral - expecting stock to stay between strike prices",
+        "risk_profile": "Limited profit (premium received), very high risk outside strikes",
+        "default_weights": {
+            "rsi": 0.20,
+            "beta": 0.25,
+            "momentum": 0.15,
+            "iv": 0.30,
+            "forecast": 0.10,
+        },
+        "weights_rationale": "Similar to short straddle - high IV (30%) for premium collection, higher beta (25%) for stability. Lower momentum (15%) and forecast (10%) as strategy benefits from range-bound markets.",
+        "max_profit": "Total Premium Received",
+        "max_loss": "Unlimited beyond breakeven points",
+        "breakeven": "Two points: Put Strike - Premium and Call Strike + Premium",
+    },
+}
+
 
 def get_metrics_by_category(
-    category: Literal["growth", "value", "health", "risk"]
-) -> dict[str, MetricDefinition]:
+    category: Literal["growth", "value", "health", "risk", "options"]
+) -> dict[str, MetricDefinition] | dict[str, OptionsStrategyDefinition]:
     """
     Filter metrics by category.
 
@@ -238,6 +547,8 @@ def get_metrics_by_category(
     Returns:
         Dictionary of metrics in the specified category
     """
+    if category == "options":
+        return OPTIONS_STRATEGIES
     return {k: v for k, v in GLOSSARY.items() if v["category"] == category}
 
 
@@ -248,7 +559,118 @@ def get_metric_names() -> dict[str, str]:
     Returns:
         Dictionary mapping metric keys to display names
     """
-    return {k: v["name"] for k, v in GLOSSARY.items()}
+    names = {k: v["name"] for k, v in GLOSSARY.items()}
+    names.update({k: v["name"] for k, v in OPTIONS_STRATEGIES.items()})
+    return names
+
+
+def get_all_definitions() -> dict[str, MetricDefinition | OptionsStrategyDefinition]:
+    """
+    Get all metric and strategy definitions.
+
+    Returns:
+        Dictionary of all definitions
+    """
+    all_definitions = GLOSSARY.copy()
+    all_definitions.update(OPTIONS_STRATEGIES)
+    return all_definitions
+
+
+def get_options_strategy_info(strategy_key: str) -> OptionsStrategyDefinition:
+    """
+    Get detailed information about a specific options strategy.
+
+    Args:
+        strategy_key: The key of the strategy to look up
+
+    Returns:
+        OptionsStrategyDefinition: Complete strategy information
+
+    Raises:
+        KeyError: If the strategy key is not found
+    """
+    if strategy_key not in OPTIONS_STRATEGIES:
+        available_strategies = ", ".join(OPTIONS_STRATEGIES.keys())
+        raise KeyError(
+            f"Strategy '{strategy_key}' not found. Available strategies: {available_strategies}"
+        )
+    return OPTIONS_STRATEGIES[strategy_key]
+
+
+def search_options_strategies(search_term: str) -> dict[str, OptionsStrategyDefinition]:
+    """
+    Search for options strategies by name or description.
+
+    Args:
+        search_term: Term to search for (case-insensitive)
+
+    Returns:
+        Dictionary of matching strategies
+    """
+    search_term = search_term.lower()
+    matches = {}
+
+    for key, strategy in OPTIONS_STRATEGIES.items():
+        if (
+            search_term in strategy["name"].lower()
+            or search_term in strategy["description"].lower()
+            or search_term in strategy["objective"].lower()
+            or search_term in strategy["market_outlook"].lower()
+        ):
+            matches[key] = strategy
+
+    return matches
+
+
+def get_strategies_by_outlook(
+    outlook: Literal["bullish", "bearish", "neutral"]
+) -> dict[str, OptionsStrategyDefinition]:
+    """
+    Get options strategies filtered by market outlook.
+
+    Args:
+        outlook: Market outlook to filter by
+
+    Returns:
+        Dictionary of strategies matching the outlook
+    """
+    outlook_keywords = {
+        "bullish": ["bullish", "bull"],
+        "bearish": ["bearish", "bear"],
+        "neutral": ["neutral", "range-bound", "low volatility"],
+    }
+
+    keywords = outlook_keywords.get(outlook, [])
+    matches = {}
+
+    for key, strategy in OPTIONS_STRATEGIES.items():
+        market_outlook = strategy["market_outlook"].lower()
+        if any(keyword in market_outlook for keyword in keywords):
+            matches[key] = strategy
+
+    return matches
+
+
+def get_strategies_by_risk_profile(
+    risk_level: Literal["limited", "unlimited", "moderate"]
+) -> dict[str, OptionsStrategyDefinition]:
+    """
+    Get options strategies filtered by risk profile.
+
+    Args:
+        risk_level: Risk level to filter by
+
+    Returns:
+        Dictionary of strategies matching the risk profile
+    """
+    matches = {}
+
+    for key, strategy in OPTIONS_STRATEGIES.items():
+        risk_profile = strategy["risk_profile"].lower()
+        if risk_level.lower() in risk_profile:
+            matches[key] = strategy
+
+    return matches
 
 
 def search_metrics(search_term: str) -> dict[str, MetricDefinition]:
