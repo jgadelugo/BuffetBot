@@ -226,8 +226,12 @@ def normalize_scoring_weights(
         >>> # Result: {"rsi": 0.25, "beta": 0.25, "momentum": 0.25, "iv": 0.25}
     """
     if not available_sources:
-        logger.error("No available data sources for weight normalization")
-        return {}
+        logger.warning(
+            "No available data sources for weight normalization - using fallback neutral scoring"
+        )
+        # Return a fallback that can be used for neutral scoring
+        # This prevents the analysis from completely failing
+        return {"neutral": 1.0}
 
     if len(available_sources) == 1:
         # Only one source available, give it 100% weight
@@ -493,13 +497,22 @@ def _calculate_composite_scores(
     # Calculate composite score for each option using normalized weights
     scored_df["CompositeScore"] = 0.0
 
-    for source, weight in normalized_weights.items():
-        if source == "iv":
-            # IV is calculated per option
-            scored_df["CompositeScore"] += weight * scored_df["iv_score"]
-        elif source in score_components:
-            # Other indicators are the same for all options of this ticker
-            scored_df["CompositeScore"] += weight * score_components[source]
+    # Handle the special case where no data sources are available (neutral fallback)
+    if "neutral" in normalized_weights:
+        # Use neutral scoring (0.5) for all options when no data is available
+        scored_df["CompositeScore"] = 0.5
+        logger.warning(
+            f"Using neutral scoring (0.5) for all options due to lack of data sources"
+        )
+    else:
+        # Normal scoring with available data sources
+        for source, weight in normalized_weights.items():
+            if source == "iv":
+                # IV is calculated per option
+                scored_df["CompositeScore"] += weight * scored_df["iv_score"]
+            elif source in score_components:
+                # Other indicators are the same for all options of this ticker
+                scored_df["CompositeScore"] += weight * score_components[source]
 
     # Add score details metadata to each row
     score_details = {source: weight for source, weight in normalized_weights.items()}
