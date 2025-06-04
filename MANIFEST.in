@@ -9,11 +9,19 @@ include requirements.txt
 include pyproject.toml
 include setup.cfg
 include .editorconfig
+include .flake8
+
+# Include requirements and config directories
+recursive-include requirements *.txt *.md
+recursive-include config .*
 
 # Include web UI files
-include glossary_web.html
-include GlossaryComponent.jsx
-include GlossaryComponent.css
+include ui/web/glossary.html
+include ui/react/GlossaryComponent.jsx
+include ui/react/GlossaryComponent.css
+
+# Include scripts directory
+recursive-include scripts *.py *.sh
 
 # Include example and test data
 recursive-include examples *.py *.md
@@ -36,3 +44,5 @@ prune htmlcov
 prune node_modules
 prune venv
 prune .venv
+prune cache
+prune logs

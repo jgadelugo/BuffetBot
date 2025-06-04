@@ -30,15 +30,26 @@ clean:  ## Clean up build artifacts and cache files
 
 install:  ## Install project dependencies
 	$(PIP) install --upgrade pip setuptools wheel
-	$(PIP) install -r requirements.txt
+	$(PIP) install -r requirements/base.txt
 	@echo "✅ Dependencies installed"
 
 install-dev:  ## Install development dependencies
 	$(PIP) install --upgrade pip setuptools wheel
-	$(PIP) install -r requirements.txt
+	$(PIP) install -r requirements/base.txt
+	$(PIP) install -r requirements/dev.txt
 	$(PIP) install -e ".[dev]"
 	pre-commit install
 	@echo "✅ Development dependencies installed"
+
+install-test:  ## Install test dependencies
+	$(PIP) install -r requirements/base.txt
+	$(PIP) install -r requirements/test.txt
+	@echo "✅ Test dependencies installed"
+
+install-prod:  ## Install production dependencies for Streamlit
+	$(PIP) install -r requirements/base.txt
+	$(PIP) install -r requirements/prod.txt
+	@echo "✅ Production dependencies installed"
 
 test:  ## Run tests
 	$(PYTHON) -m pytest tests/ -v
@@ -101,8 +112,9 @@ docs:  ## Build documentation
 	cd docs && make html
 	@echo "📚 Documentation built in docs/_build/html/"
 
-requirements:  ## Update requirements.txt from pyproject.toml
-	pip-compile pyproject.toml -o requirements.txt --resolver=backtracking
+requirements:  ## Update requirements files from pyproject.toml
+	pip-compile pyproject.toml -o requirements/base.txt --resolver=backtracking
+	@echo "📦 Requirements updated in requirements/ directory"
 
 check-all: format-check lint type-check security test  ## Run all checks
 

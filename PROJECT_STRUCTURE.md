@@ -87,14 +87,28 @@ BuffetBot/
 │       ├── logger.py               # Logging utilities
 │       ├── options_math.py         # Options mathematical calculations
 │       └── validators.py           # Data validation
-│
+
+├── requirements/                   # Dependency specifications
+│   ├── README.md                   # Requirements directory documentation
+│   ├── base.txt                    # Core dependencies for all environments
+│   ├── dev.txt                     # Development dependencies (testing, linting)
+│   ├── test.txt                    # Testing-specific dependencies
+│   └── prod.txt                    # Production dependencies for Streamlit
+
+├── config/                         # Configuration files
+│   ├── README.md                   # Configuration directory documentation
+│   ├── .editorconfig               # Editor configuration for consistent style
+│   └── .flake8                     # Python linting configuration
+
 ├── scripts/                        # Utility scripts
 │   ├── run_app.py                  # Application runner
 │   ├── run_dashboard.py            # Dashboard runner
+│   ├── run_dashboard.sh            # Shell script for dashboard
+│   ├── stop_dashboard.sh           # Shell script to stop dashboard
 │   ├── run_tests.py                # Simple test runner
 │   ├── run_tests_main.py           # Comprehensive test runner
 │   └── remove_path_setup.py        # Path cleanup utility
-│
+
 ├── tests/                          # Test suite
 │   ├── __init__.py
 │   ├── conftest.py                 # pytest configuration and fixtures
@@ -103,14 +117,14 @@ BuffetBot/
 │   ├── integration/                # Integration tests
 │   ├── fixtures/                   # Test fixtures
 │   └── README.md                   # Testing documentation
-│
+
 ├── examples/                       # Example scripts
 │   ├── __init__.py
 │   ├── example_integration.py      # Integration example
 │   ├── ecosystem_demo.py           # Ecosystem analysis demo
 │   ├── data_status_demo.py         # Data status demo
 │   └── README.md                   # Examples documentation
-│
+
 ├── ui/                             # User interface implementations
 │   ├── streamlit/                  # Streamlit web app
 │   │   └── glossary_app.py
@@ -119,37 +133,52 @@ BuffetBot/
 │   └── react/                      # React components
 │       ├── GlossaryComponent.jsx
 │       └── GlossaryComponent.css
-│
+
 ├── docs/                           # Documentation
-│   ├── glossary/                   # Glossary-specific docs
-│   │   ├── README.md               # Glossary documentation
-│   │   └── ui_implementations.md   # UI implementations guide
-│   └── ...                         # Other documentation
-│
+│   ├── deployment/                 # Deployment documentation
+│   │   ├── DEPLOYMENT.md           # Deployment instructions
+│   │   └── RUNNING_THE_APP.md      # Application running guide
+│   ├── development/                # Development documentation
+│   │   └── CONFIGURATION_FILES.md  # Configuration files overview
+│   ├── prompts/                    # AI/LLM prompts and instructions
+│   │   ├── MODULARIZATION_PROMPT.md
+│   │   ├── ORGANIZE_DOCS_PROMPT.md
+│   │   └── REFACTORING_PROMPT.txt
+│   └── glossary/                   # Glossary-specific docs
+│       ├── README.md               # Glossary documentation
+│       └── ui_implementations.md   # UI implementations guide
+
 ├── data/                           # Data directory (gitignored)
 ├── logs/                           # Log files (gitignored)
 ├── cache/                          # Cache directory (gitignored)
-└── archive/                        # Archived files
+├── archive/                        # Archived files
+│
+├── requirements.txt                # Symlink to requirements/base.txt (backward compatibility)
+├── requirements-streamlit.txt      # Symlink to requirements/prod.txt (backward compatibility)
+├── .editorconfig                   # Symlink to config/.editorconfig (tool compatibility)
+├── .flake8                         # Symlink to config/.flake8 (tool compatibility)
+└── run_dashboard.sh                # Symlink to scripts/run_dashboard.sh (backward compatibility)
 
 ## Configuration Files
 
-### Root Directory Files
+### Root Directory Files (Essential)
 
 - `.gitignore` - Version control ignore patterns
-- `.editorconfig` - Editor configuration for consistent coding style
 - `.pre-commit-config.yaml` - Pre-commit hooks configuration
 - `.python-version` - Python version specification for pyenv
 - `pyproject.toml` - Modern Python project configuration
 - `setup.cfg` - Additional tool configurations
 - `setup.py` - Minimal setup script for compatibility
 - `Makefile` - Development automation commands
-- `requirements.txt` - Project dependencies
-- `requirements-dev.txt` - Development dependencies
-- `requirements-test.txt` - Testing dependencies
-- `requirements-streamlit.txt` - Streamlit dependencies
 - `env.example` - Environment variables template
 - `MANIFEST.in` - Package distribution configuration
 - `main.py` - Main entry point for Streamlit deployment
+
+### Organized Dependencies & Configuration
+
+- `requirements/` - All dependency specifications organized by environment
+- `config/` - Tool-specific configuration files
+- Symlinks maintained for backward compatibility
 
 ### Documentation Files
 
@@ -158,19 +187,19 @@ BuffetBot/
 - `CONTRIBUTING.md` - Contribution guidelines
 - `CHANGELOG.md` - Version history
 - `PROJECT_STRUCTURE.md` - This file
-- `CONFIGURATION_FILES.md` - Configuration files overview
-- `DEPLOYMENT.md` - Deployment instructions
-- `RUNNING_THE_APP.md` - Application running guide
 
 ## Key Features
 
 1. **Package Structure**: Main code organized under `buffetbot/` package
-2. **Separation of Concerns**: UI, tests, examples, and docs in separate directories
-3. **Configuration Management**: All config files in root with clear documentation
-4. **Development Tools**: Pre-configured linting, formatting, and testing
-5. **Multiple UI Options**: Streamlit, standalone HTML, and React components
-6. **Utility Scripts**: Consolidated in `scripts/` directory
-7. **Modular Architecture**: Clear separation of analysis, data, dashboard, and utilities
+2. **Organized Dependencies**: Requirements split by environment in `requirements/` directory
+3. **Centralized Configuration**: Tool configs organized in `config/` directory
+4. **Separation of Concerns**: UI, tests, examples, and docs in separate directories
+5. **Development Tools**: Pre-configured linting, formatting, and testing
+6. **Multiple UI Options**: Streamlit, standalone HTML, and React components
+7. **Utility Scripts**: Consolidated in `scripts/` directory
+8. **Modular Architecture**: Clear separation of analysis, data, dashboard, and utilities
+9. **Organized Documentation**: Structured docs with deployment, development, and prompt sections
+10. **Backward Compatibility**: Symlinks maintain compatibility with existing tools and workflows
 
 ## Development Workflow
 
@@ -180,6 +209,34 @@ BuffetBot/
 4. Run linting: `make lint`
 5. Run Streamlit app: `python scripts/run_dashboard.py` or `./run_dashboard.sh`
 6. Run examples: `python examples/example_integration.py`
+
+## Dependency Management
+
+### Installing Dependencies
+
+```bash
+# Development environment
+make install-dev
+
+# Production environment
+make install-prod
+
+# Test environment only
+make install-test
+
+# Base dependencies only
+make install
+```
+
+### Managing Requirements
+
+```bash
+# Update requirements from pyproject.toml
+make requirements
+
+# Install specific environment
+pip install -r requirements/dev.txt
+```
 
 ## Import Examples
 
@@ -209,10 +266,33 @@ This structure follows Python packaging best practices and makes the project mai
    - `run_dashboard.py` → `scripts/run_dashboard.py`
    - `run_tests.py` → `scripts/run_tests_main.py`
    - `remove_path_setup.py` → `scripts/remove_path_setup.py`
-4. **Updated `buffetbot/__init__.py`** to include glossary exports
-5. **Cleaned up root directory** by removing misplaced files
-6. **Updated all import statements** across the codebase
-7. **Updated shell script** `run_dashboard.sh` to use new script location
-8. **Verified tests still pass** after reorganization
+   - `run_dashboard.sh` → `scripts/run_dashboard.sh`
+   - `stop_dashboard.sh` → `scripts/stop_dashboard.sh`
+4. **Organized documentation** into structured `docs/` directory:
+   - `deployment/` - Deployment and running instructions
+   - `development/` - Development configuration docs
+   - `prompts/` - AI/LLM prompts and refactoring instructions
+   - `glossary/` - Glossary-specific documentation
+5. **Organized requirements** into `requirements/` directory:
+   - `base.txt` - Core dependencies
+   - `dev.txt` - Development dependencies
+   - `test.txt` - Testing dependencies
+   - `prod.txt` - Production/Streamlit dependencies
+6. **Organized configuration** into `config/` directory:
+   - `.editorconfig` - Editor configuration
+   - `.flake8` - Linting configuration
+7. **Updated `buffetbot/__init__.py`** to include glossary exports
+8. **Cleaned up root directory** by removing misplaced files
+9. **Updated all import statements** across the codebase
+10. **Created backward compatibility symlinks** for existing workflows
+11. **Updated Makefile** with new dependency management commands
+12. **Verified tests still pass** after reorganization
 
-The project now follows proper Python packaging conventions with all business logic contained within the `buffetbot` package and utility scripts properly organized in the `scripts` directory.
+The project now follows exemplary Python packaging conventions with:
+- Clean root directory with only essential configuration files
+- Organized dependencies by environment in `requirements/` directory
+- Centralized tool configuration in `config/` directory
+- All business logic contained within the `buffetbot` package
+- Utility scripts properly organized in `scripts/` directory
+- Comprehensive documentation structure in `docs/` directory
+- Backward compatibility maintained through symlinks

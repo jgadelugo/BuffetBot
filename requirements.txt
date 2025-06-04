@@ -1,9 +1,1 @@
-# Essential dependencies for BuffetBot Dashboard on Streamlit Cloud
-streamlit
-pandas
-numpy
-scipy
-yfinance
-plotly
-matplotlib
-requests
+requirements/base.txt
