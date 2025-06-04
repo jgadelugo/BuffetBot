@@ -455,13 +455,49 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                             """
                             )
 
-                    # Get scoring weights for display
+                    # Get scoring weights for display and methodology
                     if analysis_settings["use_custom_weights"]:
                         current_weights = analysis_settings["custom_scoring_weights"]
                         st.info("📊 Using custom scoring weights")
                     else:
                         scoring_weights = get_scoring_weights()
                         current_weights = scoring_weights
+
+                    # Extract actual weights used in scoring from recommendations for methodology
+                    actual_weights_for_methodology = current_weights  # Default fallback
+                    if (
+                        not recommendations.empty
+                        and "score_details" in recommendations.columns
+                    ):
+                        # Get actual weights from the first recommendation's score_details
+                        first_score_details = recommendations.iloc[0]["score_details"]
+                        if isinstance(first_score_details, dict):
+                            try:
+                                from buffetbot.analysis.options_advisor import (
+                                    get_scoring_indicator_names,
+                                )
+
+                                all_indicator_names = set(get_scoring_indicator_names())
+                                # Extract only the actual scoring indicators (not metadata)
+                                actual_weights_for_methodology = {
+                                    k: v
+                                    for k, v in first_score_details.items()
+                                    if k in all_indicator_names
+                                }
+                            except ImportError:
+                                # Fallback to known indicators if import fails
+                                known_indicators = {
+                                    "rsi",
+                                    "beta",
+                                    "momentum",
+                                    "iv",
+                                    "forecast",
+                                }
+                                actual_weights_for_methodology = {
+                                    k: v
+                                    for k, v in first_score_details.items()
+                                    if k in known_indicators
+                                }
 
                     # Create a table with metric-aware headers
                     st.markdown("#### Options Recommendations")
@@ -484,8 +520,8 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                         strategy_type, recommendations, ticker, risk_tolerance
                     )
 
-                    # Enhanced methodology explanation
-                    render_enhanced_methodology()
+                    # Enhanced methodology explanation with actual weights used
+                    render_enhanced_methodology(actual_weights_for_methodology)
 
                     # CSV download section
                     if download_csv:
@@ -1649,31 +1685,46 @@ def render_strategy_insights(
             )
 
 
-def render_enhanced_methodology() -> None:
-    """Render enhanced methodology explanation."""
+def render_enhanced_methodology(current_weights: dict = None) -> None:
+    """Render enhanced methodology explanation with dynamic weights."""
+
+    # Get default weights if none provided
+    if current_weights is None:
+        try:
+            from buffetbot.analysis.options_advisor import get_scoring_weights
+
+            current_weights = get_scoring_weights()
+        except ImportError:
+            current_weights = {
+                "rsi": 0.20,
+                "beta": 0.20,
+                "momentum": 0.20,
+                "iv": 0.20,
+                "forecast": 0.20,
+            }
 
     with st.expander("🔬 Enhanced Analysis Methodology", expanded=False):
         st.markdown(
-            """
+            f"""
         **Technical Scoring Components:**
 
-        1. **RSI Analysis (20% weight):**
+        1. **RSI Analysis ({current_weights.get('rsi', 0.20):.0%} weight):**
            - Identifies overbought/oversold conditions
            - Optimal range: 30-70 for entry points
 
-        2. **Beta Analysis (20% weight):**
+        2. **Beta Analysis ({current_weights.get('beta', 0.20):.0%} weight):**
            - Measures stock correlation with market
            - Higher beta = more volatility and option premium
 
-        3. **Momentum Analysis (20% weight):**
+        3. **Momentum Analysis ({current_weights.get('momentum', 0.20):.0%} weight):**
            - Price trend strength over multiple timeframes
            - Positive momentum favors call options
 
-        4. **Implied Volatility Analysis (20% weight):**
+        4. **Implied Volatility Analysis ({current_weights.get('iv', 0.20):.0%} weight):**
            - Current IV vs historical levels
            - Higher IV = higher option prices
 
-        5. **Forecast Analysis (20% weight):**
+        5. **Forecast Analysis ({current_weights.get('forecast', 0.20):.0%} weight):**
            - Analyst forecast confidence
            - Higher forecast = higher confidence in the recommendation
 

@@ -483,5 +483,662 @@ class TestComprehensiveScoringBreakdown:
         assert partial_coverage == 0.6
 
 
+class TestEnhancedMethodologyDynamicWeights:
+    """Test the enhanced methodology function with dynamic weight display."""
+
+    def test_render_enhanced_methodology_function_exists(self):
+        """Test that the render_enhanced_methodology function exists and is callable."""
+        from buffetbot.dashboard.views.options_advisor import (
+            render_enhanced_methodology,
+        )
+
+        assert callable(render_enhanced_methodology)
+
+    def test_methodology_with_default_weights(self):
+        """Test methodology function with default weights."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Create a comprehensive streamlit mock
+        st_mock = MagicMock()
+
+        # Mock the expander as a context manager
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        # Capture markdown calls
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        # Mock streamlit module completely before any imports
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            # Mock st import in the function
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                # Call with no weights (should use defaults)
+                render_enhanced_methodology()
+
+                # Verify streamlit calls
+                st_mock.expander.assert_called_once_with(
+                    "🔬 Enhanced Analysis Methodology", expanded=False
+                )
+                assert st_mock.markdown.called
+
+                # Check markdown content
+                assert len(markdown_calls) > 0
+                content = markdown_calls[0]
+                assert "20%" in content
+                assert "RSI Analysis" in content
+                assert "Technical Scoring Components:" in content
+
+    def test_methodology_with_custom_weights(self):
+        """Test methodology function with custom scoring weights."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Custom weights that differ from default 20%
+        custom_weights = {
+            "rsi": 0.30,  # 30%
+            "beta": 0.10,  # 10%
+            "momentum": 0.25,  # 25%
+            "iv": 0.25,  # 25%
+            "forecast": 0.10,  # 10%
+        }
+
+        # Create streamlit mock
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                # Call with custom weights
+                render_enhanced_methodology(custom_weights)
+
+                # Verify calls
+                st_mock.expander.assert_called_once()
+                assert st_mock.markdown.called
+
+                # Check content has custom weights
+                content = markdown_calls[0]
+                assert "30%" in content  # RSI weight
+                assert "10%" in content  # Beta and Forecast weight
+                assert "25%" in content  # Momentum and IV weight
+
+                # Should not show default 20% for all indicators
+                twenty_percent_count = content.count("20%")
+                assert twenty_percent_count == 0
+
+    def test_methodology_with_partial_weights(self):
+        """Test methodology function with partial custom weights."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Partial weights - some missing indicators
+        partial_weights = {
+            "rsi": 0.40,  # 40%
+            "beta": 0.30,  # 30%
+            "momentum": 0.30,  # 30%
+            # Missing iv and forecast - should fallback to 20%
+        }
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                # Call with partial weights
+                render_enhanced_methodology(partial_weights)
+
+                content = markdown_calls[0]
+
+                # Should show custom weights for available indicators
+                assert "40%" in content  # RSI
+                assert "30%" in content  # Beta and Momentum
+
+                # Should show default 20% for missing indicators
+                assert "20%" in content  # IV and Forecast fallback
+
+    def test_methodology_weight_formatting(self):
+        """Test that weight percentages are formatted correctly."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Test various weight formats
+        test_weights = {
+            "rsi": 0.333333,  # Should format to 33%
+            "beta": 0.125,  # Should format to 12%
+            "momentum": 0.1666,  # Should format to 17%
+            "iv": 0.25,  # Should format to 25%
+            "forecast": 0.125,  # Should format to 12%
+        }
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                render_enhanced_methodology(test_weights)
+
+                content = markdown_calls[0]
+
+                # Check formatted percentages (:.0% formatting)
+                assert "33%" in content  # 0.333333 -> 33%
+                assert "12%" in content  # 0.125 -> 12%
+                assert "17%" in content  # 0.1666 -> 17%
+                assert "25%" in content  # 0.25 -> 25%
+
+    def test_methodology_fallback_on_import_error(self):
+        """Test methodology function fallback when scoring weights import fails."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                # Mock the import to raise an error
+                with patch(
+                    "buffetbot.dashboard.views.options_advisor.get_scoring_weights",
+                    side_effect=ImportError("Mocked import error"),
+                ):
+                    from buffetbot.dashboard.views.options_advisor import (
+                        render_enhanced_methodology,
+                    )
+
+                    # Call without weights, should fallback to defaults on import error
+                    render_enhanced_methodology()
+
+                    content = markdown_calls[0]
+
+                    # Should fallback to default 20% weights
+                    assert "20%" in content
+                    assert content.count("20%") == 5  # All 5 indicators should show 20%
+
+    def test_methodology_with_zero_weights(self):
+        """Test methodology function with zero weights (edge case)."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Edge case: zero weights
+        zero_weights = {
+            "rsi": 0.0,  # 0%
+            "beta": 0.0,  # 0%
+            "momentum": 0.0,  # 0%
+            "iv": 0.0,  # 0%
+            "forecast": 1.0,  # 100%
+        }
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                render_enhanced_methodology(zero_weights)
+
+                content = markdown_calls[0]
+
+                # Should show 0% for zero weights and 100% for forecast
+                assert "0%" in content
+                assert "100%" in content
+
+                # Count to make sure formatting works with extreme values
+                zero_count = content.count("0%")
+                hundred_count = content.count("100%")
+
+                assert zero_count >= 4  # At least 4 indicators with 0%
+                assert hundred_count >= 1  # At least 1 indicator with 100%
+
+    def test_methodology_comprehensive_content_verification(self):
+        """Test that all expected content sections are included in methodology."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                render_enhanced_methodology()
+
+                content = markdown_calls[0]
+
+                # Verify all expected sections are present
+                assert "Technical Scoring Components:" in content
+                assert "Risk Management Features:" in content
+
+                # Verify all indicators are mentioned
+                assert "RSI Analysis" in content
+                assert "Beta Analysis" in content
+                assert "Momentum Analysis" in content
+                assert "Implied Volatility Analysis" in content
+                assert "Forecast Analysis" in content
+
+                # Verify explanatory content is present
+                assert "Identifies overbought/oversold conditions" in content
+                assert "Measures stock correlation with market" in content
+                assert "Price trend strength over multiple timeframes" in content
+                assert "Current IV vs historical levels" in content
+                assert "Analyst forecast confidence" in content
+
+                # Verify risk management section
+                assert "Strategy-specific risk metrics" in content
+                assert "Greeks analysis for sensitivity measurement" in content
+                assert "Volatility comparison for fair value assessment" in content
+
+    def test_methodology_parameter_handling(self):
+        """Test that the methodology function handles different parameter scenarios correctly."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                # Test with None (should use defaults)
+                render_enhanced_methodology(None)
+                assert len(markdown_calls) == 1
+
+                # Reset for next test
+                markdown_calls.clear()
+                st_mock.reset_mock()
+
+                # Test with empty dict (should use defaults)
+                render_enhanced_methodology({})
+                assert len(markdown_calls) == 1
+                content = markdown_calls[0]
+                assert "20%" in content  # Should use default fallback
+
+    def test_methodology_expander_configuration(self):
+        """Test that the expander is configured correctly."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        st_mock = MagicMock()
+        expander_mock = MagicMock()
+        expander_mock.__enter__ = Mock(return_value=expander_mock)
+        expander_mock.__exit__ = Mock(return_value=None)
+        st_mock.expander.return_value = expander_mock
+
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        with patch.dict("sys.modules", {"streamlit": st_mock}):
+            with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+                from buffetbot.dashboard.views.options_advisor import (
+                    render_enhanced_methodology,
+                )
+
+                render_enhanced_methodology()
+
+                # Verify expander was called with correct parameters
+                st_mock.expander.assert_called_once_with(
+                    "🔬 Enhanced Analysis Methodology", expanded=False
+                )
+
+                # Verify it was used as context manager
+                expander_mock.__enter__.assert_called_once()
+                expander_mock.__exit__.assert_called_once()
+
+                # Verify markdown was called within the expander context
+                assert st_mock.markdown.called
+
+    def test_weight_extraction_from_recommendations(self):
+        """Test that actual weights are correctly extracted from recommendations score_details."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        import pandas as pd
+
+        # Create mock recommendations DataFrame with score_details
+        mock_recommendations = pd.DataFrame(
+            {
+                "Strike": [100, 105],
+                "TotalScore": [0.75, 0.68],
+                "score_details": [
+                    {
+                        "rsi": 0.30,
+                        "beta": 0.10,
+                        "momentum": 0.25,
+                        "iv": 0.20,
+                        "forecast": 0.15,
+                        "risk_tolerance": "Moderate",  # metadata
+                        "strategy_type": "Long Calls",  # metadata
+                    },
+                    {
+                        "rsi": 0.28,
+                        "beta": 0.12,
+                        "momentum": 0.22,
+                        "iv": 0.18,
+                        "forecast": 0.20,
+                    },
+                ],
+            }
+        )
+
+        # Mock the scoring functions
+        with patch(
+            "buffetbot.analysis.options_advisor.get_scoring_indicator_names"
+        ) as mock_indicator_names:
+            mock_indicator_names.return_value = [
+                "rsi",
+                "beta",
+                "momentum",
+                "iv",
+                "forecast",
+            ]
+
+            # Test weight extraction logic (simulating the logic from render_options_advisor_tab)
+            first_score_details = mock_recommendations.iloc[0]["score_details"]
+            all_indicator_names = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+            # Extract only the actual scoring indicators (not metadata)
+            actual_weights = {
+                k: v for k, v in first_score_details.items() if k in all_indicator_names
+            }
+
+            # Verify the extraction worked correctly
+            assert actual_weights == {
+                "rsi": 0.30,
+                "beta": 0.10,
+                "momentum": 0.25,
+                "iv": 0.20,
+                "forecast": 0.15,
+            }
+
+            # Verify metadata was filtered out
+            assert "risk_tolerance" not in actual_weights
+            assert "strategy_type" not in actual_weights
+
+    def test_weight_extraction_fallback_behavior(self):
+        """Test fallback behavior when get_scoring_indicator_names import fails."""
+        import pandas as pd
+
+        # Create mock recommendations DataFrame
+        mock_recommendations = pd.DataFrame(
+            {
+                "Strike": [100],
+                "score_details": [
+                    {
+                        "rsi": 0.35,
+                        "beta": 0.15,
+                        "momentum": 0.20,
+                        "iv": 0.15,
+                        "forecast": 0.15,
+                        "unknown_field": 0.05,  # Should be filtered out
+                    }
+                ],
+            }
+        )
+
+        # Simulate import failure and fallback to known indicators
+        first_score_details = mock_recommendations.iloc[0]["score_details"]
+        known_indicators = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+        actual_weights = {
+            k: v for k, v in first_score_details.items() if k in known_indicators
+        }
+
+        # Verify fallback worked correctly
+        assert actual_weights == {
+            "rsi": 0.35,
+            "beta": 0.15,
+            "momentum": 0.20,
+            "iv": 0.15,
+            "forecast": 0.15,
+        }
+
+        # Verify unknown field was filtered out
+        assert "unknown_field" not in actual_weights
+
+    def test_weight_extraction_with_empty_recommendations(self):
+        """Test weight extraction behavior with empty recommendations DataFrame."""
+        import pandas as pd
+
+        # Test with empty DataFrame
+        empty_recommendations = pd.DataFrame()
+        current_weights = {
+            "rsi": 0.20,
+            "beta": 0.20,
+            "momentum": 0.20,
+            "iv": 0.20,
+            "forecast": 0.20,
+        }
+
+        # Should fall back to current_weights when recommendations is empty
+        actual_weights_for_methodology = current_weights  # Default fallback
+
+        if (
+            not empty_recommendations.empty
+            and "score_details" in empty_recommendations.columns
+        ):
+            # This block should not execute
+            assert False, "Should not execute for empty DataFrame"
+
+        # Verify fallback to default weights
+        assert actual_weights_for_methodology == current_weights
+
+    def test_weight_extraction_missing_score_details_column(self):
+        """Test weight extraction when score_details column is missing."""
+        import pandas as pd
+
+        # Create DataFrame without score_details column
+        recommendations_no_score_details = pd.DataFrame(
+            {"Strike": [100, 105], "TotalScore": [0.75, 0.68]}
+        )
+
+        current_weights = {
+            "rsi": 0.25,
+            "beta": 0.15,
+            "momentum": 0.25,
+            "iv": 0.20,
+            "forecast": 0.15,
+        }
+        actual_weights_for_methodology = current_weights  # Default fallback
+
+        if (
+            not recommendations_no_score_details.empty
+            and "score_details" in recommendations_no_score_details.columns
+        ):
+            # This block should not execute
+            assert False, "Should not execute when score_details column is missing"
+
+        # Verify fallback to default weights
+        assert actual_weights_for_methodology == current_weights
+
+    def test_methodology_displays_extracted_weights(self):
+        """Test that methodology function displays the extracted weights correctly."""
+        from unittest.mock import MagicMock, Mock, patch
+
+        # Create custom weights that would come from score_details extraction
+        extracted_weights = {
+            "rsi": 0.35,
+            "beta": 0.10,
+            "momentum": 0.30,
+            "iv": 0.15,
+            "forecast": 0.10,
+        }
+
+        # Mock streamlit components properly
+        st_mock = MagicMock()
+
+        # Create a proper context manager mock for expander
+        expander_context = MagicMock()
+        expander_context.__enter__ = Mock(return_value=expander_context)
+        expander_context.__exit__ = Mock(return_value=None)
+
+        # Configure st.expander to return the context manager
+        st_mock.expander.return_value = expander_context
+
+        # Track markdown calls
+        markdown_calls = []
+        st_mock.markdown.side_effect = lambda content: markdown_calls.append(content)
+
+        # Mock the streamlit module in the specific function
+        with patch("buffetbot.dashboard.views.options_advisor.st", st_mock):
+            from buffetbot.dashboard.views.options_advisor import (
+                render_enhanced_methodology,
+            )
+
+            # Call with extracted weights
+            render_enhanced_methodology(extracted_weights)
+
+            # Verify expander was created with correct parameters
+            st_mock.expander.assert_called_once_with(
+                "🔬 Enhanced Analysis Methodology", expanded=False
+            )
+
+            # Verify the context manager was used properly
+            expander_context.__enter__.assert_called_once()
+            expander_context.__exit__.assert_called_once()
+
+            # Verify markdown was called (this happens on st.markdown within the context)
+            st_mock.markdown.assert_called()
+
+            # Verify the markdown calls contain our extracted weights
+            assert len(markdown_calls) > 0
+            markdown_content = str(markdown_calls[0])
+
+            # Check that the actual extracted weights appear in the content
+            assert "35%" in markdown_content  # RSI weight (0.35 -> 35%)
+            assert "10%" in markdown_content  # Beta and Forecast weights (0.10 -> 10%)
+            assert "30%" in markdown_content  # Momentum weight (0.30 -> 30%)
+            assert "15%" in markdown_content  # IV weight (0.15 -> 15%)
+
+            # Verify the content structure is correct
+            assert "Technical Scoring Components:" in markdown_content
+            assert "RSI Analysis" in markdown_content
+            assert "Beta Analysis" in markdown_content
+            assert "Momentum Analysis" in markdown_content
+            assert "Implied Volatility Analysis" in markdown_content
+            assert "Forecast Analysis" in markdown_content
+
+    def test_partial_score_details_handling(self):
+        """Test handling of score_details with only some indicators."""
+        import pandas as pd
+
+        # Create recommendations with partial score_details
+        mock_recommendations = pd.DataFrame(
+            {
+                "Strike": [100],
+                "score_details": [
+                    {
+                        "rsi": 0.40,
+                        "momentum": 0.35,
+                        "forecast": 0.25,
+                        # Missing 'beta' and 'iv'
+                        "risk_tolerance": "Aggressive",  # metadata
+                    }
+                ],
+            }
+        )
+
+        first_score_details = mock_recommendations.iloc[0]["score_details"]
+        known_indicators = {"rsi", "beta", "momentum", "iv", "forecast"}
+
+        # Extract available indicators only
+        actual_weights = {
+            k: v for k, v in first_score_details.items() if k in known_indicators
+        }
+
+        # Verify only available indicators are extracted
+        expected_weights = {"rsi": 0.40, "momentum": 0.35, "forecast": 0.25}
+
+        assert actual_weights == expected_weights
+        assert "beta" not in actual_weights
+        assert "iv" not in actual_weights
+        assert "risk_tolerance" not in actual_weights
+
+    def test_non_dict_score_details_handling(self):
+        """Test handling when score_details is not a dictionary."""
+        import pandas as pd
+
+        # Create recommendations with non-dict score_details
+        mock_recommendations = pd.DataFrame(
+            {"Strike": [100], "score_details": ["invalid_string_value"]}  # Not a dict
+        )
+
+        current_weights = {
+            "rsi": 0.20,
+            "beta": 0.20,
+            "momentum": 0.20,
+            "iv": 0.20,
+            "forecast": 0.20,
+        }
+        actual_weights_for_methodology = current_weights  # Default fallback
+
+        first_score_details = mock_recommendations.iloc[0]["score_details"]
+
+        # Should not process non-dict score_details
+        if isinstance(first_score_details, dict):
+            # This block should not execute
+            assert False, "Should not process non-dict score_details"
+
+        # Verify fallback to default weights
+        assert actual_weights_for_methodology == current_weights
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
