@@ -523,7 +523,10 @@ def _calculate_composite_scores(
 
 
 def recommend_long_calls(
-    ticker: str, min_days: int = 180, top_n: int = 5, risk_tolerance: str = "Moderate"
+    ticker: str,
+    min_days: int = 180,
+    top_n: int = 5,
+    risk_tolerance: str = "Conservative",
 ) -> pd.DataFrame:
     """
     Analyze long-dated call options and recommend the best ones using comprehensive scoring.
@@ -1273,7 +1276,10 @@ def _apply_final_risk_tolerance_selection(
 
 
 def recommend_bull_call_spread(
-    ticker: str, min_days: int = 180, top_n: int = 5, risk_tolerance: str = "Moderate"
+    ticker: str,
+    min_days: int = 180,
+    top_n: int = 5,
+    risk_tolerance: str = "Conservative",
 ) -> pd.DataFrame:
     """
     Analyze bull call spread opportunities using comprehensive scoring.
@@ -1514,7 +1520,10 @@ def _calculate_spread_composite_scores_with_risk_tolerance(
 
 
 def recommend_covered_call(
-    ticker: str, min_days: int = 30, top_n: int = 5, risk_tolerance: str = "Moderate"
+    ticker: str,
+    min_days: int = 30,
+    top_n: int = 5,
+    risk_tolerance: str = "Conservative",
 ) -> pd.DataFrame:
     """
     Analyze covered call opportunities for income generation.
@@ -1703,7 +1712,10 @@ def recommend_covered_call(
 
 
 def recommend_cash_secured_put(
-    ticker: str, min_days: int = 30, top_n: int = 5, risk_tolerance: str = "Moderate"
+    ticker: str,
+    min_days: int = 30,
+    top_n: int = 5,
+    risk_tolerance: str = "Conservative",
 ) -> pd.DataFrame:
     """
     Analyze cash-secured put opportunities for income generation and potential stock acquisition.
@@ -2048,7 +2060,7 @@ def analyze_options_strategy(
     ticker: str,
     min_days: int = 180,
     top_n: int = 5,
-    risk_tolerance: str = "Moderate",
+    risk_tolerance: str = "Conservative",
     time_horizon: str = "Medium-term (3-6 months)",
 ) -> pd.DataFrame:
     """
