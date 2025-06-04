@@ -151,11 +151,22 @@ class DefaultOptionsService(OptionsRepository):
 
             result = fetch_put_options(ticker, min_days_to_expiry=min_days)
 
-            # Validate result
-            if result.options_df.empty:
+            # Check if result is valid and contains data
+            if not result.get("data_available", False):
+                error_msg = result.get("error_message", "No put options data available")
                 context = ErrorContext(ticker=ticker, strategy="put_options_fetch")
                 raise DataSourceError(
-                    f"No put options data available for {ticker}",
+                    f"No put options data available for {ticker}: {error_msg}",
+                    context=context,
+                    source_name="options_fetcher",
+                )
+
+            # Extract the DataFrame from result
+            options_df = result.get("data")
+            if options_df is None or options_df.empty:
+                context = ErrorContext(ticker=ticker, strategy="put_options_fetch")
+                raise DataSourceError(
+                    f"Empty put options data for {ticker}",
                     context=context,
                     source_name="options_fetcher",
                 )
@@ -165,7 +176,7 @@ class DefaultOptionsService(OptionsRepository):
                 self._cache[cache_key] = result
 
             logger.info(
-                f"Successfully fetched {len(result.options_df)} put options for {ticker}"
+                f"Successfully fetched {len(options_df)} put options for {ticker}"
             )
             return result
 
