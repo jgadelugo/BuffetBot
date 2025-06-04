@@ -34,11 +34,12 @@ class ScoringWeightsConfig:
 DEFAULT_SCORING_WEIGHTS_CONFIG = ScoringWeightsConfig(
     default_weights=ScoringWeights(),
     strategy_specific_weights={
+        # Single-leg strategies
         StrategyType.LONG_CALLS: ScoringWeights(
             rsi=0.25, beta=0.15, momentum=0.25, iv=0.15, forecast=0.20
         ),
-        StrategyType.BULL_CALL_SPREAD: ScoringWeights(
-            rsi=0.20, beta=0.20, momentum=0.20, iv=0.20, forecast=0.20
+        StrategyType.LONG_PUTS: ScoringWeights(
+            rsi=0.30, beta=0.20, momentum=0.20, iv=0.15, forecast=0.15
         ),
         StrategyType.COVERED_CALL: ScoringWeights(
             rsi=0.15,
@@ -53,6 +54,42 @@ DEFAULT_SCORING_WEIGHTS_CONFIG = ScoringWeightsConfig(
             momentum=0.15,
             iv=0.25,  # IV important for income
             forecast=0.15,
+        ),
+        # Vertical spreads
+        StrategyType.BULL_CALL_SPREAD: ScoringWeights(
+            rsi=0.20, beta=0.20, momentum=0.20, iv=0.20, forecast=0.20
+        ),
+        StrategyType.BEAR_PUT_SPREAD: ScoringWeights(
+            rsi=0.30, beta=0.15, momentum=0.20, iv=0.20, forecast=0.15
+        ),
+        StrategyType.BULL_PUT_SPREAD: ScoringWeights(
+            rsi=0.20, beta=0.25, momentum=0.15, iv=0.25, forecast=0.15
+        ),
+        StrategyType.BEAR_CALL_SPREAD: ScoringWeights(
+            rsi=0.25, beta=0.15, momentum=0.20, iv=0.25, forecast=0.15
+        ),
+        # Income strategies
+        StrategyType.IRON_CONDOR: ScoringWeights(
+            rsi=0.15, beta=0.30, momentum=0.10, iv=0.35, forecast=0.10
+        ),
+        StrategyType.IRON_BUTTERFLY: ScoringWeights(
+            rsi=0.15, beta=0.25, momentum=0.15, iv=0.35, forecast=0.10
+        ),
+        StrategyType.CALENDAR_SPREAD: ScoringWeights(
+            rsi=0.15, beta=0.20, momentum=0.10, iv=0.40, forecast=0.15
+        ),
+        # Volatility strategies
+        StrategyType.LONG_STRADDLE: ScoringWeights(
+            rsi=0.15, beta=0.15, momentum=0.20, iv=0.40, forecast=0.10
+        ),
+        StrategyType.LONG_STRANGLE: ScoringWeights(
+            rsi=0.15, beta=0.15, momentum=0.20, iv=0.40, forecast=0.10
+        ),
+        StrategyType.SHORT_STRADDLE: ScoringWeights(
+            rsi=0.20, beta=0.25, momentum=0.15, iv=0.30, forecast=0.10
+        ),
+        StrategyType.SHORT_STRANGLE: ScoringWeights(
+            rsi=0.20, beta=0.25, momentum=0.15, iv=0.30, forecast=0.10
         ),
     },
 )
@@ -87,6 +124,10 @@ def normalize_scoring_weights(
     Returns:
         Dict[str, float]: Normalized weights that sum to 1.0
     """
+    # Handle edge case: no available sources
+    if not available_sources:
+        return {}
+
     # Filter weights to only include available sources
     available_weights = {
         k: v for k, v in input_weights.items() if k in available_sources

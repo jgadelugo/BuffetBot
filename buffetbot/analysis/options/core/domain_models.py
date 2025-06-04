@@ -16,10 +16,28 @@ import pandas as pd
 class StrategyType(Enum):
     """Supported options strategies."""
 
+    # Single-leg strategies
     LONG_CALLS = "Long Calls"
-    BULL_CALL_SPREAD = "Bull Call Spread"
+    LONG_PUTS = "Long Puts"
     COVERED_CALL = "Covered Call"
     CASH_SECURED_PUT = "Cash-Secured Put"
+
+    # Vertical spreads
+    BULL_CALL_SPREAD = "Bull Call Spread"
+    BEAR_PUT_SPREAD = "Bear Put Spread"
+    BULL_PUT_SPREAD = "Bull Put Spread"
+    BEAR_CALL_SPREAD = "Bear Call Spread"
+
+    # Income strategies
+    IRON_CONDOR = "Iron Condor"
+    IRON_BUTTERFLY = "Iron Butterfly"
+    CALENDAR_SPREAD = "Calendar Spread"
+
+    # Volatility strategies
+    LONG_STRADDLE = "Long Straddle"
+    LONG_STRANGLE = "Long Strangle"
+    SHORT_STRADDLE = "Short Straddle"
+    SHORT_STRANGLE = "Short Strangle"
 
 
 class RiskTolerance(Enum):
