@@ -53,6 +53,64 @@ from buffetbot.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def safe_get_score_column(df: pd.DataFrame, fallback_score=0.0):
+    """
+    Safely get the score column from recommendations DataFrame.
+
+    This function applies the robustness principle by checking for multiple
+    possible score column names and providing graceful fallbacks.
+
+    Args:
+        df: DataFrame containing recommendations
+        fallback_score: Default score value if no score columns found
+
+    Returns:
+        tuple: (column_name, series_or_default)
+    """
+    if df is None or df.empty:
+        return None, fallback_score
+
+    # Priority order for score columns
+    score_columns = ["TotalScore", "CompositeScore", "FinalScore", "Score"]
+
+    for col in score_columns:
+        if col in df.columns:
+            logger.debug(f"Using score column: {col}")
+            return col, df[col]
+
+    logger.warning(
+        f"No score columns found in DataFrame. Available columns: {list(df.columns)}"
+    )
+    return None, fallback_score
+
+
+def safe_get_column_value(df: pd.DataFrame, column: str, default_value=0):
+    """
+    Safely get column values from DataFrame with defensive programming.
+
+    This function provides safe access to DataFrame columns that might not exist,
+    preventing KeyError exceptions and providing meaningful fallbacks.
+
+    Args:
+        df: DataFrame to access
+        column: Column name to get
+        default_value: Default value if column doesn't exist
+
+    Returns:
+        Column values or default value
+    """
+    if df is None or df.empty:
+        return default_value
+
+    if column not in df.columns:
+        logger.warning(
+            f"Column '{column}' not found in DataFrame. Using default value: {default_value}"
+        )
+        return default_value
+
+    return df[column]
+
+
 def safe_get_weight(scoring_weights, indicator: str, default: float = 0.0) -> float:
     """
     Safely get weight value from scoring_weights regardless of type.
@@ -867,23 +925,29 @@ def render_score_components_analysis(
         if len(recommendations) > 1:
             # Let user select a specific recommendation to explore
             rec_options = []
-            for idx, row in recommendations.head(
-                5
-            ).iterrows():  # Show top 5 for selection
-                if strategy_type == "Bull Call Spread":
-                    label = f"#{idx+1}: ${row.get('long_strike', 'N/A')} - ${row.get('short_strike', 'N/A')} (Score: {row.get('CompositeScore', 0):.3f})"
+            score_col_name, _ = safe_get_score_column(recommendations)
+
+            for idx, row in recommendations.iterrows():
+                strike = row.get("Strike", "N/A")
+                expiry = row.get("Expiry", "N/A")
+
+                # Safe score access with fallback
+                if score_col_name:
+                    total_score = row.get(score_col_name, 0)
                 else:
-                    label = f"#{idx+1}: ${row.get('strike', row.get('Strike', 'N/A'))} (Score: {row.get('CompositeScore', 0):.3f})"
-                rec_options.append((label, idx))
+                    total_score = row.get("CompositeScore", row.get("TotalScore", 0))
+
+                rec_options.append(
+                    f"#{idx+1}: Strike ${strike} | Exp: {expiry} | Score: {total_score:.2f}"
+                )
 
             selected_option = st.selectbox(
                 "Select recommendation to analyze:",
                 rec_options,
-                format_func=lambda x: x[0],
                 key="score_components_rec_selector",
                 help="Choose a specific recommendation to see detailed scoring breakdown",
             )
-            selected_idx = selected_option[1]
+            selected_idx = rec_options.index(selected_option)
 
             # Show details for selected recommendation
             selected_details = recommendations.iloc[selected_idx]["score_details"]
@@ -975,44 +1039,63 @@ def render_comprehensive_scoring_breakdown(
             )
 
         with col2:
-            total_score_avg = (
-                recommendations["TotalScore"].mean()
-                if "TotalScore" in recommendations.columns
-                else 0
-            )
-            st.metric(
-                "Avg Total Score",
-                f"{total_score_avg:.2f}",
-                help="Average total composite score across all recommendations",
-            )
+            # Safe access to score column
+            score_col_name, score_values = safe_get_score_column(recommendations)
+            if score_col_name:
+                total_score_avg = score_values.mean()
+                st.metric(
+                    "Avg Total Score",
+                    f"{total_score_avg:.2f}",
+                    help="Average total composite score across all recommendations",
+                )
+            else:
+                st.metric(
+                    "Avg Total Score",
+                    "N/A",
+                    help="Score column not available in recommendations",
+                )
 
         with col3:
-            score_std = (
-                recommendations["TotalScore"].std()
-                if "TotalScore" in recommendations.columns
-                else 0
-            )
-            consistency = (
-                "High" if score_std < 0.5 else "Medium" if score_std < 1.0 else "Low"
-            )
-            st.metric(
-                "Score Consistency",
-                consistency,
-                delta=f"σ = {score_std:.3f}",
-                help="How consistent the scores are across recommendations",
-            )
+            # Safe access to score column for consistency calculation
+            score_col_name, score_values = safe_get_score_column(recommendations)
+            if score_col_name:
+                score_std = score_values.std()
+                consistency = (
+                    "High"
+                    if score_std < 0.5
+                    else "Medium"
+                    if score_std < 1.0
+                    else "Low"
+                )
+                st.metric(
+                    "Score Consistency",
+                    consistency,
+                    delta=f"σ = {score_std:.3f}",
+                    help="How consistent the scores are across recommendations",
+                )
+            else:
+                st.metric(
+                    "Score Consistency",
+                    "N/A",
+                    help="Score column not available for consistency analysis",
+                )
 
         with col4:
-            top_score = (
-                recommendations["TotalScore"].max()
-                if "TotalScore" in recommendations.columns
-                else 0
-            )
-            st.metric(
-                "Best Score",
-                f"{top_score:.2f}",
-                help="Highest scoring recommendation in the portfolio",
-            )
+            # Safe access to score column for max calculation
+            score_col_name, score_values = safe_get_score_column(recommendations)
+            if score_col_name:
+                top_score = score_values.max()
+                st.metric(
+                    "Best Score",
+                    f"{top_score:.2f}",
+                    help="Highest scoring recommendation in the portfolio",
+                )
+            else:
+                st.metric(
+                    "Best Score",
+                    "N/A",
+                    help="Score column not available",
+                )
 
         # Detailed indicator breakdown
         st.markdown("#### 📈 Indicator-by-Indicator Breakdown")
@@ -1088,14 +1171,11 @@ def render_comprehensive_scoring_breakdown(
         )
 
         # Score consistency (inverse of std dev)
-        if "TotalScore" in recommendations.columns:
+        score_col_name, score_values = safe_get_score_column(recommendations)
+        if score_col_name:
             consistency_score = max(
                 0,
-                1
-                - (
-                    recommendations["TotalScore"].std()
-                    / recommendations["TotalScore"].mean()
-                ),
+                1 - (score_values.std() / score_values.mean()),
             )
             quality_metrics.append(
                 ("Score Consistency", consistency_score, "Higher is better")
@@ -1115,12 +1195,20 @@ def render_comprehensive_scoring_breakdown(
     with main_tab2:
         st.markdown("#### 🎯 Individual Recommendation Deep Dive")
 
-        # Recommendation selector
+        # Recommendation selector with safe score access
         rec_options = []
+        score_col_name, _ = safe_get_score_column(recommendations)
+
         for idx, row in recommendations.iterrows():
             strike = row.get("Strike", "N/A")
             expiry = row.get("Expiry", "N/A")
-            total_score = row.get("TotalScore", 0)
+
+            # Safe score access with fallback
+            if score_col_name:
+                total_score = row.get(score_col_name, 0)
+            else:
+                total_score = row.get("CompositeScore", row.get("TotalScore", 0))
+
             rec_options.append(
                 f"#{idx+1}: Strike ${strike} | Exp: {expiry} | Score: {total_score:.2f}"
             )
@@ -1152,13 +1240,28 @@ def render_comprehensive_scoring_breakdown(
                 st.metric("Expiration", str(expiry))
 
             with col3:
-                total_score = selected_row.get("TotalScore", 0)
+                # Safe score access for display
+                if score_col_name:
+                    total_score = selected_row.get(score_col_name, 0)
+                else:
+                    total_score = selected_row.get(
+                        "CompositeScore", selected_row.get("TotalScore", 0)
+                    )
                 st.metric("Total Score", f"{total_score:.3f}")
 
             with col4:
-                # Calculate rank
-                rank = (recommendations["TotalScore"] > total_score).sum() + 1
-                st.metric("Rank", f"#{rank}")
+                # Calculate rank - safe access to score column
+                if score_col_name:
+                    score_values = safe_get_column_value(
+                        recommendations, score_col_name, []
+                    )
+                    if hasattr(score_values, "__iter__") and len(score_values) > 0:
+                        rank = (score_values > total_score).sum() + 1
+                        st.metric("Rank", f"#{rank}")
+                    else:
+                        st.metric("Rank", "N/A", help="Score values not available")
+                else:
+                    st.metric("Rank", "N/A", help="Score column not available")
 
             # Detailed scoring breakdown for this recommendation
             if isinstance(score_details, dict):
@@ -1313,64 +1416,64 @@ def render_comprehensive_scoring_breakdown(
             col1, col2 = st.columns(2)
 
             with col1:
-                # Score statistics
-                if "TotalScore" in recommendations.columns:
-                    scores = recommendations["TotalScore"]
+                # Score statistics with safe access
+                score_col_name, score_values = safe_get_score_column(recommendations)
+                if score_col_name:
                     st.markdown("**Score Statistics:**")
-                    st.markdown(f"• **Highest:** {scores.max():.3f}")
-                    st.markdown(f"• **Lowest:** {scores.min():.3f}")
-                    st.markdown(f"• **Average:** {scores.mean():.3f}")
-                    st.markdown(f"• **Std Dev:** {scores.std():.3f}")
-                    st.markdown(f"• **Range:** {scores.max() - scores.min():.3f}")
+                    st.markdown(f"• **Highest:** {score_values.max():.3f}")
+                    st.markdown(f"• **Lowest:** {score_values.min():.3f}")
+                    st.markdown(f"• **Average:** {score_values.mean():.3f}")
+                    st.markdown(f"• **Std Dev:** {score_values.std():.3f}")
+                    st.markdown(
+                        f"• **Range:** {score_values.max() - score_values.min():.3f}"
+                    )
 
                     # Score quartiles
-                    q1 = scores.quantile(0.25)
-                    q2 = scores.quantile(0.50)
-                    q3 = scores.quantile(0.75)
+                    q1 = score_values.quantile(0.25)
+                    q2 = score_values.quantile(0.50)
+                    q3 = score_values.quantile(0.75)
 
                     st.markdown("**Score Quartiles:**")
                     st.markdown(f"• **Q1 (25%):** {q1:.3f}")
                     st.markdown(f"• **Q2 (50%):** {q2:.3f}")
                     st.markdown(f"• **Q3 (75%):** {q3:.3f}")
+                else:
+                    st.warning("⚠️ Score column not available for statistics")
 
             with col2:
-                # Top performers analysis
+                # Top performers analysis with safe access
                 st.markdown("**Top Performers:**")
 
-                top_3 = (
-                    recommendations.nlargest(3, "TotalScore")
-                    if "TotalScore" in recommendations.columns
-                    else recommendations.head(3)
-                )
+                score_col_name, _ = safe_get_score_column(recommendations)
+                if score_col_name:
+                    top_3 = recommendations.nlargest(3, score_col_name)
 
-                for idx, (_, row) in enumerate(top_3.iterrows()):
-                    rank_num = idx + 1
-                    strike = row.get("Strike", "N/A")
-                    score = row.get("TotalScore", 0)
-                    expiry = row.get("Expiry", "N/A")
+                    for idx, (_, row) in enumerate(top_3.iterrows()):
+                        rank_num = idx + 1
+                        strike = row.get("Strike", "N/A")
+                        score = row.get(score_col_name, 0)
+                        expiry = row.get("Expiry", "N/A")
 
-                    medal = "🥇" if rank_num == 1 else "🥈" if rank_num == 2 else "🥉"
-                    st.markdown(
-                        f"{medal} **#{rank_num}:** ${strike} | {expiry} | {score:.3f}"
-                    )
+                        medal = "🥇" if rank_num == 1 else "🥈" if rank_num == 2 else "🥉"
+                        st.markdown(
+                            f"{medal} **#{rank_num}:** ${strike} | {expiry} | {score:.3f}"
+                        )
 
-                # Bottom performers
-                st.markdown("**Bottom Performers:**")
-                bottom_3 = (
-                    recommendations.nsmallest(3, "TotalScore")
-                    if "TotalScore" in recommendations.columns
-                    else recommendations.tail(3)
-                )
+                    # Bottom performers
+                    st.markdown("**Bottom Performers:**")
+                    bottom_3 = recommendations.nsmallest(3, score_col_name)
 
-                for idx, (_, row) in enumerate(bottom_3.iterrows()):
-                    strike = row.get("Strike", "N/A")
-                    score = row.get("TotalScore", 0)
-                    expiry = row.get("Expiry", "N/A")
-                    rank_from_bottom = idx + 1
+                    for idx, (_, row) in enumerate(bottom_3.iterrows()):
+                        strike = row.get("Strike", "N/A")
+                        score = row.get(score_col_name, 0)
+                        expiry = row.get("Expiry", "N/A")
+                        rank_from_bottom = idx + 1
 
-                    st.markdown(
-                        f"⬇️ **#{len(recommendations) - rank_from_bottom + 1}:** ${strike} | {expiry} | {score:.3f}"
-                    )
+                        st.markdown(
+                            f"⬇️ **#{len(recommendations) - rank_from_bottom + 1}:** ${strike} | {expiry} | {score:.3f}"
+                        )
+                else:
+                    st.warning("⚠️ Score column not available for ranking")
 
             # Indicator consistency analysis
             st.markdown("##### 🎯 Indicator Consistency Analysis")
