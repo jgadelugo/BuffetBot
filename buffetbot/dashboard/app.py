@@ -34,6 +34,7 @@ from buffetbot.dashboard.dashboard_utils.data_processing import (
 
 # Import all views from the consolidated views module
 from buffetbot.dashboard.views import (
+    render_analyst_forecast_tab,
     render_financial_health_page,
     render_glossary_tab,
     render_growth_metrics_tab,
@@ -146,15 +147,16 @@ def main() -> None:
     track_ticker_analysis(ticker, "dashboard_load")
 
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
         [
             "Overview",
             "Price Analysis",
             "Financial Health",
             "Growth Metrics",
             "Risk Analysis",
-            "📚 Glossary",
             "Options Advisor",
+            "🔮 Analyst Forecast",
+            "📚 Glossary",
         ]
     )
 
@@ -180,12 +182,16 @@ def main() -> None:
         render_risk_analysis_tab(data, ticker)
 
     with tab6:
-        track_page_view("Glossary Tab", ticker)
-        render_glossary_tab()
-
-    with tab7:
         track_page_view("Options Advisor Tab", ticker)
         render_options_advisor_tab(data, ticker)
+
+    with tab7:
+        track_page_view("Analyst Forecast Tab", ticker)
+        render_analyst_forecast_tab(data, ticker)
+
+    with tab8:
+        track_page_view("Glossary Tab", ticker)
+        render_glossary_tab()
 
     # Check if data report should be shown
     if st.session_state.get("show_data_report", False):

@@ -6,7 +6,7 @@ Each view is responsible for rendering a specific section or page of the applica
 
 Views are organized by functionality:
 - Core Analysis: overview, growth_metrics, risk_analysis
-- Advanced Tools: options_advisor, price_analysis, financial_health
+- Advanced Tools: options_advisor, analyst_forecast, price_analysis, financial_health
 - Reference: glossary
 
 All views follow the same interface pattern:
@@ -17,6 +17,9 @@ This module also provides a modern view registry system for future extensibility
 
 from typing import Any, Dict, Optional
 
+# Advanced analysis views
+from .analyst_forecast import render_analyst_forecast_tab
+
 # Import base classes and registry
 from .base import BaseView, ViewCategory, ViewMetadata, ViewRegistry, view_registry
 from .financial_health import render_financial_health_page
@@ -24,8 +27,6 @@ from .financial_health import render_financial_health_page
 # Reference views
 from .glossary import render_glossary_tab
 from .growth_metrics import render_growth_metrics_tab
-
-# Advanced analysis views
 from .options_advisor import render_options_advisor_tab
 
 # Core analysis views
@@ -47,6 +48,7 @@ __all__ = [
     "render_risk_analysis_tab",
     # Advanced analysis views
     "render_options_advisor_tab",
+    "render_analyst_forecast_tab",
     "render_price_analysis_page",
     "render_financial_health_page",
     # Reference views
@@ -92,8 +94,15 @@ def get_all_views() -> dict[str, dict[str, Any]]:
             "options_advisor": {
                 "function": render_options_advisor_tab,
                 "title": "Options Advisor",
-                "description": "Options analysis and recommendations",
+                "description": "Options analysis and recommendations with Greeks",
                 "icon": "🎯",
+                "requires_data": True,
+            },
+            "analyst_forecast": {
+                "function": render_analyst_forecast_tab,
+                "title": "Analyst Forecast",
+                "description": "Comprehensive analyst forecast and consensus analysis",
+                "icon": "🔮",
                 "requires_data": True,
             },
             "price_analysis": {
@@ -137,6 +146,7 @@ def get_view_function(view_name: str) -> Optional[callable]:
         "growth_metrics": render_growth_metrics_tab,
         "risk_analysis": render_risk_analysis_tab,
         "options_advisor": render_options_advisor_tab,
+        "analyst_forecast": render_analyst_forecast_tab,
         "price_analysis": render_price_analysis_page,
         "financial_health": render_financial_health_page,
         "glossary": render_glossary_tab,
@@ -190,8 +200,20 @@ def register_legacy_views() -> None:
             ViewMetadata(
                 name="options_advisor",
                 title="Options Advisor",
-                description="Options analysis and recommendations",
+                description="Options analysis and recommendations with Greeks",
                 icon="🎯",
+                category=ViewCategory.ADVANCED_TOOLS,
+                requires_data=True,
+            ),
+        ),
+        (
+            "analyst_forecast",
+            render_analyst_forecast_tab,
+            ViewMetadata(
+                name="analyst_forecast",
+                title="Analyst Forecast",
+                description="Comprehensive analyst forecast and consensus analysis",
+                icon="🔮",
                 category=ViewCategory.ADVANCED_TOOLS,
                 requires_data=True,
             ),

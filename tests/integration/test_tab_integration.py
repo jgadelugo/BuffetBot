@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 import streamlit as st
 
+from buffetbot.dashboard.views.analyst_forecast import render_analyst_forecast_tab
 from buffetbot.dashboard.views.glossary import render_glossary_tab
 from buffetbot.dashboard.views.overview import render_overview_tab
 from buffetbot.dashboard.views.risk_analysis import render_risk_analysis_tab
@@ -211,6 +212,77 @@ class TestTabIntegration:
 
         except Exception as e:
             pytest.fail(f"Glossary tab rendering failed: {str(e)}")
+
+    @patch("streamlit.header")
+    @patch("streamlit.columns")
+    @patch("streamlit.subheader")
+    @patch("streamlit.selectbox")
+    @patch("streamlit.checkbox")
+    @patch("buffetbot.dashboard.components.forecast_panel.render_forecast_panel")
+    @patch("buffetbot.dashboard.components.disclaimers.render_investment_disclaimer")
+    def test_analyst_forecast_tab_rendering(
+        self,
+        mock_disclaimer,
+        mock_forecast_panel,
+        mock_checkbox,
+        mock_selectbox,
+        mock_subheader,
+        mock_columns,
+        mock_header,
+        mock_stock_data,
+    ):
+        """Test analyst forecast tab renders correctly with valid data."""
+        # Mock the forecast panel return
+        mock_forecast_panel.return_value = {
+            "mean_target": 150.0,
+            "confidence": 0.75,
+            "num_analysts": 12,
+            "data_available": True,
+        }
+
+        # Mock user inputs
+        mock_selectbox.return_value = "Standard"
+        mock_checkbox.return_value = False
+
+        # Mock columns dynamically
+        def mock_columns_side_effect(num_or_spec):
+            if isinstance(num_or_spec, int):
+                return [MagicMock() for _ in range(num_or_spec)]
+            elif isinstance(num_or_spec, list):
+                return [MagicMock() for _ in range(len(num_or_spec))]
+            else:
+                return [MagicMock(), MagicMock()]  # Default fallback
+
+        mock_columns.side_effect = mock_columns_side_effect
+
+        try:
+            render_analyst_forecast_tab(mock_stock_data, "AAPL")
+
+            # Verify key components were called
+            mock_header.assert_called()
+            mock_forecast_panel.assert_called_with("AAPL")
+            mock_subheader.assert_called()
+
+        except Exception as e:
+            pytest.fail(f"Analyst forecast tab rendering failed: {str(e)}")
+
+    @patch("streamlit.error")
+    def test_analyst_forecast_tab_error_handling(self, mock_error, mock_stock_data):
+        """Test analyst forecast tab handles errors gracefully."""
+        with patch(
+            "buffetbot.dashboard.components.forecast_panel.render_forecast_panel"
+        ) as mock_panel:
+            # Mock an exception in the forecast panel
+            mock_panel.side_effect = Exception("Forecast failed")
+
+            try:
+                render_analyst_forecast_tab(mock_stock_data, "AAPL")
+                # Should not raise, should show error in UI
+                mock_error.assert_called()
+            except Exception as e:
+                pytest.fail(
+                    f"Analyst forecast tab should handle errors gracefully: {str(e)}"
+                )
 
     @patch("buffetbot.analysis.risk_analysis.analyze_risk_metrics")
     def test_risk_analysis_tab_error_handling(self, mock_analyze_risk, mock_stock_data):
