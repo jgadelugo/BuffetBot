@@ -247,8 +247,8 @@ def _execute_legacy_strategy(
                 f"Adjusted min_days to {min_days} for {request.strategy_type.value}"
             )
 
-    # Risk tolerance adjustments
-    top_n = request.top_n  # Initialize with default value
+    # Risk tolerance adjustments - initialize top_n with default value
+    top_n = request.top_n
 
     if request.risk_tolerance == RiskTolerance.CONSERVATIVE:
         min_days = max(min_days, 60)
