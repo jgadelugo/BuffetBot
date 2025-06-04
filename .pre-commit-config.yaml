@@ -35,6 +35,18 @@ repos:
       - id: pyupgrade
         args: [--py39-plus]
 
+  # TODO: Re-enable tests in pre-commit once integration test dependencies are fully resolved
+  # For now, tests should be run manually before commits and in CI pipeline
+  # - repo: local
+  #   hooks:
+  #     - id: pytest
+  #       name: pytest
+  #       entry: pytest
+  #       language: system
+  #       pass_filenames: false
+  #       always_run: true
+  #       args: ["-v", "--tb=short"]
+
 default_language_version:
   python: python3.12
 

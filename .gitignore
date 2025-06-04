@@ -201,3 +201,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Prompt files - exclude AI prompt files from version control
+*_PROMPT.md
+**/*_PROMPT.md

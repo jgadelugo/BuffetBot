@@ -191,14 +191,22 @@ class TestOptionsAdvisorTickerSync:
     @patch("streamlit.slider")
     @patch("streamlit.checkbox")
     @patch("streamlit.button")
+    @patch("streamlit.selectbox")
     @patch("buffetbot.dashboard.components.disclaimers.render_investment_disclaimer")
-    @patch("buffetbot.dashboard.components.forecast_panel.render_forecast_panel")
+    @patch(
+        "buffetbot.dashboard.components.options_settings.render_advanced_settings_panel"
+    )
+    @patch(
+        "buffetbot.dashboard.components.options_settings.render_settings_impact_documentation"
+    )
     @patch("buffetbot.dashboard.config.settings.get_dashboard_config")
     def test_ticker_change_handling_integration(
         self,
         mock_get_config,
-        mock_forecast_panel,
+        mock_settings_docs,
+        mock_settings_panel,
         mock_disclaimer,
+        mock_selectbox,
         mock_button,
         mock_checkbox,
         mock_slider,
@@ -216,64 +224,106 @@ class TestOptionsAdvisorTickerSync:
         """Test that ticker change handling is properly integrated."""
         from buffetbot.dashboard.views.options_advisor import render_options_advisor_tab
 
-        # Mock the ticker change handler
-        mock_handle_ticker_change.return_value = True
+        # Create a proper session state mock that behaves like streamlit's session state
+        class MockSessionState:
+            def __init__(self):
+                self._data = {"options_settings": {}}
 
-        # Mock config
-        mock_get_config.return_value = {
-            "min_min_days": 30,
-            "max_min_days": 365,
-            "default_min_days": 90,
-            "min_top_n": 1,
-            "max_top_n": 20,
-            "default_top_n": 5,
-        }
+            def get(self, key, default=None):
+                return self._data.get(key, default)
 
-        # Mock forecast panel
-        mock_forecast_panel.return_value = None
+            def __getitem__(self, key):
+                return self._data[key]
 
-        # Mock columns to return appropriate number of mocks
-        def mock_columns_side_effect(spec):
-            if isinstance(spec, list):
-                return [MagicMock() for _ in range(len(spec))]
-            elif isinstance(spec, int):
-                return [MagicMock() for _ in range(spec)]
-            else:
-                return [MagicMock(), MagicMock()]
+            def __setitem__(self, key, value):
+                self._data[key] = value
 
-        mock_columns.side_effect = mock_columns_side_effect
+            def __contains__(self, key):
+                return key in self._data
 
-        # Mock sliders
-        mock_slider.return_value = 90
+            def __getattr__(self, key):
+                return self._data.get(key)
 
-        # Mock checkbox
-        mock_checkbox.return_value = False
+            def __setattr__(self, key, value):
+                if key.startswith("_"):
+                    super().__setattr__(key, value)
+                else:
+                    if not hasattr(self, "_data"):
+                        self._data = {}
+                    self._data[key] = value
 
-        # Mock button
-        mock_button.return_value = False
+        mock_session_state = MockSessionState()
 
-        # Mock expander
-        mock_expander.return_value.__enter__ = MagicMock()
-        mock_expander.return_value.__exit__ = MagicMock()
+        with patch("streamlit.session_state", mock_session_state):
+            # Mock the ticker change handler
+            mock_handle_ticker_change.return_value = True
 
-        test_data = {"price_data": {"close": [100, 101, 102]}}
-        test_ticker = "AAPL"
+            # Mock config
+            mock_get_config.return_value = {
+                "min_min_days": 30,
+                "max_min_days": 365,
+                "default_min_days": 90,
+                "min_top_n": 1,
+                "max_top_n": 20,
+                "default_top_n": 5,
+            }
 
-        try:
-            render_options_advisor_tab(test_data, test_ticker)
-            # Verify that handle_ticker_change was called with the correct ticker
-            mock_handle_ticker_change.assert_called_once_with("AAPL")
-        except Exception as e:
-            # Function may fail due to streamlit mocking, but we care about the ticker handling
-            # Check if the function was called at least once
-            assert (
-                mock_handle_ticker_change.called
-            ), f"handle_ticker_change should have been called, but got exception: {str(e)}"
-            if mock_handle_ticker_change.call_args_list:
-                first_call = mock_handle_ticker_change.call_args_list[0]
-                assert (
-                    first_call[0][0] == "AAPL"
-                ), f"Expected ticker 'AAPL', got {first_call[0][0]}"
+            # Mock settings panel to return false (no changes)
+            mock_settings_panel.return_value = False
+
+            # Mock columns to return appropriate number of mocks
+            def mock_columns_side_effect(spec):
+                if isinstance(spec, list):
+                    return [MagicMock() for _ in range(len(spec))]
+                elif isinstance(spec, int):
+                    return [MagicMock() for _ in range(spec)]
+                else:
+                    return [MagicMock(), MagicMock()]
+
+            mock_columns.side_effect = mock_columns_side_effect
+
+            # Mock UI elements
+            mock_selectbox.side_effect = [
+                "Long Calls",
+                "Conservative",
+                "Medium-term (3-6 months)",
+            ]
+            mock_slider.return_value = 90
+            mock_checkbox.return_value = False
+            mock_button.return_value = False
+
+            # Mock expander context manager
+            mock_expander_instance = MagicMock()
+            mock_expander_instance.__enter__ = MagicMock(
+                return_value=mock_expander_instance
+            )
+            mock_expander_instance.__exit__ = MagicMock(return_value=None)
+            mock_expander.return_value = mock_expander_instance
+
+            test_data = {
+                "price_data": {"close": [100, 101, 102]},
+                "fundamentals": {"symbol": "AAPL", "market_cap": 1e12},
+            }
+            test_ticker = "AAPL"
+
+            try:
+                render_options_advisor_tab(test_data, test_ticker)
+                # Verify that handle_ticker_change was called with the correct ticker
+                mock_handle_ticker_change.assert_called_once_with("AAPL")
+            except Exception as e:
+                # Function may fail due to streamlit mocking, but the ticker handling should have been called
+                # Check if the function was called at least once
+                if not mock_handle_ticker_change.called:
+                    pytest.fail(
+                        f"handle_ticker_change should have been called, but got exception: {str(e)}"
+                    )
+
+                # If it was called, verify the arguments
+                if mock_handle_ticker_change.call_args_list:
+                    first_call = mock_handle_ticker_change.call_args_list[0]
+                    assert (
+                        first_call[0][0] == "AAPL"
+                    ), f"Expected ticker 'AAPL', got {first_call[0][0]}"
 
 
 class TestOptionsAdvisorAppIntegration:

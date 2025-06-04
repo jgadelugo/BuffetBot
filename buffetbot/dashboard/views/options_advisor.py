@@ -16,18 +16,33 @@ from buffetbot.analysis.options_advisor import (
 )
 from buffetbot.dashboard.components.disclaimers import render_investment_disclaimer
 from buffetbot.dashboard.components.metrics import display_metric_with_info
+from buffetbot.dashboard.components.options_settings import (
+    get_analysis_settings,
+    render_advanced_settings_panel,
+    render_settings_impact_documentation,
+)
 from buffetbot.dashboard.components.options_utils import (
     check_for_partial_data,
     create_styling_functions,
     get_data_score_badge,
     render_score_details_popover,
 )
-from buffetbot.dashboard.config.settings import get_dashboard_config
+from buffetbot.dashboard.config.settings import (
+    clear_analysis_cache,
+    get_dashboard_config,
+    get_options_setting,
+    mark_settings_applied,
+    settings_have_changed,
+    update_options_setting,
+)
 from buffetbot.dashboard.dashboard_utils.data_processing import handle_ticker_change
 from buffetbot.dashboard.dashboard_utils.formatters import (
     safe_format_currency,
     safe_format_number,
     safe_format_percentage,
+)
+from buffetbot.dashboard.utils.enhanced_options_analysis import (
+    analyze_options_with_custom_settings,
 )
 from buffetbot.utils.logger import get_logger
 from glossary import get_metric_info
@@ -117,6 +132,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
+        current_strategy = get_options_setting("strategy_type", "Long Calls")
         strategy_type = st.selectbox(
             "🎯 Options Strategy",
             options=[
@@ -125,19 +141,30 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 "Covered Call",
                 "Cash-Secured Put",
             ],
-            index=0,
+            index=[
+                "Long Calls",
+                "Bull Call Spread",
+                "Covered Call",
+                "Cash-Secured Put",
+            ].index(current_strategy),
             help="Select the options strategy to analyze",
         )
+        update_options_setting("strategy_type", strategy_type)
 
     with col2:
+        current_risk = get_options_setting("risk_tolerance", "Conservative")
         risk_tolerance = st.selectbox(
             "⚡ Risk Tolerance",
             options=["Conservative", "Moderate", "Aggressive"],
-            index=0,
+            index=["Conservative", "Moderate", "Aggressive"].index(current_risk),
             help="Your risk tolerance affects strategy recommendations",
         )
+        update_options_setting("risk_tolerance", risk_tolerance)
 
     with col3:
+        current_horizon = get_options_setting(
+            "time_horizon", "Medium-term (3-6 months)"
+        )
         time_horizon = st.selectbox(
             "📅 Time Horizon",
             options=[
@@ -146,9 +173,15 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 "One Year (12 months)",
                 "18 Months (1.5 years)",
             ],
-            index=2,
+            index=[
+                "Medium-term (3-6 months)",
+                "Long-term (6+ months)",
+                "One Year (12 months)",
+                "18 Months (1.5 years)",
+            ].index(current_horizon),
             help="Expected holding period for the options position",
         )
+        update_options_setting("time_horizon", time_horizon)
 
     # Core Analysis Parameters
     col1, col2 = st.columns(2)
@@ -167,22 +200,26 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
             except KeyError:
                 pass
 
+        current_min_days = get_options_setting("min_days", config["default_min_days"])
         min_days = st.slider(
             "Minimum Days to Expiry",
             min_value=config["min_min_days"],
             max_value=config["max_min_days"],
-            value=config["default_min_days"],
+            value=current_min_days,
             help=days_help_text,
         )
+        update_options_setting("min_days", min_days)
 
     with col2:
+        current_top_n = get_options_setting("top_n", config["default_top_n"])
         top_n = st.slider(
             "Number of Recommendations",
             min_value=config["min_top_n"],
             max_value=config["max_top_n"],
-            value=config["default_top_n"],
+            value=current_top_n,
             help="Number of top-ranked option recommendations to display",
         )
+        update_options_setting("top_n", top_n)
 
     # Advanced Analysis Options
     st.subheader("🔧 Advanced Options")
@@ -190,31 +227,71 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
+        current_greeks = get_options_setting("include_greeks", True)
         include_greeks = st.checkbox(
             "📊 Include Greeks Analysis",
-            value=True,
+            value=current_greeks,
             help="Add Delta, Gamma, Theta, Vega analysis to recommendations",
         )
+        update_options_setting("include_greeks", include_greeks)
 
     with col2:
+        current_volatility = get_options_setting("volatility_analysis", False)
         volatility_analysis = st.checkbox(
             "📈 Volatility Analysis",
+            value=current_volatility,
             help="Include implied vs historical volatility comparison",
         )
+        update_options_setting("volatility_analysis", volatility_analysis)
 
     with col3:
+        current_download = get_options_setting("download_csv", False)
         download_csv = st.checkbox(
             "📄 Enable CSV Export",
+            value=current_download,
             help="Generate a downloadable CSV file of the recommendations",
         )
+        update_options_setting("download_csv", download_csv)
+
+    # Add advanced settings panel
+    render_advanced_settings_panel()
+
+    # Add settings impact documentation
+    render_settings_impact_documentation()
 
     st.markdown("---")
 
-    # Analyze button
-    if st.button("🔍 Analyze Options", type="primary"):
+    # Settings change indicator and auto-refresh option
+    if settings_have_changed():
+        st.info("🔄 Settings have changed. Analysis will use the new configuration.")
+
+        # Auto-refresh option
+        auto_refresh = get_options_setting("auto_refresh", False)
+        if auto_refresh:
+            st.info("🔄 Auto-refresh is enabled. Running analysis with new settings...")
+            # Trigger analysis automatically
+            st.session_state.trigger_auto_analysis = True
+
+    # Analyze button with enhanced state management
+    analyze_clicked = st.button("🔍 Analyze Options", type="primary")
+
+    # Check if we should run analysis (button clicked or auto-refresh triggered)
+    should_run_analysis = analyze_clicked or st.session_state.get(
+        "trigger_auto_analysis", False
+    )
+
+    if should_run_analysis:
+        # Clear auto-trigger flag
+        if "trigger_auto_analysis" in st.session_state:
+            del st.session_state.trigger_auto_analysis
+
+        # Get all current settings
+        analysis_settings = get_analysis_settings()
+
         # Log the interaction
         logger.info(
-            f"Options analysis requested for {ticker} - strategy={strategy_type}, min_days={min_days}, top_n={top_n}"
+            f"Options analysis requested for {ticker} - strategy={strategy_type}, "
+            f"min_days={min_days}, top_n={top_n}, settings_changed={settings_have_changed()}"
         )
 
         # Create loading placeholder
@@ -227,21 +304,59 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 status_text.text("Fetching options data...")
                 progress_bar.progress(25)
 
-                # Call the recommend_long_calls function with global ticker
-                status_text.text("Computing technical indicators...")
-                progress_bar.progress(50)
+                # Check if we can use cached results
+                use_cache = get_options_setting("enable_caching", True)
+                cached_result = None
 
-                recommendations = analyze_options_strategy(
-                    strategy_type=strategy_type,
-                    ticker=ticker,
-                    min_days=min_days,
-                    top_n=top_n,
-                    risk_tolerance=risk_tolerance,
-                    time_horizon=time_horizon,
-                )
+                if use_cache and not settings_have_changed():
+                    cached_result = st.session_state.get("analysis_cache")
+                    if cached_result is not None:
+                        status_text.text("Using cached results...")
+                        progress_bar.progress(100)
+                        recommendations = cached_result
 
-                status_text.text("Calculating composite scores...")
-                progress_bar.progress(75)
+                if cached_result is None:
+                    # Call the analyze_options_strategy function with current settings
+                    status_text.text("Computing technical indicators...")
+                    progress_bar.progress(50)
+
+                    # Use enhanced analysis with custom settings
+                    if analysis_settings["use_custom_weights"] or any(
+                        [
+                            analysis_settings.get("delta_threshold") is not None,
+                            analysis_settings.get("volume_threshold") is not None,
+                            analysis_settings.get("bid_ask_spread") is not None,
+                            analysis_settings.get("open_interest") is not None,
+                        ]
+                    ):
+                        logger.info("Using enhanced analysis with custom settings")
+                        recommendations = analyze_options_with_custom_settings(
+                            strategy_type=strategy_type,
+                            ticker=ticker,
+                            analysis_settings=analysis_settings,
+                        )
+                    else:
+                        # Use standard analysis for default settings
+                        logger.info("Using standard analysis with default settings")
+                        recommendations = analyze_options_strategy(
+                            strategy_type=strategy_type,
+                            ticker=ticker,
+                            min_days=min_days,
+                            top_n=top_n,
+                            risk_tolerance=risk_tolerance,
+                            time_horizon=time_horizon,
+                        )
+
+                    status_text.text("Calculating composite scores...")
+                    progress_bar.progress(75)
+
+                    # Cache the results if caching is enabled
+                    if use_cache:
+                        st.session_state.analysis_cache = recommendations
+                        st.session_state.analysis_timestamp = datetime.now()
+
+                # Mark settings as applied
+                mark_settings_applied()
 
                 if recommendations.empty:
                     progress_bar.progress(100)
@@ -260,16 +375,43 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                     progress_bar.empty()
                     status_text.empty()
 
-                    # Display success message
-                    st.success(
-                        f"✅ Found {len(recommendations)} {strategy_type.lower()} recommendations for {ticker}"
-                    )
+                    # Display success message with settings info
+                    success_msg = f"✅ Found {len(recommendations)} {strategy_type.lower()} recommendations for {ticker}"
+                    if cached_result is not None:
+                        success_msg += " (cached)"
+                    st.success(success_msg)
+
                     logger.info(
                         f"Options analysis completed for {ticker} - returned {len(recommendations)} recommendations"
                     )
 
                     # Display results section
                     st.subheader(f"📈 Top {strategy_type} Recommendations")
+
+                    # Show current settings summary
+                    with st.expander("📊 Analysis Configuration Used", expanded=False):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Strategy:** {strategy_type}")
+                            st.write(f"**Risk Tolerance:** {risk_tolerance}")
+                            st.write(f"**Time Horizon:** {time_horizon}")
+                            st.write(f"**Min Days:** {min_days}")
+                            st.write(f"**Top N:** {top_n}")
+
+                        with col2:
+                            st.write(
+                                f"**Custom Weights:** {'Yes' if analysis_settings['use_custom_weights'] else 'No'}"
+                            )
+                            st.write(
+                                f"**Greeks Analysis:** {'Yes' if include_greeks else 'No'}"
+                            )
+                            st.write(
+                                f"**Volatility Analysis:** {'Yes' if volatility_analysis else 'No'}"
+                            )
+                            if st.session_state.get("analysis_timestamp"):
+                                st.write(
+                                    f"**Analysis Time:** {st.session_state.analysis_timestamp.strftime('%H:%M:%S')}"
+                                )
 
                     # Check for partial data and display warning banner
                     has_partial_data = check_for_partial_data(recommendations)
@@ -318,7 +460,12 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                             )
 
                     # Get scoring weights for display
-                    scoring_weights = get_scoring_weights()
+                    if analysis_settings["use_custom_weights"]:
+                        current_weights = analysis_settings["custom_scoring_weights"]
+                        st.info("📊 Using custom scoring weights")
+                    else:
+                        scoring_weights = get_scoring_weights()
+                        current_weights = scoring_weights
 
                     # Create a table with metric-aware headers
                     st.markdown("#### Options Recommendations")
