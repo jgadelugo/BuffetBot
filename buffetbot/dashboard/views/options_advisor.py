@@ -162,9 +162,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
         update_options_setting("risk_tolerance", risk_tolerance)
 
     with col3:
-        current_horizon = get_options_setting(
-            "time_horizon", "Medium-term (3-6 months)"
-        )
+        current_horizon = get_options_setting("time_horizon", "One Year (12 months)")
         time_horizon = st.selectbox(
             "📅 Time Horizon",
             options=[
