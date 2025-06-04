@@ -53,6 +53,53 @@ from buffetbot.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def safe_get_weight(scoring_weights, indicator: str, default: float = 0.0) -> float:
+    """
+    Safely get weight value from scoring_weights regardless of type.
+
+    This function provides a consistent interface for accessing scoring weights
+    whether they are ScoringWeights objects or dictionaries.
+
+    Args:
+        scoring_weights: Either ScoringWeights object or dict
+        indicator: The indicator name to get weight for
+        default: Default value if indicator not found
+
+    Returns:
+        float: The weight value for the indicator
+    """
+    if scoring_weights is None:
+        return default
+
+    # Handle dictionary first (most common case)
+    if isinstance(scoring_weights, dict):
+        return scoring_weights.get(indicator, default)
+
+    # Handle ScoringWeights object (has to_dict method)
+    if hasattr(scoring_weights, "to_dict") and callable(
+        getattr(scoring_weights, "to_dict")
+    ):
+        try:
+            weights_dict = scoring_weights.to_dict()
+            if isinstance(weights_dict, dict):
+                return weights_dict.get(indicator, default)
+        except Exception:
+            # If to_dict() fails, fall through to attribute access
+            pass
+
+    # Handle direct attribute access
+    if hasattr(scoring_weights, indicator):
+        try:
+            value = getattr(scoring_weights, indicator)
+            if isinstance(value, (int, float)):
+                return float(value)
+        except Exception:
+            pass
+
+    # Fallback
+    return default
+
+
 def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
     """Render the options advisor tab content.
 
@@ -150,6 +197,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 "Covered Call",
                 "Cash-Secured Put",
             ].index(current_strategy),
+            key="options_strategy_selector",
             help="Select the options strategy to analyze",
         )
         update_options_setting("strategy_type", strategy_type)
@@ -160,6 +208,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
             "⚡ Risk Tolerance",
             options=["Conservative", "Moderate", "Aggressive"],
             index=["Conservative", "Moderate", "Aggressive"].index(current_risk),
+            key="risk_tolerance_selector",
             help="Your risk tolerance affects strategy recommendations",
         )
         update_options_setting("risk_tolerance", risk_tolerance)
@@ -180,6 +229,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                 "One Year (12 months)",
                 "18 Months (1.5 years)",
             ].index(current_horizon),
+            key="time_horizon_selector",
             help="Expected holding period for the options position",
         )
         update_options_setting("time_horizon", time_horizon)
@@ -425,9 +475,7 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
 
                     # Enhanced Options Analysis Display
                     if include_greeks:
-                        render_score_components_analysis(
-                            recommendations, ticker, strategy_type
-                        )
+                        render_greeks_analysis(recommendations, ticker)
 
                     if volatility_analysis:
                         render_volatility_analysis(data, ticker)
@@ -497,9 +545,6 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                                     for k, v in first_score_details.items()
                                     if k in known_indicators
                                 }
-
-                    # Create a table with metric-aware headers
-                    st.markdown("#### Options Recommendations")
 
                     # Render strategy-specific table
                     render_strategy_specific_table(recommendations, strategy_type)
@@ -835,6 +880,7 @@ def render_score_components_analysis(
                 "Select recommendation to analyze:",
                 rec_options,
                 format_func=lambda x: x[0],
+                key="score_components_rec_selector",
                 help="Choose a specific recommendation to see detailed scoring breakdown",
             )
             selected_idx = selected_option[1]
@@ -987,7 +1033,7 @@ def render_comprehensive_scoring_breakdown(
                             st.markdown(f"**Weight Distribution:**")
                             st.markdown(f"- Average: {avg_weight:.1%}")
                             st.markdown(
-                                f"- Standard Weight: {scoring_weights.get(indicator, 0):.1%}"
+                                f"- Standard Weight: {safe_get_weight(scoring_weights, indicator, 0):.1%}"
                             )
                             st.markdown(
                                 f"- Used in: {len(weights)}/{len(recommendations)} recommendations"
@@ -1083,6 +1129,7 @@ def render_comprehensive_scoring_breakdown(
             "🎯 Select Recommendation to Analyze:",
             options=range(len(rec_options)),
             format_func=lambda x: rec_options[x],
+            key="comprehensive_analysis_rec_selector",
             help="Choose a specific recommendation for detailed analysis",
         )
 
@@ -1206,11 +1253,15 @@ def render_comprehensive_scoring_breakdown(
                                     )
 
                             # Contribution to total score
-                            contribution = weight * scoring_weights.get(indicator, 0)
+                            contribution = weight * safe_get_weight(
+                                scoring_weights, indicator, 0
+                            )
                             st.markdown(f"**Score Contribution:** {contribution:.3f}")
 
                             # Weight vs standard comparison
-                            standard_weight = scoring_weights.get(indicator, 0)
+                            standard_weight = safe_get_weight(
+                                scoring_weights, indicator, 0
+                            )
                             if weight != standard_weight:
                                 diff = weight - standard_weight
                                 direction = "higher" if diff > 0 else "lower"
