@@ -1,0 +1,38 @@
+refactor: reorganize project structure following Python packaging best practices
+
+Major reorganization to improve code maintainability and follow Python packaging conventions:
+
+**Core Changes:**
+- Move glossary.py from root → buffetbot/glossary.py (business logic into package)
+- Move utility scripts to scripts/ directory for better organization
+- Update all import statements to use proper package imports
+- Add glossary exports to buffetbot/__init__.py for easy access
+
+**File Moves:**
+- glossary.py → buffetbot/glossary.py
+- run_app.py → scripts/run_app.py
+- run_dashboard.py → scripts/run_dashboard.py
+- run_tests.py → scripts/run_tests_main.py
+- remove_path_setup.py → scripts/remove_path_setup.py
+
+**Import Updates:**
+- Updated 11+ files to use 'from buffetbot.glossary import ...'
+- Fixed all dashboard views, components, and examples
+- Updated test files and UI components
+
+**Infrastructure Updates:**
+- Fixed shell script run_dashboard.sh to use new script location
+- Updated test runners to work from project root
+- Enhanced PROJECT_STRUCTURE.md with reorganization details
+
+**Verification:**
+- All 177 tests still pass (same baseline)
+- Dashboard starts successfully with new structure
+- All imports work correctly
+- No broken functionality
+
+This reorganization establishes proper Python package structure with:
+- Business logic in buffetbot/ package
+- Utility scripts in scripts/ directory
+- Clean import hierarchy
+- Maintainable code organization

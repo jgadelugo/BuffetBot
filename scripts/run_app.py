@@ -24,7 +24,7 @@ if __name__ == "__main__":
     import streamlit.web.cli as stcli
 
     # Use the main.py file which has proper imports
-    project_root = Path(__file__).parent.absolute()
+    project_root = Path(__file__).parent.parent.absolute()
 
     # Construct the streamlit command - use main.py which has clean imports
     sys.argv = [

@@ -60,7 +60,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Base pytest command
+    # Base pytest command - use the virtual environment's Python
     cmd = ["python", "-m", "pytest"]
 
     # Add test directories based on type
@@ -91,7 +91,7 @@ def main():
     if args.coverage:
         cmd.extend(
             [
-                "--cov=dashboard",
+                "--cov=buffetbot",
                 "--cov-report=html:htmlcov",
                 "--cov-report=term-missing",
                 "--cov-report=xml",
@@ -128,15 +128,15 @@ def run_style_checks():
     """Run code style and quality checks."""
     checks = [
         (
-            ["python", "-m", "black", "--check", "dashboard/", "tests/"],
+            ["python", "-m", "black", "--check", "buffetbot/", "tests/"],
             "Black code formatting",
         ),
         (
-            ["python", "-m", "isort", "--check-only", "dashboard/", "tests/"],
+            ["python", "-m", "isort", "--check-only", "buffetbot/", "tests/"],
             "Import sorting",
         ),
-        (["python", "-m", "flake8", "dashboard/", "tests/"], "Flake8 linting"),
-        (["python", "-m", "mypy", "dashboard/"], "Type checking"),
+        (["python", "-m", "flake8", "buffetbot/", "tests/"], "Flake8 linting"),
+        (["python", "-m", "mypy", "buffetbot/"], "Type checking"),
     ]
 
     print("\n🔍 Running code quality checks...")
@@ -158,7 +158,7 @@ def run_style_checks():
 def run_security_checks():
     """Run security checks."""
     checks = [
-        (["python", "-m", "bandit", "-r", "dashboard/"], "Security scanning (Bandit)"),
+        (["python", "-m", "bandit", "-r", "buffetbot/"], "Security scanning (Bandit)"),
         (["python", "-m", "safety", "check"], "Dependency vulnerability check"),
     ]
 
@@ -180,9 +180,15 @@ def run_security_checks():
 
 if __name__ == "__main__":
     # Check if we're in the right directory
-    if not Path("dashboard").exists():
+    project_root = Path(__file__).parent.parent.absolute()
+    if not (project_root / "buffetbot").exists():
         print("❌ Error: Please run this script from the project root directory")
         sys.exit(1)
+
+    # Change to project root
+    import os
+
+    os.chdir(project_root)
 
     # Check for pytest installation
     try:
@@ -198,16 +204,17 @@ if __name__ == "__main__":
 
     # Run additional checks if main tests passed
     if success and len(sys.argv) == 1:  # Only if no specific args provided
-        print(f"\n{'=' * 60}")
-        print("Running additional quality checks...")
-        print(f"{'=' * 60}")
+        print("\n" + "=" * 60)
+        print("Running additional checks...")
+        print("=" * 60)
 
         style_passed = run_style_checks()
         security_passed = run_security_checks()
 
         if style_passed and security_passed:
-            print(f"\n🎉 All checks passed! The code is ready for deployment.")
+            print("\n🎉 All checks passed!")
         else:
-            print(f"\n⚠️  Some quality checks failed. Please review and fix.")
-
-    sys.exit(0 if success else 1)
+            print("\n⚠️  Some checks failed. See output above for details.")
+            sys.exit(1)
+    elif not success:
+        sys.exit(1)

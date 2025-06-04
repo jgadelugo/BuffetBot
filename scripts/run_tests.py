@@ -7,6 +7,7 @@ This script runs all tests and provides a summary of results.
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 
 def run_tests():
@@ -21,6 +22,9 @@ def run_tests():
         print("❌ pytest is not installed. Please install it with:")
         print("   pip install pytest pytest-cov")
         return 1
+
+    # Get project root directory (parent of scripts directory)
+    project_root = Path(__file__).parent.parent
 
     # Run tests with coverage
     cmd = [
@@ -42,8 +46,8 @@ def run_tests():
         print("   Install with: pip install pytest-cov")
         print()
 
-    # Run the tests
-    result = subprocess.run(cmd, cwd=os.path.dirname(os.path.abspath(__file__)))
+    # Run the tests from project root
+    result = subprocess.run(cmd, cwd=project_root)
 
     print("\n" + "=" * 50)
     if result.returncode == 0:

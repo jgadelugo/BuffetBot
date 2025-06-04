@@ -4,15 +4,9 @@ This script demonstrates how the glossary can enhance the output of
 existing analysis functions by providing context and explanations.
 """
 
-import os
-import sys
-
-# Add parent directory to path to import buffetbot module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from typing import Any, Dict
 
-from glossary import GLOSSARY, get_metric_info
+from buffetbot.glossary import GLOSSARY, get_metric_info
 
 
 def enhanced_analysis_output(analysis_results: dict[str, Any]) -> dict[str, Any]:

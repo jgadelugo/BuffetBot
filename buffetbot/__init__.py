@@ -11,6 +11,14 @@ __email__ = "josepluton+buffetbot@gmail.com"
 
 # Core imports for easy access
 from buffetbot.data import fetch_stock_data
+
+# Glossary imports
+from buffetbot.glossary import (
+    GLOSSARY,
+    get_metric_info,
+    get_metrics_by_category,
+    search_metrics,
+)
 from buffetbot.utils.errors import DataError, DataValidationError
 from buffetbot.utils.logger import get_logger
 
@@ -29,4 +37,8 @@ __all__ = [
     "DataValidationError",
     "get_logger",
     "run_dashboard",
+    "GLOSSARY",
+    "get_metrics_by_category",
+    "search_metrics",
+    "get_metric_info",
 ]

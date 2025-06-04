@@ -44,8 +44,8 @@ from buffetbot.dashboard.dashboard_utils.formatters import (
 from buffetbot.dashboard.utils.enhanced_options_analysis import (
     analyze_options_with_custom_settings,
 )
+from buffetbot.glossary import get_metric_info
 from buffetbot.utils.logger import get_logger
-from glossary import get_metric_info
 
 logger = get_logger(__name__)
 

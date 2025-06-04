@@ -1,4 +1,9 @@
-"""Glossary tab rendering module."""
+"""
+Glossary view for the BuffetBot Dashboard.
+
+This module provides a comprehensive glossary of financial metrics and formulas
+used throughout the application.
+"""
 
 import json
 
@@ -6,7 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from buffetbot.dashboard.components.glossary_utils import render_metric_card
-from glossary import GLOSSARY, get_metrics_by_category, search_metrics
+from buffetbot.glossary import GLOSSARY, get_metrics_by_category, search_metrics
 
 
 def render_glossary_tab() -> None:

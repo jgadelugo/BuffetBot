@@ -152,7 +152,7 @@ def update_imports_in_file(file_path: Path) -> bool:
 
 def main():
     """Main function to clean up the project."""
-    root_dir = Path(__file__).parent
+    root_dir = Path(__file__).parent.parent
 
     print("🔍 Finding Python files with path setup code...")
     files_with_path_setup = find_python_files_with_path_setup(root_dir)

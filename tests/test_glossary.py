@@ -1,16 +1,21 @@
-"""Test script for the glossary_data module.
+"""Test suite for the glossary module.
 
-This script demonstrates how to use the glossary module in both backend
-and frontend contexts.
+Tests the financial metrics glossary functionality including:
+- Metric retrieval and filtering
+- Search functionality
+- Category-based organization
+- Error handling
 """
 
 import os
 import sys
 
+import pytest
+
 # Add parent directory to path to import buffetbot module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from glossary import (
+from buffetbot.glossary import (
     GLOSSARY,
     get_metric_info,
     get_metric_names,

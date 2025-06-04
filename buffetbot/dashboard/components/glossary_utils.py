@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import streamlit as st
 
-from glossary import MetricDefinition
+from buffetbot.glossary import MetricDefinition
 
 
 def render_metric_card(key: str, metric: MetricDefinition) -> None:

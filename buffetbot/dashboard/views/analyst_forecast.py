@@ -20,8 +20,8 @@ from buffetbot.dashboard.dashboard_utils.formatters import (
     safe_format_percentage,
 )
 from buffetbot.data.forecast_fetcher import ForecastFetchError, get_analyst_forecast
+from buffetbot.glossary import get_metric_info
 from buffetbot.utils.logger import get_logger
-from glossary import get_metric_info
 
 logger = get_logger(__name__)
 

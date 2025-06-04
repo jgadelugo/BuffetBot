@@ -1,5 +1,10 @@
-"""Enhanced metrics display components for the dashboard."""
+"""Metrics display components for the BuffetBot Dashboard.
 
+This module provides components for displaying financial metrics with proper
+formatting, explanations, and contextual information.
+"""
+
+import logging
 from typing import Any, Dict, Optional, Union
 
 import pandas as pd
@@ -10,7 +15,7 @@ from buffetbot.dashboard.dashboard_utils.formatters import (
     safe_format_number,
     safe_format_percentage,
 )
-from glossary import get_metric_info
+from buffetbot.glossary import get_metric_info
 
 
 def display_metric_with_info(

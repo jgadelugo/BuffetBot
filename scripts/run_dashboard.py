@@ -11,7 +11,7 @@ from pathlib import Path
 # Run the streamlit app
 if __name__ == "__main__":
     # Get the project root for the main.py file
-    project_root = Path(__file__).parent.absolute()
+    project_root = Path(__file__).parent.parent.absolute()
 
     # Construct the command
     streamlit_cmd = [

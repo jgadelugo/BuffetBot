@@ -47,5 +47,5 @@ echo "Starting BuffetBot Dashboard on http://localhost:8501"
 echo "Press Ctrl+C to stop the server gracefully"
 echo ""
 
-# Use the run_dashboard.py script which uses proper package imports
-python "$SCRIPT_DIR/run_dashboard.py" "$@"
+# Use the run_dashboard.py script from the scripts directory
+python "$SCRIPT_DIR/scripts/run_dashboard.py" "$@"

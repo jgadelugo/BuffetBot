@@ -9,7 +9,12 @@ from typing import Dict, List, Optional
 import pandas as pd
 import streamlit as st
 
-from glossary import GLOSSARY, MetricDefinition, get_metrics_by_category, search_metrics
+from buffetbot.glossary import (
+    GLOSSARY,
+    MetricDefinition,
+    get_metrics_by_category,
+    search_metrics,
+)
 
 # Page configuration
 st.set_page_config(
