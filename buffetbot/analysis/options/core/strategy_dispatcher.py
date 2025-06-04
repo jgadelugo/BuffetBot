@@ -209,6 +209,7 @@ def _execute_legacy_strategy(
         recommend_cash_secured_put,
         recommend_covered_call,
         recommend_long_calls,
+        update_scoring_weights,
     )
 
     # Map strategy types to legacy functions
@@ -224,6 +225,12 @@ def _execute_legacy_strategy(
             f"Strategy {request.strategy_type.value} not implemented",
             validation_errors={"strategy_type": "Not implemented"},
         )
+
+    # Update legacy system with strategy-specific weights
+    logger.info(
+        f"Updating legacy system with strategy-specific weights: {scoring_weights.to_dict()}"
+    )
+    update_scoring_weights(scoring_weights.to_dict())
 
     # Execute legacy strategy
     strategy_func = strategy_map[request.strategy_type]
