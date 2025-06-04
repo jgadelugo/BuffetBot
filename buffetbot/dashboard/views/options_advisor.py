@@ -476,6 +476,11 @@ def render_options_advisor_tab(data: dict[str, Any], ticker: str) -> None:
                         recommendations, ticker, strategy_type
                     )
 
+                    # Add detailed scoring breakdown and individual recommendation analysis
+                    render_comprehensive_scoring_breakdown(
+                        recommendations, ticker, strategy_type
+                    )
+
                     # Strategy-specific insights
                     render_strategy_insights(
                         strategy_type, recommendations, ticker, risk_tolerance
@@ -813,6 +818,538 @@ def render_score_components_analysis(
         else:
             # Show details for the single recommendation
             render_score_details_popover(first_score_details, 0)
+
+
+def render_comprehensive_scoring_breakdown(
+    recommendations: pd.DataFrame, ticker: str, strategy_type: str
+) -> None:
+    """
+    Render comprehensive scoring breakdown and individual recommendation analysis.
+
+    This provides detailed breakdowns of each recommendation's scoring components
+    and allows users to explore individual recommendations in depth.
+
+    Args:
+        recommendations: DataFrame containing options recommendations
+        ticker: Stock ticker symbol
+        strategy_type: Type of options strategy being analyzed
+    """
+    if recommendations.empty or "score_details" not in recommendations.columns:
+        return
+
+    st.subheader("🔬 Comprehensive Scoring Breakdown & Individual Analysis")
+
+    # Import scoring functions to avoid circular imports
+    try:
+        from buffetbot.analysis.options_advisor import (
+            get_scoring_indicator_names,
+            get_scoring_weights,
+            get_total_scoring_indicators,
+        )
+
+        total_indicators = get_total_scoring_indicators()
+        all_indicator_names = set(get_scoring_indicator_names())
+        scoring_weights = get_scoring_weights()
+    except ImportError:
+        total_indicators = 5
+        all_indicator_names = {"rsi", "beta", "momentum", "iv", "forecast"}
+        scoring_weights = {
+            "rsi": 0.25,
+            "beta": 0.15,
+            "momentum": 0.25,
+            "iv": 0.20,
+            "forecast": 0.15,
+        }
+
+    # Create main tabs for comprehensive analysis
+    main_tab1, main_tab2, main_tab3 = st.tabs(
+        [
+            "📊 Portfolio Scoring Overview",
+            "🎯 Individual Recommendation Analysis",
+            "📈 Comparative Analysis",
+        ]
+    )
+
+    with main_tab1:
+        st.markdown("#### 📊 Portfolio-Level Scoring Analysis")
+
+        # Aggregate scoring statistics across all recommendations
+        scoring_stats = {}
+        available_indicators = set()
+
+        for idx, row in recommendations.iterrows():
+            score_details = row.get("score_details", {})
+            if isinstance(score_details, dict):
+                # Filter to only actual indicators
+                indicators = {
+                    k: v for k, v in score_details.items() if k in all_indicator_names
+                }
+                available_indicators.update(indicators.keys())
+
+                for indicator, weight in indicators.items():
+                    if indicator not in scoring_stats:
+                        scoring_stats[indicator] = []
+                    scoring_stats[indicator].append(weight)
+
+        # Display aggregate metrics
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            avg_coverage = len(available_indicators) / total_indicators * 100
+            coverage_color = (
+                "🟢" if avg_coverage >= 80 else "🟡" if avg_coverage >= 60 else "🔴"
+            )
+            st.metric(
+                "Data Coverage",
+                f"{avg_coverage:.0f}%",
+                delta=f"{coverage_color} {len(available_indicators)}/{total_indicators} indicators",
+                help="Percentage of scoring indicators with available data",
+            )
+
+        with col2:
+            total_score_avg = (
+                recommendations["TotalScore"].mean()
+                if "TotalScore" in recommendations.columns
+                else 0
+            )
+            st.metric(
+                "Avg Total Score",
+                f"{total_score_avg:.2f}",
+                help="Average total composite score across all recommendations",
+            )
+
+        with col3:
+            score_std = (
+                recommendations["TotalScore"].std()
+                if "TotalScore" in recommendations.columns
+                else 0
+            )
+            consistency = (
+                "High" if score_std < 0.5 else "Medium" if score_std < 1.0 else "Low"
+            )
+            st.metric(
+                "Score Consistency",
+                consistency,
+                delta=f"σ = {score_std:.3f}",
+                help="How consistent the scores are across recommendations",
+            )
+
+        with col4:
+            top_score = (
+                recommendations["TotalScore"].max()
+                if "TotalScore" in recommendations.columns
+                else 0
+            )
+            st.metric(
+                "Best Score",
+                f"{top_score:.2f}",
+                help="Highest scoring recommendation in the portfolio",
+            )
+
+        # Detailed indicator breakdown
+        st.markdown("#### 📈 Indicator-by-Indicator Breakdown")
+
+        if scoring_stats:
+            for indicator in all_indicator_names:
+                if indicator in scoring_stats:
+                    weights = scoring_stats[indicator]
+                    avg_weight = sum(weights) / len(weights)
+
+                    # Enhanced indicator display with actual values
+                    with st.expander(
+                        f"📊 {indicator.upper()} Analysis - Avg Weight: {avg_weight:.1%}"
+                    ):
+                        col_left, col_right = st.columns([2, 1])
+
+                        with col_left:
+                            st.markdown(f"**Weight Distribution:**")
+                            st.markdown(f"- Average: {avg_weight:.1%}")
+                            st.markdown(
+                                f"- Standard Weight: {scoring_weights.get(indicator, 0):.1%}"
+                            )
+                            st.markdown(
+                                f"- Used in: {len(weights)}/{len(recommendations)} recommendations"
+                            )
+
+                            # Show actual values if available in recommendations
+                            value_col_map = {
+                                "rsi": "RSI",
+                                "beta": "Beta",
+                                "momentum": "Momentum",
+                                "iv": "IV",
+                                "forecast": "ForecastConfidence",
+                            }
+
+                            if (
+                                indicator in value_col_map
+                                and value_col_map[indicator] in recommendations.columns
+                            ):
+                                values = recommendations[value_col_map[indicator]]
+                                if values.dtype != "object":
+                                    st.markdown(
+                                        f"- Value Range: {values.min():.3f} to {values.max():.3f}"
+                                    )
+                                    st.markdown(f"- Average Value: {values.mean():.3f}")
+
+                        with col_right:
+                            # Mini histogram of weights
+                            weight_counts = {}
+                            for w in weights:
+                                w_rounded = round(w, 2)
+                                weight_counts[w_rounded] = (
+                                    weight_counts.get(w_rounded, 0) + 1
+                                )
+
+                            st.markdown("**Weight Distribution:**")
+                            for weight, count in sorted(weight_counts.items()):
+                                bar_length = int(count / len(weights) * 20)
+                                bar = "█" * bar_length
+                                st.markdown(f"{weight:.1%}: {bar} ({count})")
+                else:
+                    st.warning(f"⚠️ {indicator.upper()}: No data available")
+
+        # Portfolio quality assessment
+        st.markdown("#### 🎯 Portfolio Quality Assessment")
+
+        quality_metrics = []
+
+        # Data completeness
+        completeness_score = len(available_indicators) / total_indicators
+        quality_metrics.append(
+            ("Data Completeness", completeness_score, "Higher is better")
+        )
+
+        # Score consistency (inverse of std dev)
+        if "TotalScore" in recommendations.columns:
+            consistency_score = max(
+                0,
+                1
+                - (
+                    recommendations["TotalScore"].std()
+                    / recommendations["TotalScore"].mean()
+                ),
+            )
+            quality_metrics.append(
+                ("Score Consistency", consistency_score, "Higher is better")
+            )
+
+        # Display quality metrics
+        for metric_name, score, interpretation in quality_metrics:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                # Create a visual bar
+                bar_length = int(score * 20)
+                bar_color = "🟢" if score >= 0.8 else "🟡" if score >= 0.6 else "🔴"
+                bar = "█" * bar_length + "░" * (20 - bar_length)
+                st.markdown(f"**{metric_name}:** {bar_color} {bar} {score:.1%}")
+                st.caption(interpretation)
+
+    with main_tab2:
+        st.markdown("#### 🎯 Individual Recommendation Deep Dive")
+
+        # Recommendation selector
+        rec_options = []
+        for idx, row in recommendations.iterrows():
+            strike = row.get("Strike", "N/A")
+            expiry = row.get("Expiry", "N/A")
+            total_score = row.get("TotalScore", 0)
+            rec_options.append(
+                f"#{idx+1}: Strike ${strike} | Exp: {expiry} | Score: {total_score:.2f}"
+            )
+
+        selected_rec = st.selectbox(
+            "🎯 Select Recommendation to Analyze:",
+            options=range(len(rec_options)),
+            format_func=lambda x: rec_options[x],
+            help="Choose a specific recommendation for detailed analysis",
+        )
+
+        if selected_rec is not None:
+            selected_row = recommendations.iloc[selected_rec]
+            score_details = selected_row.get("score_details", {})
+
+            # Individual recommendation header
+            st.markdown(f"#### 📋 Recommendation #{selected_rec + 1} Analysis")
+
+            # Key metrics display
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                strike = selected_row.get("Strike", "N/A")
+                st.metric("Strike Price", f"${strike}")
+
+            with col2:
+                expiry = selected_row.get("Expiry", "N/A")
+                st.metric("Expiration", str(expiry))
+
+            with col3:
+                total_score = selected_row.get("TotalScore", 0)
+                st.metric("Total Score", f"{total_score:.3f}")
+
+            with col4:
+                # Calculate rank
+                rank = (recommendations["TotalScore"] > total_score).sum() + 1
+                st.metric("Rank", f"#{rank}")
+
+            # Detailed scoring breakdown for this recommendation
+            if isinstance(score_details, dict):
+                actual_indicators = {
+                    k: v for k, v in score_details.items() if k in all_indicator_names
+                }
+                metadata_fields = {
+                    k: v
+                    for k, v in score_details.items()
+                    if k not in all_indicator_names
+                }
+
+                st.markdown("#### 🔍 Scoring Component Analysis")
+
+                # Create two columns for detailed analysis
+                left_col, right_col = st.columns([2, 1])
+
+                with left_col:
+                    st.markdown("**Technical Indicators Breakdown:**")
+
+                    # Enhanced indicator details with actual values
+                    indicator_details = {
+                        "rsi": {
+                            "name": "RSI (Relative Strength Index)",
+                            "description": "Momentum oscillator (0-100)",
+                            "good_range": "30-70 for balanced, <30 oversold, >70 overbought",
+                            "icon": "📈",
+                            "value_col": "RSI",
+                        },
+                        "beta": {
+                            "name": "Beta Coefficient",
+                            "description": "Volatility vs market",
+                            "good_range": "0.8-1.5 for balanced risk/reward",
+                            "icon": "📊",
+                            "value_col": "Beta",
+                        },
+                        "momentum": {
+                            "name": "Price Momentum",
+                            "description": "Recent price trend strength",
+                            "good_range": "Positive for bullish strategies",
+                            "icon": "🚀",
+                            "value_col": "Momentum",
+                        },
+                        "iv": {
+                            "name": "Implied Volatility",
+                            "description": "Option pricing volatility expectation",
+                            "good_range": "Lower generally better for buying",
+                            "icon": "💨",
+                            "value_col": "IV",
+                        },
+                        "forecast": {
+                            "name": "Analyst Forecast Confidence",
+                            "description": "Wall Street consensus strength",
+                            "good_range": "Higher confidence supports direction",
+                            "icon": "🔮",
+                            "value_col": "ForecastConfidence",
+                        },
+                    }
+
+                    for indicator, weight in actual_indicators.items():
+                        details = indicator_details.get(
+                            indicator,
+                            {
+                                "name": indicator.upper(),
+                                "description": "Technical indicator",
+                                "good_range": "Varies by strategy",
+                                "icon": "📋",
+                                "value_col": indicator.upper(),
+                            },
+                        )
+
+                        with st.expander(
+                            f"{details['icon']} {details['name']} - Weight: {weight:.1%}"
+                        ):
+                            st.markdown(f"**Description:** {details['description']}")
+                            st.markdown(f"**Optimal Range:** {details['good_range']}")
+
+                            # Show actual value for this recommendation
+                            if details["value_col"] in selected_row:
+                                actual_value = selected_row[details["value_col"]]
+                                if indicator == "iv" and isinstance(actual_value, str):
+                                    st.markdown(f"**Current Value:** {actual_value}")
+                                elif indicator == "forecast" and pd.notna(actual_value):
+                                    st.markdown(
+                                        f"**Current Value:** {actual_value:.1%}"
+                                    )
+                                elif pd.notna(actual_value) and isinstance(
+                                    actual_value, (int, float)
+                                ):
+                                    st.markdown(
+                                        f"**Current Value:** {actual_value:.3f}"
+                                    )
+
+                            # Contribution to total score
+                            contribution = weight * scoring_weights.get(indicator, 0)
+                            st.markdown(f"**Score Contribution:** {contribution:.3f}")
+
+                            # Weight vs standard comparison
+                            standard_weight = scoring_weights.get(indicator, 0)
+                            if weight != standard_weight:
+                                diff = weight - standard_weight
+                                direction = "higher" if diff > 0 else "lower"
+                                st.info(
+                                    f"Note: Weight is {abs(diff):.1%} {direction} than standard ({standard_weight:.1%})"
+                                )
+
+                with right_col:
+                    st.markdown("**Scoring Summary:**")
+
+                    # Visual scoring breakdown
+                    total_weight = sum(actual_indicators.values())
+                    st.markdown(f"**Total Weight:** {total_weight:.1%}")
+
+                    # Weight distribution pie chart representation
+                    st.markdown("**Weight Distribution:**")
+                    for indicator, weight in actual_indicators.items():
+                        percentage = (
+                            weight / total_weight * 100 if total_weight > 0 else 0
+                        )
+                        bar_length = int(percentage / 5)  # Scale for display
+                        bar = "█" * bar_length
+                        st.markdown(f"{indicator.upper()}: {bar} {percentage:.1f}%")
+
+                    # Missing indicators
+                    missing_indicators = all_indicator_names - set(
+                        actual_indicators.keys()
+                    )
+                    if missing_indicators:
+                        st.markdown("**Missing Indicators:**")
+                        for missing in missing_indicators:
+                            st.markdown(f"⚠️ {missing.upper()}")
+
+                    # Configuration metadata
+                    if metadata_fields:
+                        st.markdown("**Configuration:**")
+                        for field, value in metadata_fields.items():
+                            field_name = field.replace("_", " ").title()
+                            st.markdown(f"• **{field_name}:** {value}")
+
+    with main_tab3:
+        st.markdown("#### 📈 Comparative Analysis Across Recommendations")
+
+        # Comparative scoring analysis
+        if len(recommendations) > 1:
+            # Score distribution analysis
+            st.markdown("##### 📊 Score Distribution")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Score statistics
+                if "TotalScore" in recommendations.columns:
+                    scores = recommendations["TotalScore"]
+                    st.markdown("**Score Statistics:**")
+                    st.markdown(f"• **Highest:** {scores.max():.3f}")
+                    st.markdown(f"• **Lowest:** {scores.min():.3f}")
+                    st.markdown(f"• **Average:** {scores.mean():.3f}")
+                    st.markdown(f"• **Std Dev:** {scores.std():.3f}")
+                    st.markdown(f"• **Range:** {scores.max() - scores.min():.3f}")
+
+                    # Score quartiles
+                    q1 = scores.quantile(0.25)
+                    q2 = scores.quantile(0.50)
+                    q3 = scores.quantile(0.75)
+
+                    st.markdown("**Score Quartiles:**")
+                    st.markdown(f"• **Q1 (25%):** {q1:.3f}")
+                    st.markdown(f"• **Q2 (50%):** {q2:.3f}")
+                    st.markdown(f"• **Q3 (75%):** {q3:.3f}")
+
+            with col2:
+                # Top performers analysis
+                st.markdown("**Top Performers:**")
+
+                top_3 = (
+                    recommendations.nlargest(3, "TotalScore")
+                    if "TotalScore" in recommendations.columns
+                    else recommendations.head(3)
+                )
+
+                for idx, (_, row) in enumerate(top_3.iterrows()):
+                    rank_num = idx + 1
+                    strike = row.get("Strike", "N/A")
+                    score = row.get("TotalScore", 0)
+                    expiry = row.get("Expiry", "N/A")
+
+                    medal = "🥇" if rank_num == 1 else "🥈" if rank_num == 2 else "🥉"
+                    st.markdown(
+                        f"{medal} **#{rank_num}:** ${strike} | {expiry} | {score:.3f}"
+                    )
+
+                # Bottom performers
+                st.markdown("**Bottom Performers:**")
+                bottom_3 = (
+                    recommendations.nsmallest(3, "TotalScore")
+                    if "TotalScore" in recommendations.columns
+                    else recommendations.tail(3)
+                )
+
+                for idx, (_, row) in enumerate(bottom_3.iterrows()):
+                    strike = row.get("Strike", "N/A")
+                    score = row.get("TotalScore", 0)
+                    expiry = row.get("Expiry", "N/A")
+                    rank_from_bottom = idx + 1
+
+                    st.markdown(
+                        f"⬇️ **#{len(recommendations) - rank_from_bottom + 1}:** ${strike} | {expiry} | {score:.3f}"
+                    )
+
+            # Indicator consistency analysis
+            st.markdown("##### 🎯 Indicator Consistency Analysis")
+
+            indicator_consistency = {}
+
+            for idx, row in recommendations.iterrows():
+                score_details = row.get("score_details", {})
+                if isinstance(score_details, dict):
+                    indicators = {
+                        k: v
+                        for k, v in score_details.items()
+                        if k in all_indicator_names
+                    }
+
+                    for indicator, weight in indicators.items():
+                        if indicator not in indicator_consistency:
+                            indicator_consistency[indicator] = []
+                        indicator_consistency[indicator].append(weight)
+
+            # Display consistency metrics
+            for indicator in all_indicator_names:
+                if indicator in indicator_consistency:
+                    weights = indicator_consistency[indicator]
+                    avg_weight = sum(weights) / len(weights)
+                    std_weight = (
+                        sum((w - avg_weight) ** 2 for w in weights) / len(weights)
+                    ) ** 0.5
+                    consistency = (
+                        "High"
+                        if std_weight < 0.01
+                        else "Medium"
+                        if std_weight < 0.05
+                        else "Low"
+                    )
+
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric(f"{indicator.upper()}", f"{avg_weight:.1%}")
+                    with col2:
+                        st.metric("Std Dev", f"{std_weight:.3f}")
+                    with col3:
+                        st.metric("Consistency", consistency)
+                    with col4:
+                        coverage = len(weights) / len(recommendations) * 100
+                        st.metric("Coverage", f"{coverage:.0f}%")
+
+                    st.markdown("---")
+        else:
+            st.info(
+                "📊 Comparative analysis requires multiple recommendations. Add more recommendations to see comparison metrics."
+            )
 
 
 def render_greeks_analysis(recommendations: pd.DataFrame, ticker: str) -> None:
