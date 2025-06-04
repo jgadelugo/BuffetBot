@@ -18,8 +18,10 @@ Major architectural decisions, system design changes, and structural improvement
 Bug fixes, error resolutions, and corrective implementations.
 
 - [`BUG_FIXES_SUMMARY.md`](fixes/BUG_FIXES_SUMMARY.md) - Comprehensive summary of bug fixes and resolutions
+- [`CRITICAL_OPTIONS_ERRORS_FIX.md`](fixes/CRITICAL_OPTIONS_ERRORS_FIX.md) - Critical error fixes for options analysis system: TimeHorizon enum, data fetching, variable scoping, and weight normalization
 - [`ERROR_HANDLING_IMPROVEMENTS.md`](fixes/ERROR_HANDLING_IMPROVEMENTS.md) - Error handling improvements and robustness enhancements
 - [`FORECAST_INTEGRATION_FIX.md`](fixes/FORECAST_INTEGRATION_FIX.md) - Restoring forecast data integration in options scoring algorithm
+- [`SETTINGS_PANEL_UPDATE_FIX.md`](fixes/SETTINGS_PANEL_UPDATE_FIX.md) - Settings panel update fix and synchronization improvements
 - [`TICKER_CHANGE_FIX.md`](fixes/TICKER_CHANGE_FIX.md) - Ticker change handling improvements and fixes
 - [`TICKER_SYNCHRONIZATION_FIX.md`](fixes/TICKER_SYNCHRONIZATION_FIX.md) - Options Advisor ticker synchronization fix and improvements
 
@@ -56,10 +58,10 @@ Metric definitions, terminology, and reference materials.
 ## 📊 Documentation Statistics
 
 - **Architecture Documents**: 6 files covering major structural changes and design decisions
-- **Fix Documents**: 5 files documenting bug fixes and error resolutions
+- **Fix Documents**: 7 files documenting bug fixes and error resolutions
 - **Feature Documents**: 3 files describing new feature implementations
 - **Reference Documents**: 3 files providing terminology and verification procedures
-- **Total Organized**: 17 documentation files properly categorized
+- **Total Organized**: 19 documentation files properly categorized
 
 ## 📝 Documentation Guidelines
 
