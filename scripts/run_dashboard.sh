@@ -45,16 +45,16 @@ fi
 echo "Checking database connection..."
 python -m database.cli health --detailed
 
-if [ $? -ne 0 ]; then
-    echo "Database health check failed. Attempting to initialize database..."
-    python -m database.cli create --seed
+# if [ $? -ne 0 ]; then
+#     echo "Database health check failed. Attempting to initialize database..."
+#     python -m database.cli create --seed
 
-    if [ $? -ne 0 ]; then
-        echo "❌ Failed to initialize database. Please check your database configuration."
-        echo "💡 Make sure PostgreSQL is running and your .env file is configured correctly."
-        exit 1
-    fi
-fi
+#     if [ $? -ne 0 ]; then
+#         echo "❌ Failed to initialize database. Please check your database configuration."
+#         echo "💡 Make sure PostgreSQL is running and your .env file is configured correctly."
+#         exit 1
+#     fi
+# fi
 
 # Run the dashboard using the new structure
 echo "Starting BuffetBot Dashboard..."
