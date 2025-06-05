@@ -25,8 +25,9 @@ def inject_google_analytics(tracking_id: str = "G-ZCCK6W5VEF") -> None:
       window.dataLayer = window.dataLayer || [];
       function gtag(){{dataLayer.push(arguments);}}
       gtag('js', new Date());
-      gtag('config', '{tracking_id}');
-    </script>
+
+        gtag('config', {tracking_id});
+        </script>
     """
 
     # Inject the code into the page head
