@@ -207,3 +207,7 @@ yarn-error.log*
 # Prompt files - exclude AI prompt files from version control
 *_PROMPT.md
 **/*_PROMPT.md
+
+# Planning documents - exclude from version control
+plan/
+**/plan/
