@@ -15,6 +15,7 @@ BuffetBot offers flexible deployment options from **completely free development*
 | Scenario | Monthly Cost | Use Case | Recommended For |
 |----------|--------------|----------|-----------------|
 | **Local Development** | $0 | Learning, testing, development | Developers, students, hobbyists |
+| **Ultra-Low-Cost Cloud** | $18 | Serverless + object storage | Cost-conscious developers |
 | **Enhanced Development** | $16 | Advanced development with cloud DB | Serious developers, small teams |
 | **Production Ready** | $46 | Live application with users | Startups, small businesses |
 | **Enterprise Scale** | $100-500 | High availability, real-time data | Growing businesses, enterprises |
@@ -119,6 +120,16 @@ IEX Cloud Growth               : $19/month
 Total                          : $46/month
 ```
 
+### **Ultra-Low-Cost Cloud Storage Setup: $18/month**
+```
+Google Cloud Run               : $5/month    - Serverless hosting
+Cloud Firestore               : $3/month    - NoSQL operational data
+Cloud Storage                  : $2/month    - Historical data storage
+BigQuery                       : $3/month    - Analytics queries
+IEX Cloud Starter             : $5/month    - Reduced API tier
+Total                         : $18/month   - 61% cost reduction!
+```
+
 ### What You Get
 - Production-grade hosting with auto-scaling
 - Managed database with high availability
@@ -183,6 +194,174 @@ Total                          : $289/month
 - 24/7 monitoring and alerting
 - Professional financial data feeds
 - High-frequency trading capabilities
+
+---
+
+## 🌤️ **Ultra-Low-Cost Cloud Storage Architecture**
+
+### Hybrid Storage Strategy (Recommended for Maximum Savings)
+
+Your friend's approach is brilliant! Here's how to implement it with GCP:
+
+#### **Data Storage Strategy**
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Cloud Firestore │    │  Cloud Storage   │    │    BigQuery     │
+│  (Operational)   │────│  (Historical)    │────│   (Analytics)   │
+│                 │    │                  │    │                 │
+│ • User profiles  │    │ • Daily prices   │    │ • Complex       │
+│ • Portfolios     │    │ • Market data    │    │   analytics     │
+│ • Current        │    │ • News archive   │    │ • Reporting     │
+│   positions      │    │ • Backups        │    │ • Data science  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+#### **Cost Breakdown (GCP Ultra-Low-Cost)**
+```
+Google Cloud Run (Serverless)    : $5/month
+├── Auto-scales to zero when idle
+├── Pay only for actual usage
+└── Perfect for BuffetBot's variable load
+
+Cloud Firestore (NoSQL)         : $3/month
+├── 50K reads/day + 20K writes/day (free tier)
+├── Real-time updates
+└── Serverless scaling
+
+Cloud Storage (Object Storage)   : $2/month
+├── $0.020/GB for standard storage
+├── 100GB = $2/month
+└── Perfect for historical data
+
+BigQuery (Analytics)             : $3/month
+├── $5/TB for queries (1TB free/month)
+├── SQL interface over stored data
+└── Serverless analytics
+
+IEX Cloud Starter               : $5/month
+├── 100K API calls/month
+├── Combined with smart caching
+└── Sufficient for most use cases
+
+Total Monthly Cost              : $18/month
+Annual Cost                     : $216/year
+Savings vs Traditional DB       : 61% reduction!
+```
+
+#### **Implementation Architecture**
+```python
+# buffetbot/storage/hybrid_strategy.py
+from google.cloud import firestore, storage, bigquery
+import asyncio
+from datetime import datetime, timedelta
+
+class HybridDataManager:
+    """Manage data across Firestore, Cloud Storage, and BigQuery"""
+
+    def __init__(self):
+        self.firestore_client = firestore.Client()
+        self.storage_client = storage.Client()
+        self.bigquery_client = bigquery.Client()
+        self.bucket_name = "buffetbot-historical-data"
+
+    async def store_real_time_data(self, data: dict):
+        """Store operational data in Firestore"""
+        collection = self.firestore_client.collection('portfolios')
+        doc_ref = collection.document(data['portfolio_id'])
+        doc_ref.set(data, merge=True)
+
+    async def archive_historical_data(self, data: dict, symbol: str):
+        """Archive historical data to Cloud Storage"""
+        bucket = self.storage_client.bucket(self.bucket_name)
+
+        # Organize by date and symbol
+        date_str = datetime.now().strftime('%Y/%m/%d')
+        blob_name = f"market_data/{symbol}/{date_str}/data.json"
+
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string(json.dumps(data))
+
+    async def query_analytics(self, query: str):
+        """Run analytics queries on BigQuery"""
+        # BigQuery can query JSON files directly in Cloud Storage
+        full_query = f"""
+        SELECT *
+        FROM `{self.project_id}.buffetbot.market_data_*`
+        WHERE {query}
+        """
+
+        query_job = self.bigquery_client.query(full_query)
+        return [dict(row) for row in query_job]
+
+# Usage Example
+manager = HybridDataManager()
+
+# Store current portfolio (fast, real-time)
+await manager.store_real_time_data({
+    'portfolio_id': 'user123_portfolio',
+    'total_value': 50000,
+    'last_updated': datetime.now()
+})
+
+# Archive daily market data (cheap, bulk storage)
+await manager.archive_historical_data(market_data, 'AAPL')
+
+# Run analytics (powerful, cost-effective)
+results = await manager.query_analytics("symbol = 'AAPL' AND date > '2024-01-01'")
+```
+
+### **Cost Comparison: Traditional vs Hybrid**
+
+| Storage Strategy | 100GB Data | 1M Queries/Month | Total Cost |
+|------------------|------------|------------------|------------|
+| **Traditional PostgreSQL** | $25 | $10 | $35/month |
+| **Hybrid (GCP)** | $2 | $3 | $5/month |
+| **Savings** | 92% | 70% | **86% savings!** |
+
+### **AWS Alternative (Your Friend's Setup)**
+```
+AWS Lambda (Serverless)         : $5/month
+DynamoDB (NoSQL)               : $3/month    - 25GB free tier
+S3 Standard Storage            : $2/month    - $0.023/GB
+Amazon Athena                  : $3/month    - $5/TB queried
+IEX Cloud Starter             : $5/month
+Total                         : $18/month    - Same cost as GCP!
+```
+
+**Implementation Example:**
+```python
+# AWS Implementation
+import boto3
+from boto3.dynamodb.conditions import Key
+
+class AWSHybridManager:
+    def __init__(self):
+        self.dynamodb = boto3.resource('dynamodb')
+        self.s3 = boto3.client('s3')
+        self.athena = boto3.client('athena')
+
+    def store_portfolio(self, portfolio_data):
+        """Store in DynamoDB for real-time access"""
+        table = self.dynamodb.Table('portfolios')
+        table.put_item(Item=portfolio_data)
+
+    def archive_to_s3(self, data, symbol):
+        """Archive historical data to S3"""
+        key = f"market_data/{symbol}/{datetime.now().strftime('%Y/%m/%d')}/data.json"
+        self.s3.put_object(
+            Bucket='buffetbot-data',
+            Key=key,
+            Body=json.dumps(data)
+        )
+
+    def query_with_athena(self, sql_query):
+        """Query S3 data with Athena"""
+        response = self.athena.start_query_execution(
+            QueryString=sql_query,
+            ResultConfiguration={'OutputLocation': 's3://athena-results/'}
+        )
+        return response
+```
 
 ---
 
