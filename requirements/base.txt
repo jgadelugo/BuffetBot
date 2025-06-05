@@ -7,3 +7,11 @@ yfinance
 plotly
 matplotlib
 requests
+
+# GCS Storage Integration
+google-cloud-storage>=2.10.0
+pyarrow>=14.0.0
+aiofiles>=23.0.0
+cachetools>=5.0.0
+cryptography>=41.0.0
+pydantic>=2.0.0
