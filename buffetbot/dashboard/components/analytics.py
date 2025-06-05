@@ -10,7 +10,7 @@ from typing import Optional
 import streamlit as st
 
 
-def inject_google_analytics(tracking_id: str = "G-ZCCK6W5VEF") -> None:
+def inject_google_analytics(tracking_id: str = "G-YEGLMK3LDR") -> None:
     """Inject Google Analytics tracking code into the Streamlit app.
 
     Args:
@@ -19,15 +19,17 @@ def inject_google_analytics(tracking_id: str = "G-ZCCK6W5VEF") -> None:
 
     # Google Analytics tracking code
     ga_code = f"""
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id={tracking_id}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
+
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id={tracking_id}"></script>
+        <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){{dataLayer.push(arguments);}}
+        gtag('js', new Date());
 
         gtag('config', {tracking_id});
         </script>
+
     """
 
     # Inject the code into the page head
@@ -128,14 +130,14 @@ def track_user_interaction(interaction_type: str, details: dict = None) -> None:
 
 # Configuration for different environments
 ANALYTICS_CONFIG = {
-    "production": {"enabled": True, "tracking_id": "G-ZCCK6W5VEF"},
+    "production": {"enabled": True, "tracking_id": "G-YEGLMK3LDR"},
     "development": {
         "enabled": False,  # Disable in development
-        "tracking_id": "G-ZCCK6W5VEF",
+        "tracking_id": "G-YEGLMK3LDR",
     },
     "staging": {
         "enabled": True,
-        "tracking_id": "G-ZCCK6W5VEF",  # You might want a separate ID for staging
+        "tracking_id": "G-YEGLMK3LDR",  # You might want a separate ID for staging
     },
 }
 

@@ -6,7 +6,7 @@ This guide explains how Google Analytics has been integrated into your Stock Ana
 
 ## 🎯 **Integration Summary**
 
-Your Google Analytics tracking code (`G-ZCCK6W5VEF`) has been professionally integrated with:
+Your Google Analytics tracking code (`G-YEGLMK3LDR`) has been professionally integrated with:
 
 - **Automatic Environment Detection**: Different behavior for development, staging, and production
 - **Enhanced Event Tracking**: Track user interactions, ticker analyses, and tab views
@@ -79,7 +79,7 @@ Configure in `dashboard/config/analytics.py`:
 ```python
 GOOGLE_ANALYTICS_CONFIG = {
     'production': {
-        'tracking_id': 'G-ZCCK6W5VEF',
+        'tracking_id': 'G-YEGLMK3LDR',
         'enabled': True,
         'debug_mode': False,
         'anonymize_ip': True
@@ -232,4 +232,4 @@ The integration is designed to be:
 - **Privacy-compliant**: Built-in protections
 - **Extensible**: Easy to add new tracking
 
-Your Google Analytics tracking (`G-ZCCK6W5VEF`) is now professionally integrated and ready to provide insights into how users interact with your Stock Analysis Dashboard! 🎉
+Your Google Analytics tracking (`G-YEGLMK3LDR`) is now professionally integrated and ready to provide insights into how users interact with your Stock Analysis Dashboard! 🎉

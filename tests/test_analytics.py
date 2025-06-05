@@ -51,7 +51,7 @@ def main():
     ## Expected Console Output
     ```
     Google Analytics loaded
-    gtag('config', 'G-ZCCK6W5VEF');
+    gtag('config', 'G-YEGLMK3LDR');
     gtag('event', 'page_view', ...);
     ```
 

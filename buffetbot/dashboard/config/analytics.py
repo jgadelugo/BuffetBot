@@ -11,21 +11,21 @@ from typing import Any, Dict
 # Google Analytics Configuration
 GOOGLE_ANALYTICS_CONFIG = {
     "production": {
-        "tracking_id": "G-ZCCK6W5VEF",
+        "tracking_id": "G-YEGLMK3LDR",
         "enabled": True,
         "debug_mode": False,
         "anonymize_ip": True,
         "cookie_consent": True,
     },
     "staging": {
-        "tracking_id": "G-ZCCK6W5VEF",  # Consider using a separate staging ID
+        "tracking_id": "G-YEGLMK3LDR",  # Consider using a separate staging ID
         "enabled": True,
         "debug_mode": True,
         "anonymize_ip": True,
         "cookie_consent": True,
     },
     "development": {
-        "tracking_id": "G-ZCCK6W5VEF",
+        "tracking_id": "G-YEGLMK3LDR",
         "enabled": False,  # Disabled in development to avoid skewing data
         "debug_mode": True,
         "anonymize_ip": True,
@@ -93,7 +93,7 @@ def get_tracking_id(environment: str = None) -> str:
         Google Analytics tracking ID
     """
     config = get_analytics_config(environment)
-    return config.get("tracking_id", "G-ZCCK6W5VEF")
+    return config.get("tracking_id", "G-YEGLMK3LDR")
 
 
 # Custom event tracking configuration
