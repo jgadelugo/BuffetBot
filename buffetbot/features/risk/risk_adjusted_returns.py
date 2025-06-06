@@ -82,7 +82,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Sharpe ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def sortino_ratio(
@@ -160,7 +160,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Sortino ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def calmar_ratio(returns: pd.Series, window: int = 252) -> pd.Series:
@@ -233,7 +233,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Calmar ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def information_ratio(
@@ -302,7 +302,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Information ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def omega_ratio(
@@ -368,7 +368,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Omega ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def sterling_ratio(returns: pd.Series, window: int = 252) -> pd.Series:
@@ -455,7 +455,7 @@ class RiskAdjustedReturns:
 
         except Exception as e:
             logger.error(f"Error calculating Sterling ratio: {str(e)}")
-            return pd.Series(index=returns.index, dtype=float)
+            return pd.Series(dtype=float)
 
     @staticmethod
     def comprehensive_metrics(

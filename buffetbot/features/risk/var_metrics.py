@@ -150,9 +150,9 @@ class VaRMetrics:
             if not isinstance(returns, pd.Series):
                 raise ValueError("returns must be a pandas Series")
 
-            if len(returns) < window:
+            if len(returns) < 30:  # Use minimum 30 observations
                 logger.warning(
-                    f"Insufficient data for parametric VaR: {len(returns)} < {window}"
+                    f"Insufficient data for parametric VaR: {len(returns)} < 30"
                 )
                 empty_series = pd.Series(dtype=float)
                 result = {}
@@ -161,54 +161,90 @@ class VaRMetrics:
                     result[key] = empty_series
                 return result
 
+            # Use smaller window to ensure we get meaningful rolling results
+            # For datasets with exactly the window size, use a smaller window to get multiple points
+            if len(returns) <= window:
+                effective_window = max(
+                    30, min(60, len(returns) // 2)
+                )  # Use smaller window for rolling
+            else:
+                effective_window = window
+
             result = {}
 
             for conf_level in confidence_levels:
                 var_values = []
                 alpha = 1 - conf_level
 
-                for i in range(window, len(returns) + 1):
-                    window_returns = returns.iloc[i - window : i]
+                for i in range(effective_window, len(returns) + 1):
+                    window_returns = returns.iloc[i - effective_window : i]
 
                     try:
-                        if distribution == "normal":
-                            # Normal distribution VaR
-                            mean = window_returns.mean()
-                            std = window_returns.std()
-                            var_value = stats.norm.ppf(alpha, loc=mean, scale=std)
-
-                        elif distribution == "t":
-                            # Student's t-distribution VaR
-                            params = stats.t.fit(window_returns)
-                            var_value = stats.t.ppf(alpha, *params)
-
-                        elif distribution == "skewnorm":
-                            # Skewed normal distribution VaR
-                            params = stats.skewnorm.fit(window_returns)
-                            var_value = stats.skewnorm.ppf(alpha, *params)
-
+                        # Check for edge cases
+                        if len(window_returns) < 30:  # Insufficient data
+                            var_value = np.nan
+                        elif window_returns.std() == 0:  # No volatility
+                            var_value = (
+                                window_returns.mean()
+                            )  # Return the constant value
                         else:
-                            # Default to normal if unknown distribution
-                            mean = window_returns.mean()
-                            std = window_returns.std()
-                            var_value = stats.norm.ppf(alpha, loc=mean, scale=std)
+                            if distribution == "normal":
+                                # Normal distribution VaR
+                                mean = window_returns.mean()
+                                std = window_returns.std()
+                                if std > 0:
+                                    var_value = stats.norm.ppf(
+                                        alpha, loc=mean, scale=std
+                                    )
+                                else:
+                                    var_value = mean
+
+                            elif distribution == "t":
+                                # Student's t-distribution VaR
+                                params = stats.t.fit(window_returns)
+                                var_value = stats.t.ppf(alpha, *params)
+
+                            elif distribution == "skewnorm":
+                                # Skewed normal distribution VaR
+                                params = stats.skewnorm.fit(window_returns)
+                                var_value = stats.skewnorm.ppf(alpha, *params)
+
+                            else:
+                                # Default to normal if unknown distribution
+                                mean = window_returns.mean()
+                                std = window_returns.std()
+                                if std > 0:
+                                    var_value = stats.norm.ppf(
+                                        alpha, loc=mean, scale=std
+                                    )
+                                else:
+                                    var_value = mean
 
                     except Exception as fit_error:
                         # Fallback to historical VaR if fitting fails
-                        var_value = np.percentile(window_returns, alpha * 100)
+                        try:
+                            var_value = np.percentile(window_returns, alpha * 100)
+                        except:
+                            var_value = np.nan
+
+                    # Validate result
+                    if not np.isfinite(var_value):
+                        var_value = np.nan
 
                     var_values.append(var_value)
 
-                # Create series
-                var_series = pd.Series(
-                    var_values,
-                    index=returns.index[window - 1 :],
-                    name=f"Parametric_VaR_{int(conf_level*100)}%",
-                )
-
-                # Pad with NaN
-                full_var_series = pd.Series(index=returns.index, dtype=float)
-                full_var_series.loc[var_series.index] = var_series
+                # Create series - only include valid values, no NaN padding
+                if var_values:
+                    var_series = pd.Series(
+                        var_values,
+                        index=returns.index[effective_window - 1 :],
+                        name=f"Parametric_VaR_{int(conf_level*100)}%",
+                    )
+                    # Don't pad with NaN, just return the valid values
+                    full_var_series = var_series
+                else:
+                    # If no valid values, return empty series
+                    full_var_series = pd.Series(dtype=float)
 
                 key = f"var_{int(conf_level*100)}"
                 result[key] = full_var_series
