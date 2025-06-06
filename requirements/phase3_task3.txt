@@ -1,0 +1,44 @@
+# Phase 3 Task 3: Advanced Feature Engineering Pipeline
+# Dependencies for sophisticated financial feature engineering
+
+# Core ML and Data Science (already from Task 2, but listed for completeness)
+scikit-learn>=1.3.2          # ML algorithms and feature selection
+pandas>=2.0.3                # Data manipulation and analysis
+numpy>=1.24.3                # Numerical computing foundation
+scipy>=1.11.4                # Scientific computing and statistics
+
+# Technical Analysis Libraries (NEW for Task 3)
+ta-lib>=0.4.25               # Comprehensive technical analysis library
+pandas-ta>=0.3.14b0          # Pandas-based technical analysis
+yfinance>=0.2.18             # Market data for testing and validation
+
+# Economic Data Sources (Optional but useful)
+fredapi>=0.5.1               # Federal Reserve Economic Data (VIX, rates)
+
+# Performance Optimization
+numba>=0.58.1                # JIT compilation for performance-critical functions
+bottleneck>=1.3.7            # Fast array operations and statistical functions
+
+# Feature Selection and Optimization (already from Task 2)
+optuna>=4.0.0                # Hyperparameter optimization for feature selection
+
+# Data Processing and Persistence (already from Task 2)
+joblib>=1.3.2                # Model and feature persistence
+tqdm>=4.66.1                 # Progress bars for long-running feature processing
+
+# Development and Testing (already available)
+pytest>=7.4.3               # Testing framework
+pytest-cov>=4.1.0           # Test coverage reporting
+pytest-benchmark>=4.0.0     # Performance benchmarking
+
+# Memory Profiling (Development only)
+memory-profiler>=0.61.0     # Memory usage monitoring
+
+# Alternative TA-Lib (if compilation issues)
+# talib-binary>=0.4.19      # Binary distribution of TA-Lib (uncomment if needed)
+
+# Configuration Management (if using YAML configs)
+pyyaml>=6.0.1                # YAML configuration file support
+
+# Logging and Monitoring (already from previous phases)
+structlog>=23.1.0            # Structured logging

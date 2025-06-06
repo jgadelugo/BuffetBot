@@ -1,0 +1,64 @@
+# Phase 3: ML & AI Integration Dependencies
+# 🚨 WARNING: Installing these packages does NOT incur GCP charges
+# 🚨 GCP charges occur only when you ENABLE and USE the cloud services
+
+# Core ML & AI Libraries (LOCAL ONLY - NO CLOUD COSTS)
+scikit-learn==1.3.2                   # Core ML algorithms
+xgboost==2.0.3                       # Gradient boosting
+lightgbm==4.1.0                      # Light gradient boosting
+tensorflow==2.15.0                    # Deep learning framework (optional)
+tensorflow-probability==0.23.0        # Probabilistic ML (optional)
+
+# Cloud Service Interface Stubs (NO ACTUAL CONNECTION)
+google-cloud-aiplatform==1.38.1       # For interface compatibility only
+google-cloud-automl==2.11.3           # For upgrade path preparation
+google-cloud-notebooks==1.9.1         # For future notebook integration
+
+# Enhanced Analytics
+numpy==1.24.4                        # Numerical computing (already may be installed)
+scipy==1.11.4                        # Scientific computing
+statsmodels==0.14.1                  # Statistical modeling (already may be installed)
+matplotlib==3.8.2                    # Plotting (may already be installed)
+seaborn==0.13.0                      # Enhanced plotting
+plotly==5.17.0                       # Interactive visualizations
+
+# Feature Engineering
+ta-lib==0.4.28                       # Technical analysis indicators (requires C++ compiler)
+yfinance==0.2.18                     # Yahoo Finance data (for features)
+alpha-vantage==2.3.1                 # Alpha Vantage API (alternative data source)
+
+# Time Series Specific
+prophet==1.1.5                       # Facebook Prophet for forecasting
+pmdarima==2.0.4                      # ARIMA models
+arch==6.2.0                          # GARCH and volatility models
+
+# Model Management & MLOps
+mlflow==2.8.1                        # ML lifecycle management
+wandb==0.16.1                        # Weights & Biases for experiment tracking
+optuna==3.4.0                        # Hyperparameter optimization
+
+# Additional Utilities
+joblib==1.3.2                        # Parallel computing
+tqdm==4.66.1                         # Progress bars
+click==8.1.7                         # CLI interface (may already be installed)
+
+# Development & Testing (for ML components)
+pytest-asyncio==0.21.1               # Async testing support
+hypothesis==6.92.1                   # Property-based testing
+pytest-mock==3.12.0                  # Mocking for tests
+
+# Data Validation
+cerberus==1.3.5                      # Data validation schemas
+great-expectations==0.18.8           # Data quality validation
+
+# 🔧 INSTALLATION NOTES:
+# 1. Some packages may require system dependencies (e.g., ta-lib needs C++ compiler)
+# 2. TensorFlow may require specific CUDA versions for GPU support
+# 3. Install these BEFORE enabling any GCP ML APIs to avoid service charges
+# 4. Use: pip install -r requirements/phase3.txt
+
+# 💰 COST REMINDER:
+# ALL packages are FREE to install and use locally
+# Cloud service packages are for interface compatibility only - NO ACTUAL CLOUD USAGE
+# Phase 3 implementation is 100% local with zero cloud costs
+# Upgrade to cloud services is optional and requires separate API enablement

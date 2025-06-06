@@ -266,22 +266,24 @@ class Phase2ReadinessValidator:
 
         # Check Phase 1 dependencies are installed
         phase1_deps = [
-            "google-cloud-storage",
-            "pyarrow",
-            "pandas",
-            "pytest",
-            "aiofiles",
+            ("google-cloud-storage", "google.cloud.storage"),
+            ("pyarrow", "pyarrow"),
+            ("pandas", "pandas"),
+            ("pytest", "pytest"),
+            ("aiofiles", "aiofiles"),
         ]
 
-        for dep in phase1_deps:
+        for dep_name, import_name in phase1_deps:
             try:
-                importlib.import_module(dep.replace("-", "_"))
+                importlib.import_module(import_name)
                 self.add_result(
-                    f"Phase 1 Dependency: {dep}", "PASS", "Installed and importable"
+                    f"Phase 1 Dependency: {dep_name}",
+                    "PASS",
+                    "Installed and importable",
                 )
             except ImportError:
                 self.add_result(
-                    f"Phase 1 Dependency: {dep}",
+                    f"Phase 1 Dependency: {dep_name}",
                     "FAIL",
                     "Not installed or not importable",
                 )
