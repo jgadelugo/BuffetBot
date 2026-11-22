@@ -123,7 +123,7 @@ class TestUIScoringTransparency:
         test_df = pd.DataFrame(
             {
                 "ticker": ["AAPL", "AAPL"],
-                "strike": [150.0, 155.0]
+                "strike": [150.0, 155.0],
                 # Missing score_details column
             }
         )
@@ -148,19 +148,20 @@ class TestUIScoringTransparency:
 
     def test_data_score_badge_color_thresholds(self):
         """Test that data score badges use correct colors for different thresholds."""
-        # Test all 5 scenarios
+        # Test all 5 scenarios. Keys must be real indicator names: the badge
+        # ignores anything else (e.g. metadata like risk_tolerance).
         test_cases = [
             (
-                {"a": 0.2, "b": 0.2, "c": 0.2, "d": 0.2, "e": 0.2},
+                {"rsi": 0.2, "beta": 0.2, "momentum": 0.2, "iv": 0.2, "forecast": 0.2},
                 "🟢",
             ),  # 5 indicators - green
             (
-                {"a": 0.25, "b": 0.25, "c": 0.25, "d": 0.25},
+                {"rsi": 0.25, "beta": 0.25, "momentum": 0.25, "iv": 0.25},
                 "🟡",
             ),  # 4 indicators - yellow
-            ({"a": 0.33, "b": 0.33, "c": 0.34}, "🟡"),  # 3 indicators - yellow
-            ({"a": 0.5, "b": 0.5}, "🔴"),  # 2 indicators - red
-            ({"a": 1.0}, "🔴"),  # 1 indicator - red
+            ({"rsi": 0.33, "beta": 0.33, "momentum": 0.34}, "🟡"),  # 3 - yellow
+            ({"rsi": 0.5, "beta": 0.5}, "🔴"),  # 2 indicators - red
+            ({"rsi": 1.0}, "🔴"),  # 1 indicator - red
         ]
 
         for score_details, expected_color in test_cases:

@@ -22,6 +22,7 @@ from buffetbot.dashboard.components.disclaimers import (
     render_investment_disclaimer,
 )
 from buffetbot.dashboard.components.sidebar import render_sidebar
+from buffetbot.dashboard.config.analytics import get_environment
 from buffetbot.dashboard.config.settings import (
     configure_streamlit_page,
     initialize_session_state,
@@ -113,10 +114,10 @@ def main() -> None:
     # Initialize session state
     initialize_session_state()
 
-    # Initialize Google Analytics - IMPORTANT: This should be early in the app
-    initialize_analytics(
-        environment="production"
-    )  # Change to 'development' for local testing
+    # Initialize Google Analytics - IMPORTANT: This should be early in the app.
+    # The environment comes from STREAMLIT_ENV (defaults to production);
+    # the local run scripts set it to development, which disables tracking.
+    initialize_analytics(environment=get_environment())
 
     # Set page title and disclaimer
     st.title("Stock Analysis Dashboard")

@@ -94,7 +94,8 @@ def test_normalize_scoring_weights():
     # Test 4: No sources available
     available = []
     normalized = normalize_scoring_weights(original_weights, available)
-    assert normalized == {}, "Should return empty dict for no sources"
+    # Falls back to neutral scoring instead of failing
+    assert normalized == {"neutral": 1.0}, "Should fall back to neutral scoring"
     print("✅ No sources test passed")
 
     print("✅ Dynamic weight normalization tests passed")

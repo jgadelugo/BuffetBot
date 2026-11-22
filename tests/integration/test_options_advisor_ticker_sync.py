@@ -178,7 +178,7 @@ class TestOptionsAdvisorTickerSync:
             # Registry may not be populated in test environment, which is fine
             pass
 
-    @patch("buffetbot.dashboard.dashboard_utils.data_processing.handle_ticker_change")
+    @patch("buffetbot.dashboard.views.options_advisor.handle_ticker_change")
     @patch("streamlit.error")
     @patch("streamlit.warning")
     @patch("streamlit.header")

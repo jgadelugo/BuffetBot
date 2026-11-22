@@ -27,10 +27,14 @@ classifiers = [
 dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
+    "scipy>=1.11.0",       # buffetbot.utils.correlation_math
     "yfinance>=0.2.36",
     "plotly>=5.18.0",
     "matplotlib>=3.7.0",
+    "requests>=2.28.0",
     "streamlit>=1.32.0",
+    "typer>=0.9.0",        # `buffetbot` CLI entry point
+    "rich>=13.0.0",        # `buffetbot` CLI entry point
 ]
 
 [project.optional-dependencies]
@@ -52,7 +56,7 @@ docs = [
 # Entry points for command line interfaces
 [project.scripts]
 buffetbot = "buffetbot.cli:main"
-buffetbot-dashboard = "buffetbot.dashboard.app:main"
+buffetbot-dashboard = "buffetbot.dashboard.launch:main"
 
 [project.urls]
 Homepage = "https://github.com/your-username/buffetbot"

@@ -1,107 +1,103 @@
-# 📊 Data Engineer Toolkit – Financial Analysis Suite
+# 📊 BuffetBot – Value Investing Stock Analysis Dashboard
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
-A modular Python toolkit for evaluating companies and stocks using value investing principles. This suite provides deep insights into growth, value, financial health, and risk—ideal for data engineers, analysts, or quants looking to automate fundamental analysis.
+BuffetBot is a Streamlit dashboard for analysing a stock using Warren Buffett-style value investing principles. Enter a ticker and it pulls live price history, financial statements and options data from Yahoo Finance (via `yfinance`) and shows growth, valuation, financial health, risk and options analysis.
 
----
-
-## 🧭 Overview
-
-This project is designed to support **value-based investment decisions** through data-driven insights. It includes multiple analysis modules that compute key indicators from financial data, allowing users to screen and assess companies based on Warren Buffet-style criteria.
-
-Each analysis module is standalone and can be extended or integrated into pipelines and dashboards.
+No API keys or database are needed.
 
 ---
 
-## 🖼️ Screenshots / Demos
+## 🧭 What the dashboard shows
 
-<!-- TODO: Add screenshots or data output examples here -->
-<!-- Example: ![Sample Report Output](./docs/report_preview.png) -->
+| Tab | What you get |
+| --- | --- |
+| Overview | Price and daily change, market cap, P/E, annualized volatility, RSI, data-quality score |
+| Price Analysis | Intrinsic value estimate, margin of safety, over/undervalued verdict, technical chart |
+| Financial Health | Piotroski F-Score, Altman Z-Score, liquidity / leverage / profitability ratios |
+| Growth Metrics | Revenue and earnings growth |
+| Risk Analysis | Market, financial and business risk scores |
+| Options Advisor | Ranked options strategies scored against a risk profile |
+| 🔮 Analyst Forecast | Price targets, recommendations and consensus |
+| 📚 Glossary | Definitions for every metric |
 
 ---
 
 ## 🚀 Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/data-engineer-toolkit.git
-cd data-engineer-toolkit
+Requires Python 3.10 or later.
 
-# Create a virtual environment (recommended)
+**Windows (PowerShell)**
+
+```powershell
 python -m venv venv
-source venv/bin/activate  # on Windows use `venv\Scripts\activate`
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run a sample analysis
-python analysis/health_analysis.py
+venv\Scripts\activate
+pip install -e .
+$env:STREAMLIT_ENV = "development"; streamlit run main.py
 ```
 
----
-
-## 🛠 Installation
+**macOS / Linux**
 
 ```bash
-pip install -r requirements.txt
+python -m venv venv
+source venv/bin/activate
+pip install -e .
+./run_dashboard.sh
 ```
 
-> Ensure you're using Python 3.10 or later.
+Then open http://localhost:8501.
 
----
+`pip install -e .` installs everything the dashboard and CLI need. If you only want the dashboard dependencies, `pip install -r requirements.txt` works too.
 
-## 🧪 Usage Examples
+Other ways to start it:
 
-```python
-from analysis.growth_analysis import analyze_growth
-from analysis.risk_analysis import assess_risk
-
-ticker = "AAPL"
-growth_score = analyze_growth(ticker)
-risk_profile = assess_risk(ticker)
-
-print("Growth Score:", growth_score)
-print("Risk Profile:", risk_profile)
-```
-
-> You may need to customize the functions to point to your data source (e.g., financial API, CSVs, or SQL).
+- `buffetbot-dashboard` (after `pip install -e .`)
+- `python scripts/run_dashboard.py`
 
 ---
 
 ## ⚙️ Configuration
 
-- You may need API keys or CSV data files. Update the script logic where applicable.
-- Placeholder sections exist where data sources or constants need to be configured.
-<!-- TODO: Specify if any `.env` or config files are needed -->
+Nothing is required. Optional environment variables:
+
+| Variable | Effect |
+| --- | --- |
+| `STREAMLIT_ENV` | `development` turns Google Analytics off; `production` (the default when unset) turns it on. The run scripts and `buffetbot-dashboard` set `development` for you. |
+| `YFINANCE_TIMEOUT`, `YFINANCE_RETRIES` | Yahoo Finance request tuning |
+| `DEFAULT_TICKER`, `DEFAULT_GROWTH_RATE`, `DEFAULT_DISCOUNT_RATE` | Analysis defaults |
+| `CACHE_ENABLED`, `CACHE_EXPIRATION` | Data caching |
+
+Streamlit server and theme settings live in `.streamlit/config.toml`.
 
 ---
 
-## 🧭 API / CLI Reference
+## 🧭 CLI
 
-This project is currently designed as a **modular codebase**, not a REST API or CLI. Each file under `analysis/` can be used as a Python module:
+```bash
+buffetbot recommend AAPL --min-days 180 --top-n 5 --output picks.csv
+buffetbot version
+```
 
-- `growth_analysis.py`: Revenue, EPS growth evaluation
-- `risk_analysis.py`: Volatility, debt, liquidity checks
-- `value_analysis.py`: Undervaluation vs. intrinsic value
-- `health_analysis.py`: Balance sheet and ratios
+`recommend` ranks long-dated call options for a ticker using RSI, beta, momentum and implied volatility.
 
 ---
 
 ## 📂 Project Structure
 
 ```
-Data Engineer/
-│
-├── requirements.txt         # Project dependencies
-├── analysis/
-│   ├── __init__.py
-│   ├── growth_analysis.py   # Growth-related metrics
-│   ├── health_analysis.py   # Financial health evaluation
-│   ├── risk_analysis.py     # Risk metrics computation
-│   ├── value_analysis.py    # Intrinsic value & valuation logic
+main.py                     # Streamlit entry point (also used by Streamlit Cloud)
+buffetbot/
+├── dashboard/              # Streamlit app: app.py, views/ (one per tab), components/
+├── analysis/               # growth, value, health, risk and options analysis
+├── data/                   # Yahoo Finance fetchers and data cleaning
+├── recommend/              # recommendation engine
+├── utils/                  # logging, caching, validation, maths helpers
+└── cli.py                  # `buffetbot` command line tool
+requirements/               # base / prod / dev / test dependency sets
+scripts/                    # run and test helper scripts
+tests/                      # pytest suite (unit + integration)
+docs/                       # setup, deployment, architecture and feature docs
 ```
 
 ---
@@ -139,7 +135,7 @@ A comprehensive glossary viewer with search and filtering capabilities.
 
 ### Other UI Implementations
 - **Streamlit App** (`ui/streamlit/glossary_app.py`): Interactive Python web app
-- **Standalone HTML** (`ui/web/glossary_web.html`): No-server-required web page
+- **Standalone HTML** (`ui/web/glossary.html`): No-server-required web page
 - **React Glossary** (`ui/react/GlossaryComponent.jsx`): Full glossary viewer
 
 See `/docs/glossary/ui_implementations.md` for detailed UI documentation.
@@ -148,70 +144,36 @@ See `/docs/glossary/ui_implementations.md` for detailed UI documentation.
 
 ## ✅ Running Tests
 
-<!-- TODO: No test suite found in current files -->
-Test framework is not included yet.
-
-> Suggest adding `pytest` or `unittest` for future versions.
+```bash
+pip install -e . -r requirements/test.txt
+pytest
+```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome!
+1. Create a feature branch (`git checkout -b feature/my-feature`)
+2. Commit your changes
+3. Push the branch and open a Pull Request
 
-1. Fork the repo
-2. Create your feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -am 'Add my feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
-
----
-
-## 🛤 Roadmap
-
-- [ ] Add unit tests
-- [ ] Integrate live API data (e.g., Alpha Vantage, Yahoo Finance)
-- [ ] Build CLI wrapper
-- [ ] Export results to Excel or dashboard
-- [ ] Include visualization components (matplotlib, seaborn)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
 ## ⚠ Known Issues
 
-- No default data source is configured
-- API integration is not yet implemented
-- Minimal error handling in current version
-
----
-
-## ❓ FAQ
-
-**Q: What data source is used?**
-A: You'll need to plug in your own data source. The functions are adaptable for APIs or local datasets.
-
-**Q: Can I use this with a database or data lake?**
-A: Yes, with minor adjustments to data ingestion sections.
+- Data comes from Yahoo Finance through `yfinance`, which is unofficial and can rate-limit or change without notice.
+- Some balance-sheet metrics show as missing when Yahoo doesn't report them for a ticker.
 
 ---
 
 ## 📄 License
 
-MIT License
-<!-- TODO: Replace if another license applies -->
+MIT License. See [LICENSE](LICENSE).
 
 ---
 
-## 🙏 Acknowledgments
+## ⚠ Disclaimer
 
-- Python community and finance open-source projects
-- Inspired by value investing strategies from Benjamin Graham & Warren Buffet
-- <!-- TODO: Add any tools or datasets used -->
-
----
-
-## 📬 Contact
-
-Maintainer: [Your Name]
-Email: [your.email@example.com]
-GitHub: [@your-username](https://github.com/your-username)
+BuffetBot is an educational tool. Nothing it shows is investment advice.

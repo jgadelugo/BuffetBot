@@ -91,8 +91,10 @@ def test_normalize_scoring_weights():
     normalized = normalize_scoring_weights(original_weights, available)
     print(f"Available sources: {available}")
     print(f"Normalized weights: {normalized}")
-    assert normalized == {}, "Empty dict expected for no sources"
-    print("✅ PASS: Empty dict returned for no sources")
+    # With no data at all, the advisor falls back to neutral scoring
+    # instead of failing (see normalize_scoring_weights in options_advisor).
+    assert normalized == {"neutral": 1.0}, "Neutral fallback expected for no sources"
+    print("✅ PASS: Neutral fallback returned for no sources")
 
     # Test Case 6: Custom weights with missing sources
     print("\n📊 Test Case 6: Custom weights with missing sources")
