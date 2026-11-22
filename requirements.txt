@@ -1,1 +1,3 @@
-requirements/base.txt
+# Dashboard dependencies. Kept as a real file (not a symlink) so it works on
+# Windows checkouts too. Edit requirements/base.txt, not this file.
+-r requirements/base.txt

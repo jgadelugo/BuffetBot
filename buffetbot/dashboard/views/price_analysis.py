@@ -28,11 +28,14 @@ from buffetbot.dashboard.components import (
     create_valuation_metrics_chart,
     create_valuation_summary,
     display_metric_with_status,
-    display_metrics_grid_enhanced,
 )
 
 # Import disclaimer components
 from buffetbot.dashboard.components.disclaimers import render_investment_disclaimer
+
+# This grid formats raw values by their "type" and accepts show_status_colors;
+# the same-named function in components.metrics does neither.
+from buffetbot.dashboard.components.metrics_display import display_metrics_grid_enhanced
 
 logger = logging.getLogger(__name__)
 

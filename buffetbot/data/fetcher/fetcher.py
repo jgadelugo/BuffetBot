@@ -21,6 +21,10 @@ import yfinance as yf
 
 from buffetbot.data.fetcher.utils.financial_calculations import calculate_rsi
 from buffetbot.data.fetcher.utils.standardization import standardize_financial_data
+
+# The fundamentals validator (returns a list of DataError). The same-named
+# function in buffetbot.utils.validators checks financial statements instead.
+from buffetbot.data.fetcher.utils.validators import validate_financial_data
 from buffetbot.utils.errors import (
     DataError,
     DataFetcherError,
@@ -30,7 +34,6 @@ from buffetbot.utils.errors import (
 from buffetbot.utils.logger import setup_logger
 from buffetbot.utils.validators import (
     validate_date_range,
-    validate_financial_data,
     validate_price_data,
     validate_ticker,
 )
@@ -113,7 +116,7 @@ class DataFetcher:
                         severity=ErrorSeverity.HIGH,
                         details={
                             "validation_errors": [
-                                e.to_dict() for e in validation_errors
+                                f"{e.code}: {e.message}" for e in validation_errors
                             ]
                         },
                     )
@@ -191,7 +194,7 @@ class DataFetcher:
                         severity=ErrorSeverity.HIGH,
                         details={
                             "validation_errors": [
-                                e.to_dict() for e in validation_errors
+                                f"{e.code}: {e.message}" for e in validation_errors
                             ]
                         },
                     )

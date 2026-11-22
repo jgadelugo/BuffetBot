@@ -49,20 +49,26 @@ def fetch_stock_data(ticker: str, years: int = 5) -> dict:
     # Get metrics
     latest_price = price_data["Close"].iloc[-1] if not price_data.empty else None
 
-    # Calculate price change (percentage change from previous close)
+    # Price change since the previous close, as a fraction (0.019 == 1.9%).
+    # The dashboard formats it with "{:.1%}", so it must not be pre-scaled.
     price_change = 0.0
     if not price_data.empty and len(price_data) > 1:
         prev_close = price_data["Close"].iloc[-2]
         if prev_close > 0:
-            price_change = ((latest_price - prev_close) / prev_close) * 100
+            price_change = (latest_price - prev_close) / prev_close
+
+    # Annualized volatility of daily returns, as a fraction.
+    volatility = 0.0
+    if len(price_data) > 1:
+        daily_vol = price_data["Close"].pct_change().std()
+        if pd.notna(daily_vol):
+            volatility = float(daily_vol * np.sqrt(252))
 
     # Calculate additional metrics
     metrics = {
         "latest_price": latest_price,
         "price_change": price_change,
-        "volatility": price_data["Return"].std() * np.sqrt(252)
-        if "Return" in price_data
-        else 0,
+        "volatility": volatility,
         "momentum": price_data["Close"].pct_change(20).iloc[-1]
         if len(price_data) > 20
         else 0,

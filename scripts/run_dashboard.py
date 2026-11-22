@@ -4,12 +4,17 @@ Run script for BuffetBot Dashboard.
 This script runs the Streamlit app using the properly installed package.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 # Run the streamlit app
 if __name__ == "__main__":
+    # Local runs are development, which turns Google Analytics off.
+    # Set STREAMLIT_ENV=production yourself if you want tracking.
+    os.environ.setdefault("STREAMLIT_ENV", "development")
+
     # Get the project root for the main.py file
     project_root = Path(__file__).parent.parent.absolute()
 

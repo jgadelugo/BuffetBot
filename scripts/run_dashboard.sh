@@ -1,8 +1,12 @@
 #!/bin/bash
 # Run BuffetBot Dashboard with virtual environment
 
-# Get the directory where this script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Project root is the parent of this scripts/ directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
+# Local runs are development: this turns Google Analytics off.
+# Override with STREAMLIT_ENV=production if you really want tracking.
+export STREAMLIT_ENV="${STREAMLIT_ENV:-development}"
 
 # Function to kill processes on port 8501
 cleanup_port() {
@@ -40,21 +44,6 @@ else
     echo "Warning: Virtual environment not found at $SCRIPT_DIR/venv"
     echo "Please create a virtual environment first with: python -m venv venv"
 fi
-
-# Check database health before starting dashboard
-echo "Checking database connection..."
-python -m database.cli health --detailed
-
-# if [ $? -ne 0 ]; then
-#     echo "Database health check failed. Attempting to initialize database..."
-#     python -m database.cli create --seed
-
-#     if [ $? -ne 0 ]; then
-#         echo "❌ Failed to initialize database. Please check your database configuration."
-#         echo "💡 Make sure PostgreSQL is running and your .env file is configured correctly."
-#         exit 1
-#     fi
-# fi
 
 # Run the dashboard using the new structure
 echo "Starting BuffetBot Dashboard..."

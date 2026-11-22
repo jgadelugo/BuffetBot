@@ -311,5 +311,15 @@ def version() -> None:
     console.print("Financial Analysis Tools - Options Advisor")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entry point (`buffetbot` in pyproject.toml)."""
+    # Windows consoles default to a legacy code page that can't print the
+    # emoji in our output; switch to UTF-8 where the stream allows it.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     app()
+
+
+if __name__ == "__main__":
+    main()

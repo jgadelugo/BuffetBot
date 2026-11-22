@@ -8,7 +8,9 @@ class TestSelectboxIDCollisionFix:
 
     def test_all_selectboxes_have_unique_keys(self):
         """Test that all selectbox elements in options_advisor.py have unique keys."""
-        with open("buffetbot/dashboard/views/options_advisor.py") as f:
+        with open(
+            "buffetbot/dashboard/views/options_advisor.py", encoding="utf-8"
+        ) as f:
             content = f.read()
 
         # Expected unique keys for all selectboxes
@@ -39,7 +41,9 @@ class TestSelectboxIDCollisionFix:
 
     def test_no_duplicate_keys(self):
         """Test that all selectbox keys are unique."""
-        with open("buffetbot/dashboard/views/options_advisor.py") as f:
+        with open(
+            "buffetbot/dashboard/views/options_advisor.py", encoding="utf-8"
+        ) as f:
             content = f.read()
 
         expected_keys = [
@@ -70,7 +74,7 @@ class TestSelectboxIDCollisionFix:
         for log_file in recent_logs:
             if os.path.exists(log_file):
                 try:
-                    with open(log_file) as f:
+                    with open(log_file, encoding="utf-8", errors="replace") as f:
                         # Only read last 1000 lines for efficiency
                         lines = f.readlines()
                         recent_content = (
@@ -88,7 +92,9 @@ class TestSelectboxIDCollisionFix:
 
     def test_fix_addresses_original_issue(self):
         """Test that the fix specifically addresses the Individual Recommendation Analysis issue."""
-        with open("buffetbot/dashboard/views/options_advisor.py") as f:
+        with open(
+            "buffetbot/dashboard/views/options_advisor.py", encoding="utf-8"
+        ) as f:
             content = f.read()
 
         # The original error was in Individual Recommendation Analysis section
